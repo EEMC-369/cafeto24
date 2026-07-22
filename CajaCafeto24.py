@@ -2502,8 +2502,8 @@ def verificar_version():
         
     import urllib.request
     
-    # URL de releases del servidor (configurable)
-    URL_VERSION = "https://raw.githubusercontent.com/EEMC-369/cafeto24/refs/heads/main/version.json"
+    import time
+    URL_VERSION = f"https://raw.githubusercontent.com/EEMC-369/cafeto24/refs/heads/main/version.json?t={int(time.time())}"
     
     try:
         req = urllib.request.Request(URL_VERSION, headers={'User-Agent': 'Mozilla/5.0'})
