@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.3.0"
+VERSION = "3.4.0"
 
 app = Flask(
     __name__,
