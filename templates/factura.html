@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket #{{ "%06d"|format(venta['id']) }} - Cafeto24</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-image: url('/static/background.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+        
+        .ticket-font {
+            font-family: 'Courier Prime', 'Courier', monospace;
+        }
+
+        /* Simulación de corte de ticket físico en pantalla */
+        .ticket-container {
+            position: relative;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        .ticket-zigzag::after {
+            content: "";
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(-45deg, transparent 4px, rgba(255, 255, 255, 0.85) 4px),
+                        linear-gradient(45deg, transparent 4px, rgba(255, 255, 255, 0.85) 4px);
+            background-size: 8px 8px;
+        }
+
+        @media print {
+            body {
+                background: #ffffff !important;
+                background-image: none !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .ticket-container {
+                width: 100% !important;
+                max-width: 80mm !important;
+                margin: 0 !important;
+                padding: 2mm !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: #ffffff !important;
+                backdrop-filter: none !important;
+            }
+            .ticket-zigzag::after {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 p-4 sm:p-8 flex flex-col items-center justify-start">
+
+    <!-- BARRA DE ACCIONES (NO SE IMPRIME) -->
+    <div class="no-print w-full max-w-[380px] mb-4 flex justify-between items-center bg-slate-900/90 backdrop-blur border border-slate-800 p-3 rounded-2xl shadow-lg">
+        <div class="flex items-center gap-1.5">
+            <span class="text-xl">☕</span>
+            <span class="font-extrabold text-white text-xs tracking-wider uppercase">Cafeto 24 POS</span>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="window.print()" class="bg-amber-500 hover:bg-amber-600 active:scale-95 transition text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow-md">
+                🖨️ Imprimir
+            </button>
+            <button onclick="window.close()" class="bg-slate-800 hover:bg-slate-700 active:scale-95 transition text-slate-300 font-bold text-xs px-3 py-2 rounded-xl">
+                Cerrar
+            </button>
+        </div>
+    </div>
+
+    <!-- TICKET FÍSICO -->
+    <div class="ticket-container ticket-zigzag w-full max-w-[380px] rounded-t-3xl p-6 sm:p-7 flex flex-col gap-5 text-slate-950 select-none">
+        
+        <!-- ENCABEZADO TIPO LOGO -->
+        <div class="flex flex-col items-center text-center gap-1">
+            <!-- Icono café minimalista superior -->
+            <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl text-amber-800 border border-amber-200">
+                ☕
+            </div>
+            <h2 class="font-black text-2xl tracking-wide mt-1 uppercase text-slate-900">Cafeto 24</h2>
+            <p class="text-[10px] text-slate-600 font-semibold tracking-wider">¡Gracias por su compra!</p>
+        </div>
+
+        <!-- DATOS DEL TICKET -->
+        <div class="text-xs space-y-1 text-slate-800 border-t border-b border-slate-200/80 py-2.5">
+            <div class="flex justify-between">
+                <span class="font-semibold text-slate-500">Ticket:</span>
+                <span class="font-bold text-slate-900">261-1-{{ "%06d"|format(venta['id']) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="font-semibold text-slate-500">Fecha:</span>
+                <span class="font-bold text-slate-900">{{ venta['fecha'] }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="font-semibold text-slate-500">Atendido por:</span>
+                <span class="font-bold text-slate-900">{{ venta['vendedor_nombre'] }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="font-semibold text-slate-500">Cliente:</span>
+                <span class="font-bold text-slate-900">{{ venta['cliente_fiado'] or 'Público General' }}</span>
+            </div>
+        </div>
+
+        <!-- DETALLE DE PRODUCTOS -->
+        <div class="space-y-3.5">
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-1 flex items-center gap-1">
+                <span>🛒</span> Artículos
+            </h3>
+            
+            <div class="space-y-3 ticket-font text-sm">
+                {% for item in detalles %}
+                <div class="flex flex-col gap-0.5">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex gap-2.5">
+                            <span class="font-bold text-slate-800">{{ item['cantidad'] }}</span>
+                            <span class="text-slate-950 font-bold tracking-tight">{{ item['producto_nombre'] }}</span>
+                        </div>
+                        <span class="font-bold text-right text-slate-950">
+                            $ {{ "{:,.2f}".format(item['subtotal'] or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        </span>
+                    </div>
+                    <div class="pl-6 text-[10px] text-slate-500 italic">
+                        $ {{ "{:,.2f}".format(item['precio_unitario'] or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }} / Unidades
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- TOTALES Y PAGO -->
+        <div class="border-t-2 border-dashed border-slate-300 pt-4 space-y-2">
+            <div class="flex justify-between items-baseline py-1">
+                <span class="font-black text-slate-900 text-lg uppercase">Total</span>
+                <span class="font-black text-2xl text-amber-950">
+                    $ {{ "{:,.2f}".format(venta['total'] or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                </span>
+            </div>
+            
+            <div class="text-xs space-y-1.5 text-slate-800 pt-1 border-t border-slate-100">
+                <div class="flex justify-between">
+                    <span class="font-bold capitalize">{{ venta['metodo_pago'] or 'Efectivo' }}:</span>
+                    <span class="font-bold text-slate-950">
+                        {% if venta['metodo_pago'] == 'efectivo' %}
+                            $ {{ "{:,.2f}".format(venta['efectivo_recibido'] or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        {% else %}
+                            $ {{ "{:,.2f}".format(venta['total'] or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        {% endif %}
+                    </span>
+                </div>
+                
+                {% if venta['metodo_pago'] == 'efectivo' and (venta['cambio'] or 0) > 0 %}
+                <div class="flex justify-between text-slate-700">
+                    <span class="font-medium">Cambio:</span>
+                    <span class="font-bold text-slate-950">
+                        $ {{ "{:,.2f}".format(venta['cambio'] or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                    </span>
+                </div>
+                {% endif %}
+
+                {% if venta['referencia_pago'] %}
+                <div class="flex justify-between text-slate-500 text-[10px] italic">
+                    <span>Ref. Pago:</span>
+                    <span>{{ venta['referencia_pago'] }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- NUMERACIÓN INTERNA -->
+        <div class="text-center font-bold text-xs tracking-widest text-slate-700 my-1 uppercase">
+            CAFETO 24 - {{ "%06d"|format(venta['id']) }}
+        </div>
+
+        <!-- DESPEDIDA / GRACIAS -->
+        <div class="text-center py-1">
+            <p class="font-black text-sm text-slate-900">¡Gracias por visitarnos!</p>
+        </div>
+
+        <!-- DETALLES FISCALES Y DE CONTACTO (PIE DE TICKET) -->
+        <div class="text-center text-[10px] text-slate-500 leading-relaxed border-t border-slate-200/80 pt-3.5 space-y-0.5">
+            <p class="font-black text-slate-700 uppercase tracking-wider">CAFETO 24</p>
+            <p class="font-semibold">NIT: 1013587664-8</p>
+            <p>Diagonal 62 sur #22-04, Bogota</p>
+            <p>Tel.: 3015020637 · D.C, DC</p>
+            <p class="text-slate-400">alej_z@hotmail.com</p>
+            
+            <div class="text-[8px] text-slate-400 font-medium tracking-wide uppercase pt-3">
+                Con la tecnología de Cafeto 24
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const autoprint = {{ 'true' if autoprint else 'false' }};
+        if (autoprint) {
+            window.addEventListener('load', () => {
+                window.print();
+                // Espera un momento para cerrar después de imprimir para no interrumpir
+                setTimeout(() => window.close(), 1000);
+            });
+        }
+    </script>
+</body>
+</html>

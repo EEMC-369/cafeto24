@@ -1,0 +1,2389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cafeto24 - Punto de Venta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Outfit', sans-serif;
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(to right, rgba(15, 23, 42, 0.012) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.012) 1px, transparent 1px),
+                radial-gradient(at 0% 0%, rgba(245, 158, 11, 0.06) 0px, transparent 50%), 
+                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.03) 0px, transparent 50%);
+            background-size: 24px 24px, 24px 24px, 100% 100%, 100% 100%, 100% 100%;
+            background-attachment: fixed;
+            position: relative;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -10;
+            background-image: url('/static/background.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            opacity: 0.18;
+            pointer-events: none;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .brand-mark {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 3.4rem;
+            height: 3.4rem;
+        }
+        .brand-mark__cup {
+            position: relative;
+            width: 3.4rem;
+            height: 3.4rem;
+        }
+        .brand-mark__icon {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.4rem;
+            line-height: 1;
+        }
+        .brand-mark__text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .brand-mark__text--back {
+            color: #8a4b18;
+            transform: translate(calc(-50% + 2px), calc(-50% + 1px));
+            opacity: 0.95;
+        }
+        .brand-mark__text--front {
+            color: #ffffff;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+        }
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-none {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-amber-700 text-white px-6 py-4 flex justify-between items-center shadow-md z-10">
+        <div class="flex items-center space-x-3">
+            <div class="brand-mark">
+                <div class="brand-mark__cup">
+                    <span class="brand-mark__icon">☕</span>
+                    <span class="brand-mark__text brand-mark__text--back text-[12px]">CAFFETO24</span>
+                    <span class="brand-mark__text brand-mark__text--front text-[12px]">CAFFETO24</span>
+                </div>
+            </div>
+            {% if url_acceso_red %}
+            <span class="text-[10px] bg-amber-800 text-amber-200 px-2.5 py-1 rounded-full border border-amber-600 font-mono">📍 Acceso Red: {{ url_acceso_red }}</span>
+            {% endif %}
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="bg-amber-800 px-3 py-1 rounded-full text-sm">👤 Usuario: {{ nombre }} ({{ rol | upper }})</span>
+            <span id="estado-turno-header" class="bg-slate-900 px-3 py-1 rounded-full text-sm font-bold">⏱️ Turno: cargando...</span>
+            <form id="form-iniciar-turno" action="/turno/iniciar" method="POST" class="inline" style="display: none;">
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-1 rounded font-semibold text-sm transition">Iniciar Turno ▶</button>
+            </form>
+            <button id="btn-cerrar-turno" type="button" onclick="abrirModalCierreTurno()" class="bg-rose-600 hover:bg-rose-700 px-4 py-1 rounded font-semibold text-sm transition" style="display: none;">Terminar Turno ⏹</button>
+            {% if rol == 'administrador' %}
+            <a href="/admin" class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded font-semibold text-sm transition">Panel Admin ⚙️</a>
+            {% endif %}
+            <a href="/logout" class="bg-red-600 hover:bg-red-700 px-4 py-1 rounded font-semibold text-sm transition">Salir</a>
+        </div>
+    </header>
+
+    <!-- BARRA DE PESTAÑAS DE ÓRDENES Y MESAS -->
+    <div class="bg-slate-900 text-white px-4 py-2 flex items-center justify-between border-b border-slate-800 shadow-md z-10">
+        <div id="barra-pestanas-ordenes" class="flex items-center space-x-2 overflow-x-auto py-0.5 max-w-[80vw]">
+            <!-- Pestañas renderizadas dinámicamente -->
+        </div>
+        <button onclick="abrirModalNuevaMesa()" class="ml-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow transition whitespace-nowrap flex items-center space-x-1 active:scale-95">
+            <span>➕</span>
+            <span>Nueva Mesa / Cuenta</span>
+        </button>
+    </div>
+
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- COLUMNA IZQUIERDA: CARRITO, COBRO Y CAJA (38% DE ANCHO) -->
+        <section class="w-[38%] bg-white/75 backdrop-blur-md border-r border-gray-200 flex flex-col h-full overflow-hidden">
+            
+            <!-- ENCABEZADO DE PESTAÑAS DEL PANEL IZQUIERDO -->
+            <div class="bg-slate-100 p-2 flex border-b border-gray-200 select-none flex-shrink-0">
+                <button onclick="cambiarPestañaIzquierda('tab-ventas-cobro')" id="btn-tab-ventas-cobro" type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-white text-slate-900 border">
+                    🛒 Venta y Cobro
+                </button>
+                <button onclick="cambiarPestañaIzquierda('tab-caja-turno')" id="btn-tab-caja-turno" type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition text-slate-650 hover:text-slate-900">
+                    💼 Caja y Turno
+                </button>
+            </div>
+
+            <!-- CONTENEDOR DE CONTENIDO DE PESTAÑAS (SCROLL INDEPENDIENTE) -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                
+                <!-- PESTAÑA 1: VENTA Y COBRO -->
+                <div id="tab-ventas-cobro" class="space-y-4">
+                    <h2 class="text-gray-800 font-bold text-sm border-b pb-2 mb-2 flex justify-between">
+                        <span>Detalle del Pedido</span>
+                        <span class="text-xs text-gray-450 font-normal">#POS</span>
+                    </h2>
+
+                    <!-- ELEMENTOS DEL CARRITO -->
+                    <div class="space-y-3 mb-4 max-h-[35vh] overflow-y-auto pr-1" id="elementos-carrito">
+                        <p class="text-gray-400 italic text-center py-6 text-xs" id="carrito-vacio">El carrito está vacío</p>
+                    </div>
+
+                    <!-- TOTAL Y MÉTODOS DE COBRO -->
+                    <div class="border-t pt-3 bg-white space-y-3 flex-shrink-0">
+                        <div class="flex justify-between items-center px-1">
+                            <span class="text-gray-655 font-bold text-xs uppercase">Total a pagar:</span>
+                            <span class="text-xl font-black text-amber-700" id="total-pago">$0</span>
+                        </div>
+
+                        <div id="detalle-cuentas-actuales" class="flex flex-wrap gap-1 text-[10px]"></div>
+
+                        <p class="text-xs font-black text-gray-600 uppercase tracking-wider">Paso 2: Elige Método de Cobro</p>
+                        <div class="grid grid-cols-3 gap-2 font-black text-xs sm:text-sm">
+                            <button id="btn-pago-efectivo" type="button" onclick="cambiarMetodoPago('efectivo')" class="py-3.5 rounded-2xl text-center border-2 transition active:scale-95 shadow-sm">💵 Efectivo</button>
+                            <button id="btn-pago-nequi" type="button" onclick="cambiarMetodoPago('nequi')" class="py-3.5 rounded-2xl text-center border-2 transition active:scale-95 shadow-sm">📱 Nequi</button>
+                            <button id="btn-pago-daviplata" type="button" onclick="cambiarMetodoPago('daviplata')" class="py-3.5 rounded-2xl text-center border-2 transition active:scale-95 shadow-sm">📲 Daviplata</button>
+                            <button id="btn-pago-tarjeta" type="button" onclick="cambiarMetodoPago('tarjeta')" class="py-3.5 rounded-2xl text-center border-2 transition active:scale-95 shadow-sm">💳 Tarjeta</button>
+                            <button id="btn-pago-fiado" type="button" onclick="cambiarMetodoPago('fiado')" class="py-3.5 rounded-2xl text-center border-2 transition col-span-2 active:scale-95 shadow-sm">🧾 Fiado (Exclusivo)</button>
+                        </div>
+                        
+                        <!-- PANELES DE PAGO -->
+                        <div id="panel-digital" class="hidden bg-blue-50/50 p-2.5 rounded-xl border border-blue-200 space-y-1.5">
+                            <label class="block text-[9px] font-bold text-blue-800 uppercase">Referencia de Auditoría (Opcional):</label>
+                            <input type="text" id="referencia-pago" placeholder="Ej. Celular, # de aprobación, últimos 4 dígitos" onfocus="setEntradaNumericaActiva('referencia-pago')" class="w-full bg-white border border-blue-300 p-2 rounded-lg text-xs text-gray-700 outline-none">
+                            <p class="text-[10px] text-blue-600 italic">Nequi, Daviplata y Tarjeta se registran como pago exacto de inmediato.</p>
+                        </div>
+
+                        <div id="panel-fiado" class="hidden bg-amber-50/50 p-2.5 rounded-xl border border-amber-250 space-y-1.5">
+                            <label class="block text-[9px] font-bold text-amber-800 uppercase">Cliente Exclusivo (Obligatorio):</label>
+                            <input type="text" id="cliente-fiado" list="lista-clientes-exclusivos" placeholder="Selecciona o escribe cliente autorizado" class="w-full bg-white border border-amber-300 p-2 rounded-lg text-xs text-gray-700 outline-none">
+                            <datalist id="lista-clientes-exclusivos"></datalist>
+                            <label class="block text-[9px] font-bold text-amber-800 uppercase">Referencia / Nota (Opcional):</label>
+                            <input type="text" id="referencia-fiado" placeholder="Ej. Pedido semanal o fecha compromiso" onfocus="setEntradaNumericaActiva('referencia-fiado')" class="w-full bg-white border border-amber-300 p-2 rounded-lg text-xs text-gray-700 outline-none">
+                            <p class="text-[10px] text-amber-700 italic">Esta venta descuenta inventario y queda registrada como deuda pendiente.</p>
+                        </div>
+
+                        <div id="panel-efectivo" class="space-y-2">
+                            <div class="grid grid-cols-2 gap-2 items-center bg-slate-50 p-2.5 rounded-xl border">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-gray-400 uppercase">Paga Con ($):</label>
+                                    <input type="text" id="efectivo-recibido" readonly placeholder="0" class="w-full bg-white border p-1 rounded-lg text-base font-bold text-gray-800 text-right outline-none">
+                                </div>
+                                <div class="text-right">
+                                    <span class="block text-[9px] font-bold text-gray-400 uppercase">Cambio:</span>
+                                    <span class="text-lg font-black text-amber-700" id="cambio-cliente">$0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- BOTONES DE CONTROL DE PEDIDO -->
+                        <div class="grid grid-cols-2 gap-2 text-sm font-black pt-1.5">
+                            <button type="button" onclick="cancelarPedido()" class="bg-slate-100 hover:bg-slate-200 border-2 text-slate-700 py-4 rounded-2xl active:scale-95 transition">❌ Cancelar</button>
+                            <button type="button" onclick="cobrarPedido()" class="bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl active:scale-95 shadow-md text-base transition">💰 Cobrar</button>
+                        </div>
+
+                        <label class="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 bg-slate-50 border rounded-xl px-2.5 py-2 shadow-sm select-none">
+                            <input type="checkbox" id="imprimir-factura" class="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500">
+                            <span>Imprimir factura solo cuando se necesite</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA 2: CAJA Y TURNO (APARTADOS OPERATIVOS) -->
+                <div id="tab-caja-turno" class="hidden space-y-4">
+                    
+                    <!-- RESUMEN DE TURNO -->
+                    <div class="p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/60 shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xs font-extrabold text-emerald-800 uppercase tracking-wide">Resumen de Mi Turno</h3>
+                            <span id="badge-turno-actual" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Turno --</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-[11px]">
+                            <div class="bg-white border border-emerald-100 rounded-lg p-2 shadow-sm">
+                                <p class="text-gray-500 font-bold uppercase">Vendido</p>
+                                <p id="turno-total-vendido" class="font-black text-emerald-700 text-sm">$0</p>
+                            </div>
+                            <div class="bg-white border border-rose-100 rounded-lg p-2 shadow-sm">
+                                <p class="text-gray-500 font-bold uppercase">Gastos</p>
+                                <p id="turno-total-gastos" class="font-black text-rose-700 text-sm">$0</p>
+                            </div>
+                            <div class="bg-white border border-slate-200 rounded-lg p-2 shadow-sm">
+                                <p class="text-gray-500 font-bold uppercase">Saldo</p>
+                                <p id="turno-saldo-neto" class="font-black text-slate-800 text-sm">$0</p>
+                            </div>
+                            <div class="bg-white border border-blue-100 rounded-lg p-2 shadow-sm">
+                                <p class="text-gray-500 font-bold uppercase">Movimientos</p>
+                                <p id="turno-movimientos" class="font-black text-blue-700 text-sm">0</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <p class="text-[10px] font-bold text-gray-550 uppercase mb-1">Ventas por Método</p>
+                            <div id="turno-metodos" class="flex flex-wrap gap-1 text-[10px]"></div>
+                        </div>
+
+                        <div class="mt-2">
+                            <p class="text-[10px] font-bold text-gray-550 uppercase mb-1">Productos Vendidos (Turno)</p>
+                            <div id="turno-productos-vendidos" class="max-h-28 overflow-y-auto space-y-1 pr-1 text-[11px]"></div>
+                        </div>
+                    </div>
+
+                    <!-- SALDOS ESPERADOS EN CAJA Y CUENTAS -->
+                    <div class="p-3.5 rounded-2xl border border-sky-200 bg-sky-50/60 shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xs font-extrabold text-sky-850 uppercase tracking-wide">💸 Dinero Esperado</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-[11px] mb-2">
+                            <div class="bg-white border border-sky-100 rounded-lg p-2 shadow-sm">
+                                <p class="text-gray-500 font-bold uppercase text-[9px]">💰 En Caja (Efectivo)</p>
+                                <p id="caja-efectivo-actual" class="font-black text-sky-700 text-sm">$0</p>
+                            </div>
+                            <div class="bg-white border border-sky-100 rounded-lg p-2 shadow-sm">
+                                <p class="text-gray-500 font-bold uppercase text-[9px]">💳 En Bancos (Digital)</p>
+                                <p id="cuentas-digitales-total" class="font-black text-sky-700 text-sm">$0</p>
+                            </div>
+                            <div class="bg-white border border-orange-100 rounded-lg p-2 shadow-sm col-span-2">
+                                <p class="text-gray-500 font-bold uppercase text-[9px]">📌 Deuda Fiado</p>
+                                <p id="deuda-fiado-actual" class="font-black text-orange-700 text-sm">$0</p>
+                            </div>
+                        </div>
+                        <div class="mt-2 border-t border-sky-150 pt-2">
+                            <p class="text-[9px] font-bold text-sky-800 uppercase mb-1">Detalle de Cuentas:</p>
+                            <div id="detalle-cuentas-actuales" class="flex flex-wrap gap-1 text-[10px]"></div>
+                        </div>
+                    </div>
+
+                    <!-- REGISTRAR GASTO -->
+                    <div class="border border-rose-200 bg-rose-50/60 rounded-2xl p-3.5 shadow-sm">
+                        <div class="flex items-center space-x-2 text-rose-800 font-bold text-xs mb-2 border-b border-rose-100 pb-1">
+                            <span>📉</span>
+                            <h2>Registrar Gasto / Entrada Inventario</h2>
+                        </div>
+                        <form id="form_gasto_ventas" action="/admin/add_gasto" method="POST" class="space-y-1.5">
+                            <div>
+                                <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Tipo de Movimiento:</label>
+                                <select name="tipo_gasto" id="tipo_gasto_ventas" onchange="toggleCamposGastoVentas(this.value)" class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-rose-400" required>
+                                    <option value="general">Gasto General</option>
+                                    <option value="insumo">Compra de Insumo</option>
+                                    <option value="producto">Compra de Producto para Inventario</option>
+                                </select>
+                            </div>
+
+                            <div id="seccion_gasto_insumo_ventas" class="hidden space-y-1.5 bg-white border border-rose-150 rounded-xl p-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Insumo:</label>
+                                    <select name="insumo_id" id="insumo_id_ventas" class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs text-gray-750 outline-none">
+                                        <option value="">-- Seleccione Insumo --</option>
+                                        {% for ins in insumos_disponibles %}
+                                        <option value="{{ ins.id }}">{{ ins.nombre_insumo }} ({{ ins.unidad_medida }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Cantidad Comprada:</label>
+                                    <input type="number" name="cantidad_comprada" id="cantidad_insumo_ventas" step="any" placeholder="Ej: 1000" class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-rose-400">
+                                </div>
+                            </div>
+
+                            <div id="seccion_gasto_producto_ventas" class="hidden space-y-1.5 bg-white border border-rose-150 rounded-xl p-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Categoría de Producto:</label>
+                                    <select id="categoria_producto_ventas" onchange="filtrarProductosCompra()" class="w-full bg-rose-50 border border-rose-300 p-1.5 rounded-lg text-xs font-bold text-rose-800 outline-none focus:ring-2 focus:ring-rose-400">
+                                        <option value="">-- Todas las categorías --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Filtrar Producto:</label>
+                                    <input type="text" id="filtro_producto_ventas" oninput="filtrarProductosCompra()" placeholder="Escribe categoría o nombre..." class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-rose-400">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Producto:</label>
+                                    <select name="producto_id" id="producto_id_ventas" onchange="seleccionarProductoCompra()" class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs text-gray-750 outline-none" size="7">
+                                        <option value="">-- Seleccione Producto --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label id="label_cantidad_producto_ventas" class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Cantidad Comprada:</label>
+                                    <input type="number" name="cantidad_producto_comprada" id="cantidad_producto_ventas" step="any" placeholder="Ej: 10" class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-rose-400">
+                                    <p id="ayuda_cantidad_producto_ventas" class="text-[10px] text-rose-700 mt-1 hidden"></p>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="categoria_gasto" id="categoria_gasto_ventas" value="General">
+                            <div>
+                                <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Método de Pago del Gasto:</label>
+                                <select name="metodo_pago" id="metodo_pago_gasto_ventas" class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs font-semibold text-gray-750 outline-none focus:ring-2 focus:ring-rose-400" required>
+                                    <option value="efectivo">💵 Efectivo</option>
+                                    <option value="nequi">📱 Nequi</option>
+                                    <option value="daviplata">📲 Daviplata</option>
+                                    <option value="tarjeta">💳 Tarjeta</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Descripción Adicional (Opcional):</label>
+                                <input type="text" name="descripcion" placeholder="Ej: Pago de energía o servicio" 
+                                       class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-rose-400">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Monto Retirado ($):</label>
+                                <input type="number" id="monto-gasto-ventas" name="monto" placeholder="Ej: 45000" required onfocus="usarTecladoParaGasto()"
+                                       class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-rose-400">
+                            </div>
+                            <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2.5 rounded-xl shadow active:scale-95 transition">
+                                💸 Registrar Gasto
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- ABONO FIADO -->
+                    <div class="p-3.5 rounded-2xl border border-amber-250 bg-amber-50/70 space-y-2 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[11px] font-black text-amber-800 uppercase">Abono de Clientes Fiados</p>
+                            <span class="text-[10px] font-semibold text-amber-700">Entrada a caja</span>
+                        </div>
+                        <div class="space-y-1.5 text-[11px]">
+                            <div>
+                                <label class="block text-[10px] font-bold text-amber-800 uppercase mb-0.5">Cliente con Deuda:</label>
+                                <select id="abono-cliente" onchange="actualizarSaldoAbonoCliente()" class="w-full bg-white border border-amber-200 p-1.5 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-amber-400">
+                                    <option value="">-- Selecciona cliente --</option>
+                                </select>
+                                <p id="abono-saldo-cliente" class="text-[10px] text-amber-700 mt-1">Saldo pendiente: $0</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-amber-800 uppercase mb-0.5">Monto Abono ($):</label>
+                                    <input type="number" id="abono-monto" min="1" step="any" placeholder="Ej: 20000" onfocus="usarTecladoParaAbono()" class="w-full bg-white border border-amber-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-amber-400">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-amber-800 uppercase mb-0.5">Método:</label>
+                                    <select id="abono-metodo" class="w-full bg-white border border-amber-200 p-1.5 rounded-lg text-xs font-semibold text-gray-705 outline-none focus:ring-2 focus:ring-amber-400">
+                                        <option value="efectivo">💵 Efectivo</option>
+                                        <option value="nequi">📱 Nequi</option>
+                                        <option value="daviplata">📲 Daviplata</option>
+                                        <option value="tarjeta">💳 Tarjeta</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="registrarAbonoFiado()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs py-2.5 rounded-xl shadow active:scale-95 transition">
+                                💰 Registrar Abono y Dar Entrada
+                            </button>
+                            <p id="abono-estado" class="text-[10px] text-gray-500"></p>
+                        </div>
+                    </div>
+
+                    <!-- INGRESO INTANGIBLE -->
+                    <div class="p-3.5 rounded-2xl border border-emerald-250 bg-emerald-50/70 space-y-2 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[11px] font-black text-emerald-800 uppercase">Ingreso Intangible</p>
+                            <span class="text-[10px] font-semibold text-emerald-700">Sin descontar stock</span>
+                        </div>
+                        <div class="space-y-1.5 text-[11px]">
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-[10px] font-bold text-emerald-800 uppercase">⚡ Conceptos Fijos / Plantillas:</label>
+                                    {% if rol == 'administrador' %}
+                                    <button type="button" onclick="guardarPlantillaIntangible()" class="text-[9px] font-bold text-emerald-900 bg-emerald-200 hover:bg-emerald-300 px-1.5 py-0.5 rounded transition" title="Guardar concepto y monto actual como fijo">+ Guardar Fijo</button>
+                                    {% endif %}
+                                </div>
+                                <div id="contenedor-plantillas-intangibles" class="flex flex-wrap gap-1 mb-2"></div>
+                                <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-0.5">Concepto:</label>
+                                <input type="text" id="intangible-concepto" placeholder="Ej: Parqueadero o calentar comida" class="w-full bg-white border border-emerald-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-emerald-400">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-0.5">Monto ($):</label>
+                                    <input type="number" id="intangible-monto" min="1" step="any" placeholder="Ej: 5000" onfocus="setEntradaNumericaActiva('intangible-monto')" class="w-full bg-white border border-emerald-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-emerald-400">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-0.5">Método:</label>
+                                    <select id="intangible-metodo" class="w-full bg-white border border-emerald-200 p-1.5 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-emerald-400">
+                                        <option value="efectivo">💵 Efectivo</option>
+                                        <option value="nequi">📱 Nequi</option>
+                                        <option value="daviplata">📲 Daviplata</option>
+                                        <option value="tarjeta">💳 Tarjeta</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="registrarIngresoIntangible()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl shadow active:scale-95 transition">
+                                ➕ Registrar Ingreso Intangible
+                            </button>
+                            <p id="intangible-estado" class="text-[10px] text-gray-500"></p>
+                        </div>
+                    </div>
+
+                    <!-- CORRECCIÓN DE PAGO -->
+                    <div class="p-3.5 rounded-2xl border border-violet-255 bg-violet-50/70 space-y-2 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[11px] font-black text-violet-800 uppercase">Corrección de Método de Pago</p>
+                            <span class="text-[10px] font-semibold text-violet-750">Ajuste rápido</span>
+                        </div>
+                        <div class="space-y-1.5 text-[11px]">
+                            <div>
+                                <label class="block text-[10px] font-bold text-violet-800 uppercase mb-0.5">Movimiento Reciente:</label>
+                                <select id="correccion-movimiento" class="w-full bg-white border border-violet-200 p-1.5 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-violet-400">
+                                    <option value="">-- Selecciona movimiento --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-violet-800 uppercase mb-0.5">Nuevo Método:</label>
+                                <select id="correccion-nuevo-metodo" class="w-full bg-white border border-violet-200 p-1.5 rounded-lg text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-violet-400">
+                                    <option value="efectivo">💵 Efectivo</option>
+                                    <option value="nequi">📱 Nequi</option>
+                                    <option value="daviplata">📲 Daviplata</option>
+                                    <option value="tarjeta">💳 Tarjeta</option>
+                                </select>
+                            </div>
+                            <button onclick="corregirMetodoPago()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs py-2.5 rounded-xl shadow active:scale-95 transition">
+                                🔁 Corregir Método de Pago
+                            </button>
+                            <p id="correccion-estado" class="text-[10px] text-gray-500"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TECLADO NUMÉRICO RETRÁCTIL COMPARTIDO (FIJADO ABAJO) -->
+            <div class="bg-slate-800 border-t border-slate-700 flex-shrink-0 select-none">
+                <div class="px-3.5 py-2 flex justify-between items-center text-slate-300 text-[10px] font-bold bg-slate-900 border-b border-slate-850">
+                    <span id="label-teclado-activo">⌨️ Teclado: Efectivo Recibido</span>
+                    <button onclick="toggleTeclado()" id="btn-toggle-teclado" type="button" class="bg-slate-700 hover:bg-slate-655 text-white font-bold px-3 py-1 rounded-lg text-[10px] transition active:scale-95">
+                        Ocultar Teclado ▾
+                    </button>
+                </div>
+                <div id="contenedor-teclado-ventas" class="p-3 space-y-2">
+                    <div class="grid grid-cols-3 gap-2 text-center text-white font-black text-lg">
+                        <button type="button" onclick="teclearNumero('1')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">1</button>
+                        <button type="button" onclick="teclearNumero('2')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">2</button>
+                        <button type="button" onclick="teclearNumero('3')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">3</button>
+                        <button type="button" onclick="teclearNumero('4')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">4</button>
+                        <button type="button" onclick="teclearNumero('5')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">5</button>
+                        <button type="button" onclick="teclearNumero('6')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">6</button>
+                        <button type="button" onclick="teclearNumero('7')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">7</button>
+                        <button type="button" onclick="teclearNumero('8')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">8</button>
+                        <button type="button" onclick="teclearNumero('9')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">9</button>
+                        <button type="button" onclick="borrarTodoTeclado()" class="bg-rose-600 hover:bg-rose-700 py-3.5 rounded-2xl active:bg-rose-800 active:scale-95 transition text-base font-black shadow-sm">C</button>
+                        <button type="button" onclick="teclearNumero('0')" class="bg-slate-700 hover:bg-slate-600 py-3.5 rounded-2xl active:bg-slate-500 active:scale-95 transition shadow-sm">0</button>
+                        <button type="button" onclick="borrarUltimoDigito()" class="bg-amber-600 hover:bg-amber-700 py-3.5 rounded-2xl active:bg-amber-800 active:scale-95 transition text-base shadow-sm">⌫</button>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 text-xs text-white font-black text-center border-t border-slate-700 pt-2.5">
+                        <button type="button" onclick="cargarBilleteDirecto(5000)" class="bg-slate-600 hover:bg-slate-500 py-3 rounded-xl active:scale-95 shadow-md transition">$5k</button>
+                        <button type="button" onclick="cargarBilleteDirecto(10000)" class="bg-slate-600 hover:bg-slate-500 py-3 rounded-xl active:scale-95 shadow-md transition">$10k</button>
+                        <button type="button" onclick="cargarBilleteDirecto(20000)" class="bg-slate-600 hover:bg-slate-500 py-3 rounded-xl active:scale-95 shadow-md transition">$20k</button>
+                        <button type="button" onclick="cargarBilleteDirecto(50000)" class="bg-slate-600 hover:bg-slate-500 py-3 rounded-xl active:scale-95 shadow-md transition">$50k</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLUMNA DERECHA: CATEGORÍAS (SUPERIOR HORIZONTAL), BÚSQUEDA Y CUADRÍCULA DE PRODUCTOS (62% DE ANCHO) -->
+        <section class="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
+            
+            <!-- PANEL DE CATEGORÍAS EN CUADRÍCULA CON COLORES DISTINTIVOS (ESTILO ODOO POS) -->
+            <div class="bg-white/70 backdrop-blur-md p-4 border-b border-gray-250 flex-shrink-0 select-none">
+                <div class="flex items-center space-x-1.5 text-gray-500 font-bold text-[10px] uppercase tracking-wider mb-2">
+                    <span>📂</span>
+                    <span>Categorías de Productos</span>
+                </div>
+                <div class="flex flex-wrap gap-2 justify-start">
+                    {% for cat in categorias %}
+                        {% set cat_lower = cat.nombre_categoria | lower %}
+                        {% set fallbacks = ['🥐', '🍩', '🥯', '🥪', '🍕', '🌭', '🌮', '🥨', '🍪', '🍨', '🧁', '🍎', '🍉', '🍓', '🥑', '🥞', '🧇', '🧀', '🍖', '🍗', '🍟', '🍣', '🍱', '🥟', '🥡'] %}
+                        {% set length = cat.nombre_categoria | length %}
+                        {% set index = length % (fallbacks | length) %}
+                        {% set emoji = fallbacks[index] %}
+                        {% set color_name = 'slate' %}
+                        
+                        {% if 'caliente' in cat_lower or 'café' in cat_lower or 'cafe' in cat_lower or 'tinto' in cat_lower or 'espresso' in cat_lower or 'milo' in cat_lower or 'cappuccino' in cat_lower or 'latte' in cat_lower %}
+                            {% set emoji = '☕' %}
+                            {% set color_name = 'red' %}
+                        {% elif 'gaseosa' in cat_lower or 'soda' in cat_lower or 'coca' in cat_lower or 'pepsi' in cat_lower or 'fanta' in cat_lower %}
+                            {% set emoji = '🥤' %}
+                            {% set color_name = 'blue' %}
+                        {% elif 'jugo' in cat_lower or 'fruta' in cat_lower or 'limonada' in cat_lower or 'naranja' in cat_lower or 'salpicon' in cat_lower or 'batido' in cat_lower %}
+                            {% set emoji = '🍊' %}
+                            {% set color_name = 'indigo' %}
+                        {% elif 'comida' in cat_lower or 'alimento' in cat_lower or 'sandwich' in cat_lower or 'perro' in cat_lower or 'hamburguesa' in cat_lower or 'empanada' in cat_lower or 'pan' in cat_lower or 'arepa' in cat_lower or 'pastel' in cat_lower %}
+                            {% set emoji = '🍔' %}
+                            {% set color_name = 'amber' %}
+                        {% elif 'paquete' in cat_lower or 'papa' in cat_lower or 'mani' in cat_lower or 'platanito' in cat_lower %}
+                            {% set emoji = '🍿' %}
+                            {% set color_name = 'stone' %}
+                        {% elif 'chocolatina' in cat_lower or 'chocolate' in cat_lower or 'dulce' in cat_lower or 'goma' in cat_lower or 'bombón' in cat_lower %}
+                            {% set emoji = '🍫' %}
+                            {% set color_name = 'orange' %}
+                        {% elif 'galleta' in cat_lower or 'cracker' in cat_lower %}
+                            {% set emoji = '🍪' %}
+                            {% set color_name = 'cyan' %}
+                        {% elif 'torta' in cat_lower or 'ponqué' in cat_lower or 'muffin' in cat_lower or 'cupcake' in cat_lower %}
+                            {% set emoji = '🍰' %}
+                            {% set color_name = 'rose' %}
+                        {% elif 'energizante' in cat_lower or 'red bull' in cat_lower or 'monster' in cat_lower or 'speed' in cat_lower or 'vive' in cat_lower %}
+                            {% set emoji = '⚡' %}
+                            {% set color_name = 'teal' %}
+                        {% elif 'cerveza' in cat_lower or 'licor' in cat_lower or 'trago' in cat_lower or 'club' in cat_lower or 'poker' in cat_lower or 'aguila' in cat_lower %}
+                            {% set emoji = '🍺' %}
+                            {% set color_name = 'purple' %}
+                        {% elif 'cigarrillo' in cat_lower or 'tabaco' in cat_lower or 'cigarro' in cat_lower %}
+                            {% set emoji = '🚬' %}
+                            {% set color_name = 'green' %}
+                        {% elif 'medicamento' in cat_lower or 'pastilla' in cat_lower or 'drog' in cat_lower or 'dolex' in cat_lower %}
+                            {% set emoji = '💊' %}
+                            {% set color_name = 'pink' %}
+                        {% elif 'higienico' in cat_lower or 'aseo' in cat_lower or 'baño' in cat_lower or 'servilleta' in cat_lower %}
+                            {% set emoji = '🧻' %}
+                            {% set color_name = 'yellow' %}
+                        {% elif 'agua' in cat_lower or 'hielo' in cat_lower or 'brisa' in cat_lower %}
+                            {% set emoji = '💧' %}
+                            {% set color_name = 'sky' %}
+                        {% elif 'parqueadero' in cat_lower or 'carro' in cat_lower or 'moto' in cat_lower or 'casco' in cat_lower %}
+                            {% set emoji = '🚗' %}
+                            {% set color_name = 'emerald' %}
+                        {% endif %}
+
+                        {% set bg_inactive = 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200 shadow-sm' %}
+                        {% set bg_active = 'bg-slate-600 border-slate-700 text-white font-black ring-2 ring-slate-400 shadow-md' %}
+                        
+                        {% if color_name == 'red' %}
+                            {% set bg_inactive = 'bg-red-100 border-red-300 text-red-800 hover:bg-red-200 shadow-sm' %}
+                            {% set bg_active = 'bg-red-500 border-red-600 text-white font-black ring-2 ring-red-400 shadow-md' %}
+                        {% elif color_name == 'blue' %}
+                            {% set bg_inactive = 'bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200 shadow-sm' %}
+                            {% set bg_active = 'bg-blue-500 border-blue-600 text-white font-black ring-2 ring-blue-400 shadow-md' %}
+                        {% elif color_name == 'indigo' %}
+                            {% set bg_inactive = 'bg-indigo-100 border-indigo-300 text-indigo-800 hover:bg-indigo-200 shadow-sm' %}
+                            {% set bg_active = 'bg-indigo-500 border-indigo-600 text-white font-black ring-2 ring-indigo-400 shadow-md' %}
+                        {% elif color_name == 'amber' %}
+                            {% set bg_inactive = 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200 shadow-sm' %}
+                            {% set bg_active = 'bg-amber-500 border-amber-600 text-slate-950 font-black ring-2 ring-amber-400 shadow-md' %}
+                        {% elif color_name == 'stone' %}
+                            {% set bg_inactive = 'bg-stone-200 border-stone-350 text-stone-850 hover:bg-stone-300 shadow-sm' %}
+                            {% set bg_active = 'bg-stone-500 border-stone-600 text-white font-black ring-2 ring-stone-400 shadow-md' %}
+                        {% elif color_name == 'orange' %}
+                            {% set bg_inactive = 'bg-orange-100 border-orange-300 text-orange-800 hover:bg-orange-200 shadow-sm' %}
+                            {% set bg_active = 'bg-orange-500 border-orange-600 text-white font-black ring-2 ring-orange-400 shadow-md' %}
+                        {% elif color_name == 'cyan' %}
+                            {% set bg_inactive = 'bg-cyan-100 border-cyan-300 text-cyan-800 hover:bg-cyan-200 shadow-sm' %}
+                            {% set bg_active = 'bg-cyan-500 border-cyan-600 text-white font-black ring-2 ring-cyan-400 shadow-md' %}
+                        {% elif color_name == 'rose' %}
+                            {% set bg_inactive = 'bg-rose-100 border-rose-300 text-rose-800 hover:bg-rose-200 shadow-sm' %}
+                            {% set bg_active = 'bg-rose-500 border-rose-600 text-white font-black ring-2 ring-rose-400 shadow-md' %}
+                        {% elif color_name == 'teal' %}
+                            {% set bg_inactive = 'bg-teal-100 border-teal-300 text-teal-800 hover:bg-teal-200 shadow-sm' %}
+                            {% set bg_active = 'bg-teal-500 border-teal-600 text-white font-black ring-2 ring-teal-400 shadow-md' %}
+                        {% elif color_name == 'purple' %}
+                            {% set bg_inactive = 'bg-purple-100 border-purple-300 text-purple-800 hover:bg-purple-200 shadow-sm' %}
+                            {% set bg_active = 'bg-purple-500 border-purple-600 text-white font-black ring-2 ring-purple-400 shadow-md' %}
+                        {% elif color_name == 'green' %}
+                            {% set bg_inactive = 'bg-green-100 border-green-300 text-green-800 hover:bg-green-200 shadow-sm' %}
+                            {% set bg_active = 'bg-green-500 border-green-600 text-white font-black ring-2 ring-green-400 shadow-md' %}
+                        {% elif color_name == 'pink' %}
+                            {% set bg_inactive = 'bg-pink-100 border-pink-300 text-pink-800 hover:bg-pink-200 shadow-sm' %}
+                            {% set bg_active = 'bg-pink-500 border-pink-600 text-white font-black ring-2 ring-pink-400 shadow-md' %}
+                        {% elif color_name == 'yellow' %}
+                            {% set bg_inactive = 'bg-yellow-100 border-yellow-300 text-yellow-900 hover:bg-yellow-200 shadow-sm' %}
+                            {% set bg_active = 'bg-yellow-600 border-yellow-700 text-white font-black ring-2 ring-yellow-400 shadow-md' %}
+                        {% elif color_name == 'sky' %}
+                            {% set bg_inactive = 'bg-sky-100 border-sky-300 text-sky-800 hover:bg-sky-200 shadow-sm' %}
+                            {% set bg_active = 'bg-sky-500 border-sky-600 text-white font-black ring-2 ring-sky-400 shadow-md' %}
+                        {% elif color_name == 'emerald' %}
+                            {% set bg_inactive = 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200 shadow-sm' %}
+                            {% set bg_active = 'bg-emerald-500 border-emerald-600 text-white font-black ring-2 ring-emerald-400 shadow-md' %}
+                        {% endif %}
+                        <button onclick="filtrarCategoria('{{ cat.id }}', this)" data-categoria="{{ cat.id }}" 
+                                data-bg-inactive="{{ bg_inactive }}" data-bg-active="{{ bg_active }}"
+                                class="categoria-btn p-1 {{ bg_inactive }} border rounded-2xl font-black text-[9px] shadow-sm active:scale-95 transition flex flex-col items-center justify-center gap-0.5 text-center w-[74px] h-[74px] min-h-[74px] flex-shrink-0">
+                            <span class="text-2xl leading-none">{{ emoji }}</span>
+                            <span class="leading-tight break-words max-w-full px-0.5">{{ cat.nombre_categoria }}</span>
+                        </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- BARRA DE BÚSQUEDA Y CÓDIGO DE BARRAS TÁCTIL -->
+            <div class="p-3 border-b border-gray-250 flex-shrink-0 bg-white/70 backdrop-blur-md flex flex-col md:flex-row items-center gap-3">
+                <div class="flex-1 w-full">
+                    <input type="text" id="filtro_catalogo_ventas" oninput="aplicarFiltroCatalogo()" placeholder="🔍 Buscar producto en la categoría actual..." class="w-full bg-slate-50 border border-gray-200 p-2.5 rounded-xl text-xs text-gray-800 outline-none focus:ring-2 focus:ring-amber-500 transition">
+                </div>
+                <div class="w-full md:w-72 flex-shrink-0 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 shadow-sm">
+                    <span class="text-xs">🏷️</span>
+                    <input type="text" id="codigo-barras-venta" autocomplete="off" placeholder="Escanear código de barras..." class="w-full bg-transparent p-1 text-xs text-gray-800 outline-none">
+                </div>
+            </div>
+
+            <!-- CUADRÍCULA DE PRODUCTOS -->
+            <div class="flex-1 p-4 overflow-y-auto">
+                <h2 class="text-gray-700 font-bold text-sm mb-4" id="titulo-categoria">Todos los Productos</h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" id="contenedor-productos">
+                    <p class="text-gray-400 italic col-span-full text-center mt-10 text-xs">Seleccione una categoría arriba para iniciar...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL DE CIERRE DE TURNO (ARQUEO DE CAJA) -->
+    <div id="modal-cierre-turno" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full mx-4 overflow-hidden border border-slate-100 flex flex-col max-h-[90vh] transform scale-95 transition-transform duration-300">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-amber-700 to-amber-800 text-white px-6 py-4 flex justify-between items-center shadow-md">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">💰</span>
+                    <h3 class="font-bold text-lg">Cierre de Turno y Arqueo de Caja</h3>
+                </div>
+                <button onclick="cerrarModalCierreTurno()" class="text-white/80 hover:text-white transition font-black text-xl">&times;</button>
+            </div>
+            
+            <!-- Cuerpo Scrollable -->
+            <div class="p-6 overflow-y-auto space-y-5 flex-1">
+                <!-- Información General del Turno -->
+                <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs text-slate-600">
+                    <div>
+                        <span class="font-bold block text-[10px] uppercase text-slate-400">Responsable</span>
+                        <span id="cierre-responsable" class="text-slate-800 font-semibold text-sm">-</span>
+                    </div>
+                    <div>
+                        <span class="font-bold block text-[10px] uppercase text-slate-400">Fecha Apertura</span>
+                        <span id="cierre-fecha-apertura" class="text-slate-800 font-semibold text-sm">-</span>
+                    </div>
+                </div>
+
+                <!-- Arqueo por Método de Pago -->
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Arqueo por Cuenta / Método de Pago</h4>
+                        <span id="cierre-resumen-turno-info" class="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200"></span>
+                    </div>
+
+                    <!-- Row Efectivo -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xl">💵</span>
+                            <div>
+                                <span class="font-bold text-xs text-slate-800 block">Efectivo en Caja</span>
+                                <span class="text-[11px] text-slate-500">Esperado: <strong id="cierre-esp-efectivo" class="text-slate-700">$0</strong></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="relative w-36">
+                                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs">$</span>
+                                <input type="number" id="cierre-real-efectivo" oninput="calcularArqueoMetodo('efectivo')" class="w-full bg-white border border-slate-300 rounded-xl pl-6 pr-2 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="0" min="0">
+                            </div>
+                            <span id="cierre-dif-badge-efectivo" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 min-w-[80px] text-center">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Row Nequi -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xl">📲</span>
+                            <div>
+                                <span class="font-bold text-xs text-slate-800 block">Nequi</span>
+                                <span class="text-[11px] text-slate-500">Esperado: <strong id="cierre-esp-nequi" class="text-slate-700">$0</strong></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="relative w-36">
+                                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs">$</span>
+                                <input type="number" id="cierre-real-nequi" oninput="calcularArqueoMetodo('nequi')" class="w-full bg-white border border-slate-300 rounded-xl pl-6 pr-2 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="0" min="0">
+                            </div>
+                            <span id="cierre-dif-badge-nequi" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 min-w-[80px] text-center">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Row Daviplata -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xl">📱</span>
+                            <div>
+                                <span class="font-bold text-xs text-slate-800 block">Daviplata</span>
+                                <span class="text-[11px] text-slate-500">Esperado: <strong id="cierre-esp-daviplata" class="text-slate-700">$0</strong></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="relative w-36">
+                                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs">$</span>
+                                <input type="number" id="cierre-real-daviplata" oninput="calcularArqueoMetodo('daviplata')" class="w-full bg-white border border-slate-300 rounded-xl pl-6 pr-2 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="0" min="0">
+                            </div>
+                            <span id="cierre-dif-badge-daviplata" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 min-w-[80px] text-center">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Row Tarjeta -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xl">💳</span>
+                            <div>
+                                <span class="font-bold text-xs text-slate-800 block">Tarjeta</span>
+                                <span class="text-[11px] text-slate-500">Esperado: <strong id="cierre-esp-tarjeta" class="text-slate-700">$0</strong></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="relative w-36">
+                                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs">$</span>
+                                <input type="number" id="cierre-real-tarjeta" oninput="calcularArqueoMetodo('tarjeta')" class="w-full bg-white border border-slate-300 rounded-xl pl-6 pr-2 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="0" min="0">
+                            </div>
+                            <span id="cierre-dif-badge-tarjeta" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 min-w-[80px] text-center">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="space-y-1">
+                    <label for="cierre-observaciones" class="font-bold block text-[10px] uppercase text-slate-500">Observaciones / Notas del Cierre</label>
+                    <textarea id="cierre-observaciones" rows="2" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Ej. Faltaron $500 pesos de cambio para el cliente, se dejó base de $100.000..."></textarea>
+                </div>
+            </div>
+
+            <!-- Footer con Botones -->
+            <div class="bg-slate-50 border-t border-slate-100 p-4 flex justify-end space-x-2.5">
+                <button onclick="cerrarModalCierreTurno()" class="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-100 transition active:scale-95">
+                    Cancelar
+                </button>
+                <button onclick="confirmarCierreTurno()" id="btn-confirmar-cierre" class="bg-rose-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow hover:bg-rose-700 transition active:scale-95 flex items-center space-x-2">
+                    <span>Finalizar Turno ⏹</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ÉXITO CIERRE -->
+    <div id="modal-cierre-exito" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden border border-slate-100 flex flex-col p-6 text-center transform scale-95 transition-transform duration-300">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-emerald-100 mb-4 animate-bounce">
+                <span class="text-3xl">🎉</span>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">¡Turno Cerrado Exitosamente!</h3>
+            <p class="text-xs text-slate-500 mb-6">El reporte del turno ha sido procesado y archivado. Puedes descargarlo haciendo clic a continuación.</p>
+            
+            <div class="space-y-3">
+                <a id="cierre-link-pdf" href="#" target="_blank" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-md">
+                    <span>👁️</span> Previsualizar / Descargar Reporte PDF
+                </a>
+                <button onclick="aceptarExitoCierre()" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold transition">
+                    Aceptar y Recargar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script id="categorias-json" type="application/json">{{ categorias_json|tojson }}</script>
+    <script id="productos-compra-json" type="application/json">{{ productos_compra_json|tojson }}</script>
+    <script id="clientes-exclusivos-json" type="application/json">{{ clientes_exclusivos_json|tojson }}</script>
+
+    <script>
+        let baseDatosProductos = {};
+        let carrito = [];
+        let categoriaActual = ''; 
+        let totalVentaActual = 0; 
+        let metodoPagoActual = 'efectivo';
+        let ordenAbiertaEditandoId = null;
+        let pestañas = [
+            { id: 'rapida', nombre: '⚡ Venta Rápida', db_id: null, es_abierta: false, items: [], observaciones: '' }
+        ];
+        let pestañaActivaId = 'rapida';
+        let productoCompraSeleccionado = null;
+        let entradaNumericaActiva = 'efectivo-recibido';
+        let deudasPendientes = [];
+        let movimientosPagoRecientes = [];
+        let productosPorCodigoBarras = {};
+        let preferenciaVentaPack = {};
+        const mapaCategorias = JSON.parse(document.getElementById('categorias-json').textContent || '{}');
+        const productosCompra = JSON.parse(document.getElementById('productos-compra-json').textContent || '[]');
+        const clientesExclusivos = JSON.parse(document.getElementById('clientes-exclusivos-json').textContent || '[]');
+
+        function dinero(valor) {
+            return `$${Number(valor || 0).toLocaleString('es-CO', {maximumFractionDigits: 0})}`;
+        }
+
+        function getPestañaActiva() {
+            if (typeof pestañas === 'undefined' || !pestañas) return null;
+            return pestañas.find(p => p.id === pestañaActivaId) || pestañas[0];
+        }
+
+        function renderBarraPestañas() {
+            const cont = document.getElementById('barra-pestanas-ordenes');
+            if (!cont || typeof pestañas === 'undefined' || !pestañas) return;
+
+            cont.innerHTML = pestañas.map(p => {
+                const esActiva = p.id === pestañaActivaId;
+                const total = (p.items || []).reduce((sum, item) => sum + ((Number(item.precio) || 0) * (Number(item.cantidad) || 0)), 0);
+                const totalTexto = total > 0 ? ` (${dinero(total)})` : '';
+                const badgeCount = (p.items || []).length > 0 ? ` <span class="bg-amber-950/40 text-amber-100 text-[10px] px-1.5 py-0.2 rounded-full font-black">${p.items.length}</span>` : '';
+
+                return `
+                    <div onclick="cambiarPestaña('${p.id}')" class="cursor-pointer transition flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm whitespace-nowrap ${
+                        esActiva 
+                            ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300 font-black' 
+                            : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                    }">
+                        <span>${p.nombre}</span>
+                        <span class="font-extrabold text-[11px] opacity-90">${totalTexto}</span>
+                        ${badgeCount}
+                        ${p.es_abierta ? `<button onclick="event.stopPropagation(); cancelarOrdenMesa('${p.id}')" class="ml-1 text-slate-400 hover:text-rose-400 font-black text-sm px-1" title="Cancelar mesa">&times;</button>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function cambiarPestaña(id) {
+            const tabVieja = getPestañaActiva();
+            if (tabVieja) {
+                tabVieja.items = [...carrito];
+            }
+
+            pestañaActivaId = id;
+            const nuevaTab = getPestañaActiva();
+            carrito = [...(nuevaTab.items || [])];
+            ordenAbiertaEditandoId = nuevaTab.db_id;
+
+            actualizarInterfazCarrito();
+            renderBarraPestañas();
+        }
+
+        function syncCarritoConPestaña() {
+            const tab = getPestañaActiva();
+            if (tab) {
+                tab.items = [...carrito];
+                renderBarraPestañas();
+                if (tab.es_abierta && tab.db_id) {
+                    autosaveOrdenAbierta(tab);
+                }
+            }
+        }
+
+        let timeoutAutosave = null;
+        function autosaveOrdenAbierta(tab) {
+            if (timeoutAutosave) clearTimeout(timeoutAutosave);
+            timeoutAutosave = setTimeout(() => {
+                if (!tab || !tab.db_id || !tab.es_abierta) return;
+                fetch('/api/ordenes_abiertas/guardar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        orden_id: tab.db_id,
+                        mesa_cliente: tab.nombre.replace('📝 ', ''),
+                        observaciones: tab.observaciones || '',
+                        items: tab.items
+                    })
+                });
+            }, 800);
+        }
+
+        function cargarOrdenesAbiertas() {
+            fetch('/api/ordenes_abiertas')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) return;
+                    const ordenesDB = data.ordenes || [];
+
+                    const rapidaTab = pestañas.find(p => p.id === 'rapida') || { id: 'rapida', nombre: '⚡ Venta Rápida', db_id: null, es_abierta: false, items: [] };
+                    let nuevasPestañas = [rapidaTab];
+
+                    ordenesDB.forEach(o => {
+                        const tabId = `orden_${o.id}`;
+                        const tabExistente = pestañas.find(p => p.id === tabId);
+                        const itemsToUse = (tabExistente && pestañaActivaId === tabId) ? tabExistente.items : (o.items || []);
+
+                        nuevasPestañas.push({
+                            id: tabId,
+                            nombre: `📝 ${o.mesa_cliente}`,
+                            db_id: o.id,
+                            es_abierta: true,
+                            items: (itemsToUse || []).map(i => ({
+                                id: i.producto_id || i.id,
+                                nombre: i.nombre_producto || i.nombre,
+                                precio: i.precio_unitario || i.precio,
+                                cantidad: i.cantidad
+                            })),
+                            observaciones: o.observaciones || ''
+                        });
+                    });
+
+                    pestañas = nuevasPestañas;
+                    renderBarraPestañas();
+                })
+                .catch(err => console.error('Error cargando órdenes abiertas:', err));
+        }
+
+        function abrirModalNuevaMesa() {
+            const numMesasExistentes = pestañas.filter(p => p.es_abierta).length + 1;
+            const nombreSugerido = `Mesa ${numMesasExistentes}`;
+            const nombre = prompt('Ingresa el nombre de la mesa o cliente para la nueva orden:', nombreSugerido);
+            
+            if (!nombre || !nombre.trim()) return;
+
+            fetch('/api/ordenes_abiertas/guardar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orden_id: null,
+                    mesa_cliente: nombre.trim(),
+                    observaciones: '',
+                    items: []
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) throw new Error(data.error || 'Error creando mesa');
+                
+                cargarOrdenesAbiertas();
+                setTimeout(() => {
+                    cambiarPestaña(`orden_${data.orden_id}`);
+                }, 300);
+            })
+            .catch(err => alert(`⚠️ Error: ${err.message}`));
+        }
+
+        function esVerdadero(valor) {
+            return valor === 1 || valor === '1' || valor === true || valor === 'true';
+        }
+
+        function normalizarCodigoBarras(valor) {
+            return String(valor || '').trim();
+        }
+
+        function buscarProductoPorCodigoBarras(codigo) {
+            const clave = normalizarCodigoBarras(codigo);
+            if (!clave) return null;
+            return productosPorCodigoBarras[clave] || null;
+        }
+
+        function esProductoCigarrillo(producto) {
+            const nombre = String(producto?.nombre || '').toLowerCase();
+            const categoria = String(producto?.categoria_nombre || '').toLowerCase();
+            return nombre.includes('cigarr') || categoria.includes('cigarr');
+        }
+
+        function obtenerModoVentaPack(producto) {
+            if (!esVerdadero(producto.es_pack)) return 'unidad';
+            if (esProductoCigarrillo(producto)) {
+                return preferenciaVentaPack[String(producto.id)] || 'unidad';
+            }
+            return 'unidad';
+        }
+
+        function obtenerConfiguracionVenta(producto, modoVenta) {
+            const esPack = esVerdadero(producto.es_pack);
+            const unidadesPorPack = Math.max(1, Number(producto.unidades_por_pack) || 1);
+            const precioBase = Number(producto.precio) || 0;
+            const precioUnidadConfig = Number(producto.precio_unidad_venta || 0);
+            const precioMedioConfig = Number(producto.precio_medio_venta || 0);
+
+            if (!esPack) {
+                return { modo: 'unidad', factor: 1, precioUnitario: precioBase, etiqueta: 'unidad' };
+            }
+
+            if (!esProductoCigarrillo(producto)) {
+                return { modo: 'unidad', factor: 1, precioUnitario: precioBase, etiqueta: 'unidad' };
+            }
+
+            const modo = (modoVenta || 'unidad').toLowerCase();
+
+            const precioUnidad = precioUnidadConfig > 0 ? precioUnidadConfig : Math.max(1, precioBase);
+            if (modo === 'medio') {
+                const factorMedio = Math.max(1, Math.round(unidadesPorPack / 2));
+                const precioMedio = precioMedioConfig > 0 ? precioMedioConfig : Math.max(1, Math.round(precioUnidad * factorMedio));
+                return { modo: 'medio', factor: factorMedio, precioUnitario: precioMedio, etiqueta: 'medio' };
+            }
+
+            return { modo: 'unidad', factor: 1, precioUnitario: precioUnidad, etiqueta: 'unidad' };
+        }
+
+        function agregarProductoPorCodigoBarras(codigo) {
+            const producto = buscarProductoPorCodigoBarras(codigo);
+            const input = document.getElementById('codigo-barras-venta');
+
+            if (!producto) {
+                if (input) input.value = '';
+                alert('No se encontró un producto con ese código de barras.');
+                return;
+            }
+
+            const sinStock = !esVerdadero(producto.es_preparado) && Number(producto.cantidad_stock) <= 0;
+            if (sinStock) {
+                if (input) input.value = '';
+                alert(`El producto ${producto.nombre} no tiene stock disponible.`);
+                return;
+            }
+
+            agregarAlCarrito(producto, obtenerModoVentaPack(producto));
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function cambiarMetodoPago(metodo) {
+            metodoPagoActual = metodo;
+            const entradaAnterior = entradaNumericaActiva;
+            const botones = {
+                efectivo: document.getElementById('btn-pago-efectivo'),
+                nequi: document.getElementById('btn-pago-nequi'),
+                daviplata: document.getElementById('btn-pago-daviplata'),
+                tarjeta: document.getElementById('btn-pago-tarjeta'),
+                fiado: document.getElementById('btn-pago-fiado')
+            };
+            const estilosBase = {
+                efectivo: 'bg-emerald-100 border-2 border-emerald-300 text-emerald-800',
+                nequi: 'bg-indigo-100 border-2 border-indigo-300 text-indigo-800',
+                daviplata: 'bg-cyan-100 border-2 border-cyan-300 text-cyan-800',
+                tarjeta: 'bg-amber-100 border-2 border-amber-300 text-amber-800',
+                fiado: 'bg-orange-100 border-2 border-orange-300 text-orange-800'
+            };
+            const panelEfectivo = document.getElementById('panel-efectivo');
+            const panelDigital = document.getElementById('panel-digital');
+            const panelFiado = document.getElementById('panel-fiado');
+
+            Object.entries(botones).forEach(([clave, boton]) => {
+                if (!boton) return;
+                const base = estilosBase[clave] || 'bg-slate-100 border-2 border-slate-300 text-slate-700';
+                boton.className = clave === metodo
+                    ? `py-2.5 rounded-xl text-center font-black shadow ${base} ring-2 ring-offset-1 ring-slate-700`
+                    : `py-2.5 rounded-xl text-center font-bold ${base} opacity-80 hover:opacity-100`;
+            });
+
+            if (metodo === 'efectivo') {
+                panelEfectivo.classList.remove('hidden');
+                panelDigital.classList.add('hidden');
+                panelFiado.classList.add('hidden');
+            } else if (metodo === 'fiado') {
+                panelEfectivo.classList.remove('hidden');
+                panelDigital.classList.add('hidden');
+                panelFiado.classList.remove('hidden');
+            } else {
+                panelEfectivo.classList.remove('hidden');
+                panelDigital.classList.remove('hidden');
+                panelFiado.classList.add('hidden');
+            }
+
+            if (document.getElementById(entradaAnterior)) {
+                setEntradaNumericaActiva(entradaAnterior);
+            }
+        }
+
+        function renderClientesExclusivos() {
+            const lista = document.getElementById('lista-clientes-exclusivos');
+            if (!lista) return;
+            lista.innerHTML = '';
+            clientesExclusivos.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = String(c.nombre || '').trim();
+                lista.appendChild(opt);
+            });
+        }
+
+        function cambiarPestañaIzquierda(tabId) {
+            const tabVentas = document.getElementById('tab-ventas-cobro');
+            const tabCaja = document.getElementById('tab-caja-turno');
+            const btnVentas = document.getElementById('btn-tab-ventas-cobro');
+            const btnCaja = document.getElementById('btn-tab-caja-turno');
+            
+            if (tabId === 'tab-ventas-cobro') {
+                tabVentas.classList.remove('hidden');
+                tabCaja.classList.add('hidden');
+                btnVentas.className = "flex-1 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-white text-slate-900 border";
+                btnCaja.className = "flex-1 py-2 rounded-xl text-xs font-bold transition text-slate-650 hover:text-slate-900";
+                
+                if (entradaNumericaActiva !== 'efectivo-recibido' && 
+                    entradaNumericaActiva !== 'referencia-pago' && 
+                    entradaNumericaActiva !== 'referencia-fiado') {
+                    setEntradaNumericaActiva('efectivo-recibido');
+                }
+            } else {
+                tabVentas.classList.add('hidden');
+                tabCaja.classList.remove('hidden');
+                btnVentas.className = "flex-1 py-2 rounded-xl text-xs font-bold transition text-slate-650 hover:text-slate-900";
+                btnCaja.className = "flex-1 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-white text-slate-900 border";
+                
+                if (entradaNumericaActiva !== 'monto-gasto-ventas' && 
+                    entradaNumericaActiva !== 'abono-monto' && 
+                    entradaNumericaActiva !== 'intangible-monto') {
+                    setEntradaNumericaActiva('monto-gasto-ventas');
+                }
+            }
+        }
+
+        function toggleTeclado() {
+            const contenedor = document.getElementById('contenedor-teclado-ventas');
+            const boton = document.getElementById('btn-toggle-teclado');
+            if (contenedor.classList.contains('hidden')) {
+                contenedor.classList.remove('hidden');
+                boton.innerText = 'Ocultar Teclado ▾';
+                localStorage.setItem('teclado_visible', 'si');
+            } else {
+                contenedor.classList.add('hidden');
+                boton.innerText = 'Mostrar Teclado ▴';
+                localStorage.setItem('teclado_visible', 'no');
+            }
+        }
+
+        function setEntradaNumericaActiva(inputId) {
+            entradaNumericaActiva = inputId;
+            const inputEfectivo = document.getElementById('efectivo-recibido');
+            const inputAbono = document.getElementById('abono-monto');
+            const inputGasto = document.getElementById('monto-gasto-ventas');
+            const inputRefDigital = document.getElementById('referencia-pago');
+            const inputRefFiado = document.getElementById('referencia-fiado');
+            const inputIntangibleMonto = document.getElementById('intangible-monto');
+            if (inputEfectivo) inputEfectivo.classList.remove('ring-2', 'ring-amber-500');
+            if (inputAbono) inputAbono.classList.remove('ring-2', 'ring-amber-500');
+            if (inputGasto) inputGasto.classList.remove('ring-2', 'ring-amber-500');
+            if (inputRefDigital) inputRefDigital.classList.remove('ring-2', 'ring-amber-500');
+            if (inputRefFiado) inputRefFiado.classList.remove('ring-2', 'ring-amber-500');
+            if (inputIntangibleMonto) inputIntangibleMonto.classList.remove('ring-2', 'ring-amber-500');
+            const inputActivo = document.getElementById(entradaNumericaActiva);
+            if (inputActivo) inputActivo.classList.add('ring-2', 'ring-amber-500');
+
+            const labelTeclado = document.getElementById('label-teclado-activo');
+            if (labelTeclado) {
+                let nombreCampo = 'Efectivo Recibido';
+                if (inputId === 'monto-gasto-ventas') nombreCampo = 'Monto del Gasto';
+                else if (inputId === 'abono-monto') nombreCampo = 'Monto del Abono';
+                else if (inputId === 'intangible-monto') nombreCampo = 'Monto Intangible';
+                else if (inputId === 'referencia-pago') nombreCampo = 'Referencia de Pago';
+                else if (inputId === 'referencia-fiado') nombreCampo = 'Referencia de Fiado';
+                labelTeclado.innerText = `⌨️ Teclado: ${nombreCampo}`;
+            }
+        }
+
+        function obtenerInputNumericoActivo() {
+            const inputActivo = document.getElementById(entradaNumericaActiva);
+            return inputActivo || document.getElementById('efectivo-recibido');
+        }
+
+        function usarTecladoParaAbono() {
+            setEntradaNumericaActiva('abono-monto');
+            document.getElementById('abono-estado').innerText = 'Teclado táctil activo para monto del abono.';
+        }
+
+        function usarTecladoParaGasto() {
+            setEntradaNumericaActiva('monto-gasto-ventas');
+        }
+
+        async function cargarMovimientosPagoRecientes() {
+            try {
+                const respuesta = await fetch('/api/movimientos_pago_recientes');
+                if (!respuesta.ok) throw new Error('No se pudo consultar movimientos recientes');
+                const data = await respuesta.json();
+                if (!data.success) throw new Error(data.error || 'Error al consultar movimientos');
+
+                movimientosPagoRecientes = data.movimientos || [];
+                const turnos = data.turnos || [];
+                const select = document.getElementById('correccion-movimiento');
+                if (!select) return;
+                const actual = select.value;
+                select.innerHTML = '<option value="">-- Selecciona movimiento para corregir pago --</option>';
+
+                if (movimientosPagoRecientes.length === 0) {
+                    const optSin = document.createElement('option');
+                    optSin.value = '';
+                    optSin.disabled = true;
+                    optSin.textContent = 'Sin movimientos recientes para corregir';
+                    select.appendChild(optSin);
+                    return;
+                }
+
+                const turnosMap = new Map();
+                turnos.forEach(t => turnosMap.set(String(t.id), t));
+
+                const agrupadosPorTurno = {};
+                const sinTurno = [];
+
+                movimientosPagoRecientes.forEach(m => {
+                    const tid = m.turno_id ? String(m.turno_id) : null;
+                    if (tid && turnosMap.has(tid)) {
+                        if (!agrupadosPorTurno[tid]) agrupadosPorTurno[tid] = [];
+                        agrupadosPorTurno[tid].push(m);
+                    } else {
+                        sinTurno.push(m);
+                    }
+                });
+
+                turnos.forEach(t => {
+                    const tid = String(t.id);
+                    const list = agrupadosPorTurno[tid] || [];
+                    if (list.length > 0) {
+                        const group = document.createElement('optgroup');
+                        group.label = `📌 ${t.etiqueta} (${list.length} movs)`;
+                        list.forEach(m => {
+                            const opt = document.createElement('option');
+                            opt.value = `${m.tipo}|${m.registro_id}`;
+                            opt.textContent = `[${String(m.tipo).toUpperCase()}] ${m.etiqueta} | ${dinero(m.monto || 0)} | ${String(m.metodo_pago).toUpperCase()}`;
+                            group.appendChild(opt);
+                        });
+                        select.appendChild(group);
+                    }
+                });
+
+                if (sinTurno.length > 0) {
+                    const group = document.createElement('optgroup');
+                    group.label = `📌 Otros Movimientos Recientes (${sinTurno.length})`;
+                    sinTurno.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = `${m.tipo}|${m.registro_id}`;
+                        opt.textContent = `[${String(m.tipo).toUpperCase()}] ${m.etiqueta} | ${dinero(m.monto || 0)} | ${String(m.metodo_pago).toUpperCase()}`;
+                        group.appendChild(opt);
+                    });
+                    select.appendChild(group);
+                }
+
+                if ([...select.querySelectorAll('option')].some(o => o.value === actual)) {
+                    select.value = actual;
+                }
+            } catch (error) {
+                console.error('Error cargando movimientos para corrección:', error);
+            }
+        }
+
+        async function corregirMetodoPago() {
+            const selector = document.getElementById('correccion-movimiento');
+            const nuevoMetodo = (document.getElementById('correccion-nuevo-metodo').value || '').trim();
+            const estado = document.getElementById('correccion-estado');
+            const valor = (selector.value || '').trim();
+
+            if (!valor) return alert('Selecciona un movimiento para corregir.');
+
+            const partes = valor.split('|');
+            if (partes.length !== 2) return alert('Movimiento inválido para corrección.');
+
+            const tipo = partes[0];
+            const registroId = Number(partes[1]);
+            if (!registroId) return alert('ID de movimiento inválido.');
+
+            try {
+                estado.innerText = 'Aplicando corrección...';
+                const respuesta = await fetch('/api/corregir_metodo_pago', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tipo,
+                        registro_id: registroId,
+                        nuevo_metodo: nuevoMetodo
+                    })
+                });
+                const resultado = await respuesta.json();
+
+                if (!resultado.success) {
+                    estado.innerText = '';
+                    return alert(`⚠️ Error: ${resultado.error}`);
+                }
+
+                estado.innerText = 'Corrección aplicada correctamente.';
+                await cargarMovimientosPagoRecientes();
+                await cargarResumenTurno();
+                await cargarDeudasPendientes();
+            } catch (error) {
+                estado.innerText = '';
+                console.error('Error corrigiendo método de pago:', error);
+                alert('Error crítico al corregir método de pago.');
+            }
+        }
+
+        async function cargarProductosDesdeDB() {
+            try {
+                const respuesta = await fetch('/api/productos');
+                if (!respuesta.ok) throw new Error("Error de red");
+                const productosArr = await respuesta.json();
+                
+                baseDatosProductos = {};
+                productosPorCodigoBarras = {};
+                
+                // Encontrar el ID de la categoría "Sin Categoría"
+                let idSinCategoria = '0';
+                for (const id in mapaCategorias) {
+                    if (String(mapaCategorias[id]).toLowerCase().includes('sin categor')) {
+                        idSinCategoria = String(id);
+                        break;
+                    }
+                }
+                
+                productosArr.forEach(prod => {
+                    let categoria = String(prod.categoria_id || '');
+                    if (!categoria || !mapaCategorias[categoria]) {
+                        categoria = idSinCategoria;
+                    }
+                    if (!baseDatosProductos[categoria]) {
+                        baseDatosProductos[categoria] = [];
+                    }
+                    baseDatosProductos[categoria].push(prod);
+
+                    const codigo = normalizarCodigoBarras(prod.codigo_barras);
+                    if (codigo) {
+                        productosPorCodigoBarras[codigo] = prod;
+                    }
+                });
+                
+                if (categoriaActual) filtrarCategoria(categoriaActual);
+            } catch (error) { 
+                console.error("Error al sincronizar inventario:", error); 
+            }
+        }
+
+        function filtrarCategoria(categoria, boton = null) {
+            categoriaActual = String(categoria);
+            const contenedor = document.getElementById('contenedor-productos');
+            const titulo = document.getElementById('titulo-categoria');
+            const nombreCategoria = categoriaActual === 'todo' ? 'Todos los Productos' : (mapaCategorias[categoriaActual] || 'Sin categoría');
+            const textoFiltro = (document.getElementById('filtro_catalogo_ventas').value || '').toLowerCase().trim();
+
+            const botonesCategoria = document.querySelectorAll('.categoria-btn');
+            botonesCategoria.forEach(btn => {
+                const bgInactive = btn.getAttribute('data-bg-inactive') || 'bg-slate-100 border text-slate-700 hover:bg-slate-200';
+                btn.className = `categoria-btn p-1 rounded-2xl active:scale-95 transition flex flex-col items-center justify-center gap-0.5 text-center w-[74px] h-[74px] min-h-[74px] flex-shrink-0 font-black text-[9px] ${bgInactive}`;
+            });
+
+            const botonActivo = boton || document.querySelector(`.categoria-btn[data-categoria="${categoriaActual}"]`);
+            if (botonActivo) {
+                const bgActive = botonActivo.getAttribute('data-bg-active') || 'bg-amber-500 text-slate-950 font-black';
+                botonActivo.className = `categoria-btn p-1 rounded-2xl active:scale-95 transition flex flex-col items-center justify-center gap-0.5 text-center w-[74px] h-[74px] min-h-[74px] flex-shrink-0 font-black text-[9px] ${bgActive}`;
+            }
+
+            titulo.innerText = `Productos: ${nombreCategoria}`;
+            contenedor.innerHTML = '';
+            
+            // Obtener lista base de productos para la categoría actual
+            let productosBase = [];
+            if (categoriaActual === 'todo') {
+                Object.keys(baseDatosProductos).forEach(catId => {
+                    productosBase = productosBase.concat(baseDatosProductos[catId] || []);
+                });
+            } else {
+                productosBase = baseDatosProductos[categoriaActual] || [];
+            }
+            
+            if (productosBase.length === 0) {
+                contenedor.innerHTML = '<p class="text-gray-400 italic col-span-full text-center mt-10 text-xs">No hay productos cargados en esta sección.</p>';
+                return;
+            }
+
+            const productosFiltrados = productosBase.filter(prod => {
+                if (!textoFiltro) return true;
+                return String(prod.nombre || '').toLowerCase().includes(textoFiltro);
+            });
+
+            if (productosFiltrados.length === 0) {
+                contenedor.innerHTML = '<p class="text-gray-400 italic col-span-full text-center mt-10 text-xs">No hay coincidencias para ese filtro.</p>';
+                return;
+            }
+
+            productosFiltrados.forEach(prod => {
+                const esPack = esVerdadero(prod.es_pack);
+                const esPreparado = esVerdadero(prod.es_preparado);
+                const sinStock = !esPreparado && Number(prod.cantidad_stock) <= 0;
+                const esCigarrillo = esPack && esProductoCigarrillo(prod);
+                const modoActivo = obtenerModoVentaPack(prod);
+                const configVenta = obtenerConfiguracionVenta(prod, modoActivo);
+                
+                let textoStock = "";
+                if (esPack) {
+                    const unidadesPorPack = Number(prod.unidades_por_pack) || 1;
+                    const stockTotal = Number(prod.cantidad_stock) || 0;
+                    const pacas = Math.floor(stockTotal / unidadesPorPack);
+                    const sueltas = Math.floor(stockTotal % unidadesPorPack);
+                    
+                    if (sueltas > 0) {
+                        textoStock = `${pacas}p + ${sueltas}u`;
+                    } else {
+                        textoStock = `${pacas} Pacas`;
+                    }
+                } else {
+                    textoStock = `${Math.floor(prod.cantidad_stock)} Unidades`;
+                }
+
+                const tarjeta = document.createElement('button');
+                tarjeta.disabled = sinStock;
+                tarjeta.className = `p-5 rounded-2xl text-left shadow border flex flex-col justify-between h-32 transition ${sinStock ? 'bg-slate-900/40 border-slate-800/60 opacity-55 cursor-not-allowed' : 'bg-slate-900/80 backdrop-blur-md border-slate-750/70 hover:border-amber-400 active:scale-95 hover:bg-slate-900/90'}`;
+                tarjeta.onclick = () => agregarAlCarrito(prod, obtenerModoVentaPack(prod));
+
+                const selectorModo = esCigarrillo ? `
+                    <div class="flex gap-1 mb-1" onclick="event.stopPropagation()">
+                        <button type="button" onclick="seleccionarModoVentaPack(${prod.id}, 'unidad')" class="px-1.5 py-0.5 rounded text-[10px] font-bold ${modoActivo === 'unidad' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}">UND</button>
+                        <button type="button" onclick="seleccionarModoVentaPack(${prod.id}, 'medio')" class="px-1.5 py-0.5 rounded text-[10px] font-bold ${modoActivo === 'medio' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}">MEDIO</button>
+                    </div>
+                ` : '';
+                
+                tarjeta.innerHTML = `
+                    <div class="font-bold ${sinStock ? 'text-slate-500' : 'text-slate-100'} text-lg">${prod.nombre}</div>
+                    ${selectorModo}
+                    <div class="flex justify-between items-center w-full mt-2">
+                        <span class="${sinStock ? 'text-slate-500' : 'text-amber-400'} font-extrabold text-xl">$${Number(configVenta.precioUnitario || 0).toLocaleString('es-CO', {maximumFractionDigits: 0})}</span>
+                        <span class="text-xs ${sinStock ? 'text-red-500 font-bold' : 'text-slate-400'}">
+                            ${esPreparado ? '✨ Preparado' : (esPack ? `Modo: ${configVenta.etiqueta} · Stock: ${textoStock}` : 'Stock: ' + textoStock)}
+                        </span>
+                    </div>`;
+                contenedor.appendChild(tarjeta);
+            });
+        }
+
+        function seleccionarModoVentaPack(productoId, modo) {
+            preferenciaVentaPack[String(productoId)] = modo;
+            if (categoriaActual) filtrarCategoria(categoriaActual);
+        }
+
+        function aplicarFiltroCatalogo() {
+            if (categoriaActual) {
+                filtrarCategoria(categoriaActual);
+            }
+        }
+
+        function agregarAlCarrito(producto, modoVenta = 'unidad') {
+            document.getElementById('carrito-vacio').style.display = 'none';
+            const configVenta = obtenerConfiguracionVenta(producto, modoVenta);
+            const itemExistente = carrito.find(item => item.id === producto.id && String(item.modo_venta || 'unidad') === configVenta.modo);
+            
+            if (itemExistente) {
+                itemExistente.cantidad++;
+                itemExistente.factor_descuento = configVenta.factor;
+            } else {
+                carrito.push({ 
+                    ...producto, 
+                    precio: Number(configVenta.precioUnitario || 0),
+                    cantidad: 1, 
+                    factor_descuento: configVenta.factor,
+                    modo_venta: configVenta.modo
+                });
+            }
+            actualizarInterfazCarrito();
+        }
+
+        function removerDelCarrito(id) {
+            carrito = carrito.filter(item => item.id !== id);
+            if (carrito.length === 0) document.getElementById('carrito-vacio').style.display = 'block';
+            actualizarInterfazCarrito();
+        }
+
+        function actualizarInterfazCarrito() {
+            const contenedor = document.getElementById('elementos-carrito');
+            const msgVacio = document.getElementById('carrito-vacio');
+            contenedor.innerHTML = '';
+            contenedor.appendChild(msgVacio);
+            let total = 0;
+            
+            syncCarritoConPestaña();
+            
+            carrito.forEach(item => {
+                const subtotal = item.precio * item.cantidad;
+                total += subtotal;
+                
+                let cantidadDisplay = `${item.cantidad}x`;
+                if (esVerdadero(item.es_pack)) {
+                    const modo = String(item.modo_venta || 'unidad');
+                    if (modo === 'pack') {
+                        cantidadDisplay = `${item.cantidad} pack(s)`;
+                    } else if (modo === 'medio') {
+                        cantidadDisplay = `${item.cantidad} medio(s)`;
+                    } else {
+                        cantidadDisplay = `${item.cantidad} unidad(es)`;
+                    }
+                }
+                
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-gray-50 p-3 rounded-xl border';
+                div.innerHTML = `
+                    <div>
+                        <div class="font-bold text-gray-800 text-sm">${item.nombre}</div>
+                        <div class="text-xs text-gray-500">${cantidadDisplay} $${item.precio.toLocaleString('es-CO', {maximumFractionDigits: 0})}</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-bold text-gray-700">$${subtotal.toLocaleString('es-CO', {maximumFractionDigits: 0})}</span>
+                        <button onclick="removerDelCarrito(${item.id})" class="text-red-500 bg-red-50 p-2 rounded-lg hover:bg-red-100 font-bold text-xs">🗑️</button>
+                    </div>
+                `;
+                contenedor.appendChild(div);
+            });
+            
+            totalVentaActual = total;
+            document.getElementById('total-pago').innerText = `$${total.toLocaleString('es-CO', {maximumFractionDigits: 0})}`;
+            calcularCambio();
+        }
+
+        function teclearNumero(digito) {
+            const input = obtenerInputNumericoActivo();
+            const valorActual = String(input.value || '');
+            input.value = (valorActual === '0' || valorActual === '') ? digito : valorActual + digito;
+            if (entradaNumericaActiva === 'efectivo-recibido') calcularCambio();
+        }
+
+        function borrarUltimoDigito() {
+            const input = obtenerInputNumericoActivo();
+            input.value = String(input.value || '').slice(0, -1) || '0';
+            if (entradaNumericaActiva === 'efectivo-recibido') calcularCambio();
+        }
+
+        function borrarTodoTeclado() { 
+            const input = obtenerInputNumericoActivo();
+            input.value = '0';
+            if (entradaNumericaActiva === 'efectivo-recibido') calcularCambio();
+        }
+        
+        function cargarBilleteDirecto(v) { 
+            const input = obtenerInputNumericoActivo();
+            input.value = v;
+            if (entradaNumericaActiva === 'efectivo-recibido') calcularCambio();
+        }
+
+        function calcularCambio() {
+            const efectivo = parseFloat(document.getElementById('efectivo-recibido').value) || 0;
+            const cambioSpan = document.getElementById('cambio-cliente');
+            const cambio = efectivo - totalVentaActual;
+            
+            if (totalVentaActual === 0 || efectivo === 0) { 
+                cambioSpan.innerText = "$0"; 
+                cambioSpan.className = "text-xl font-black text-amber-700"; 
+            }
+            else if (cambio < 0) { 
+                cambioSpan.innerText = "Falta dinero"; 
+                cambioSpan.className = "text-sm font-bold text-red-500 block"; 
+            }
+            else { 
+                cambioSpan.innerText = `$${cambio.toLocaleString('es-CO', {maximumFractionDigits: 0})}`; 
+                cambioSpan.className = "text-xl font-black text-amber-700"; 
+            }
+        }
+
+        function cancelarPedido() {
+            if(confirm("¿Estás seguro de que quieres borrar la venta actual?")) {
+                carrito = [];
+                document.getElementById('efectivo-recibido').value = '0';
+                document.getElementById('referencia-pago').value = '';
+                document.getElementById('cliente-fiado').value = '';
+                document.getElementById('referencia-fiado').value = '';
+                setEntradaNumericaActiva('efectivo-recibido');
+                document.getElementById('carrito-vacio').style.display = 'block';
+                cambiarMetodoPago('efectivo');
+                actualizarInterfazCarrito();
+            }
+        }
+
+        function toggleCamposGastoVentas(valor) {
+            const seccionInsumo = document.getElementById('seccion_gasto_insumo_ventas');
+            const seccionProducto = document.getElementById('seccion_gasto_producto_ventas');
+            const categoriaGasto = document.getElementById('categoria_gasto_ventas');
+
+            const insumoId = document.getElementById('insumo_id_ventas');
+            const cantidadInsumo = document.getElementById('cantidad_insumo_ventas');
+            const productoId = document.getElementById('producto_id_ventas');
+            const categoriaProducto = document.getElementById('categoria_producto_ventas');
+            const filtroProducto = document.getElementById('filtro_producto_ventas');
+            const cantidadProducto = document.getElementById('cantidad_producto_ventas');
+
+            if (valor === 'insumo') {
+                seccionInsumo.classList.remove('hidden');
+                seccionProducto.classList.add('hidden');
+                insumoId.required = true;
+                cantidadInsumo.required = true;
+                productoId.value = '';
+                productoId.required = false;
+                cantidadProducto.required = false;
+                categoriaProducto.value = '';
+                filtroProducto.value = '';
+                productoCompraSeleccionado = null;
+                categoriaGasto.value = 'Insumos';
+            } else if (valor === 'producto') {
+                seccionProducto.classList.remove('hidden');
+                seccionInsumo.classList.add('hidden');
+                productoId.required = true;
+                renderCategoriasCompra();
+                filtrarProductosCompra();
+                cantidadProducto.required = true;
+                insumoId.required = false;
+                cantidadInsumo.required = false;
+                categoriaGasto.value = 'Inventario';
+                actualizarAyudaProductoGasto();
+            } else {
+                seccionInsumo.classList.add('hidden');
+                seccionProducto.classList.add('hidden');
+                insumoId.required = false;
+                cantidadInsumo.required = false;
+                productoId.value = '';
+                productoId.required = false;
+                cantidadProducto.required = false;
+                categoriaProducto.value = '';
+                filtroProducto.value = '';
+                productoCompraSeleccionado = null;
+                categoriaGasto.value = 'General';
+            }
+        }
+
+        function renderCategoriasCompra() {
+            const categoriaSelect = document.getElementById('categoria_producto_ventas');
+            const actual = categoriaSelect.value;
+            const categoriasUnicas = [...new Set(
+                productosCompra.map(p => String(p.categoria_nombre || 'Sin categoría'))
+            )].sort((a, b) => a.localeCompare(b, 'es'));
+
+            categoriaSelect.innerHTML = '<option value="">-- Todas las categorías --</option>';
+            categoriasUnicas.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                categoriaSelect.appendChild(opt);
+            });
+
+            if ([...categoriaSelect.options].some(o => o.value === actual)) {
+                categoriaSelect.value = actual;
+            }
+        }
+
+        function renderListaProductosCompra(texto, categoriaSeleccionada) {
+            const select = document.getElementById('producto_id_ventas');
+            const valorActual = select.value;
+            select.innerHTML = '<option value="">-- Seleccione Producto --</option>';
+
+            const filtrados = productosCompra.filter(p => {
+                const nombre = String(p.nombre || '').toLowerCase();
+                const categoria = String(p.categoria_nombre || '').toLowerCase();
+                const coincideTexto = !texto || nombre.includes(texto) || categoria.includes(texto);
+                const coincideCategoria = !categoriaSeleccionada || categoria === categoriaSeleccionada.toLowerCase();
+                return coincideTexto && coincideCategoria;
+            });
+
+            if (filtrados.length === 0) {
+                const optSin = document.createElement('option');
+                optSin.value = '';
+                optSin.disabled = true;
+                optSin.textContent = 'Sin resultados';
+                select.appendChild(optSin);
+                productoCompraSeleccionado = null;
+                actualizarAyudaProductoGasto();
+                return;
+            }
+
+            const idsVistos = new Set();
+            const filtradosUnicos = [];
+            filtrados.forEach(p => {
+                const idKey = String(p.id);
+                if (!idsVistos.has(idKey)) {
+                    idsVistos.add(idKey);
+                    filtradosUnicos.push(p);
+                }
+            });
+
+            filtradosUnicos.sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'));
+            filtradosUnicos.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = String(p.id);
+                const categoria = String(p.categoria_nombre || 'Sin categoría');
+                opt.textContent = categoriaSeleccionada ? p.nombre : `${categoria} - ${p.nombre}`;
+                select.appendChild(opt);
+            });
+
+            if ([...select.querySelectorAll('option')].some(o => o.value === valorActual)) {
+                select.value = valorActual;
+            }
+            seleccionarProductoCompra();
+        }
+
+        function filtrarProductosCompra() {
+            const texto = (document.getElementById('filtro_producto_ventas').value || '').toLowerCase().trim();
+            const categoria = document.getElementById('categoria_producto_ventas').value || '';
+            renderListaProductosCompra(texto, categoria);
+        }
+
+        function seleccionarProductoCompra() {
+            const productoId = document.getElementById('producto_id_ventas');
+            const exacto = productosCompra.find(p => String(p.id) === String(productoId.value));
+
+            if (exacto) {
+                productoCompraSeleccionado = exacto;
+            } else {
+                productoCompraSeleccionado = null;
+                productoId.value = '';
+            }
+            actualizarAyudaProductoGasto();
+        }
+
+        function actualizarAyudaProductoGasto() {
+            const label = document.getElementById('label_cantidad_producto_ventas');
+            const ayuda = document.getElementById('ayuda_cantidad_producto_ventas');
+
+            if (!productoCompraSeleccionado) {
+                label.innerText = 'Cantidad Comprada:';
+                ayuda.classList.add('hidden');
+                ayuda.innerText = '';
+                return;
+            }
+
+            const esPack = String(productoCompraSeleccionado.es_pack) === '1';
+            const unidadesPack = Number(productoCompraSeleccionado.unidades_por_pack || '1');
+
+            if (esPack) {
+                label.innerText = 'Pacas Compradas:';
+                ayuda.innerText = `Este producto se maneja por pacas. Se convertirá a ${unidadesPack} unidades por cada paca.`;
+                ayuda.classList.remove('hidden');
+            } else {
+                label.innerText = 'Unidades Compradas:';
+                ayuda.innerText = 'Este producto se maneja por unidades.';
+                ayuda.classList.remove('hidden');
+            }
+        }
+
+        function dinero(valor) {
+            return `$${Number(valor || 0).toLocaleString('es-CO', {maximumFractionDigits: 0})}`;
+        }
+
+        function actualizarSaldoAbonoCliente() {
+            const cliente = (document.getElementById('abono-cliente').value || '').trim().toLowerCase();
+            const info = deudasPendientes.find(d => String(d.cliente_nombre || '').toLowerCase() === cliente);
+            const saldo = info ? Number(info.saldo_pendiente || 0) : 0;
+            document.getElementById('abono-saldo-cliente').innerText = `Saldo pendiente: ${dinero(saldo)}`;
+        }
+
+        async function cargarDeudasPendientes() {
+            try {
+                const respuesta = await fetch('/api/deudas_pendientes');
+                if (!respuesta.ok) throw new Error('No se pudo consultar deudas pendientes');
+                const data = await respuesta.json();
+                if (!data.success) throw new Error(data.error || 'Error al cargar deudas');
+
+                deudasPendientes = data.deudas || [];
+                const select = document.getElementById('abono-cliente');
+                const valorActual = (select.value || '').trim().toLowerCase();
+                select.innerHTML = '<option value="">-- Selecciona cliente --</option>';
+
+                deudasPendientes.forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.cliente_nombre;
+                    option.textContent = `${d.cliente_nombre} (${dinero(d.saldo_pendiente || 0)})`;
+                    select.appendChild(option);
+                });
+
+                const opcionCoincidente = [...select.options].find(o => (o.value || '').trim().toLowerCase() === valorActual);
+                if (opcionCoincidente) {
+                    select.value = opcionCoincidente.value;
+                }
+                actualizarSaldoAbonoCliente();
+            } catch (error) {
+                console.error('Error cargando deudas pendientes:', error);
+            }
+        }
+
+        async function registrarAbonoFiado() {
+            const cliente = (document.getElementById('abono-cliente').value || '').trim();
+            const monto = Number(document.getElementById('abono-monto').value || 0);
+            const metodo = (document.getElementById('abono-metodo').value || 'efectivo').trim();
+            const elRef = document.getElementById('abono-referencia');
+            const referencia = elRef ? (elRef.value || '').trim() : '';
+            const estado = document.getElementById('abono-estado');
+
+            if (!cliente) return alert('Selecciona un cliente con deuda para registrar el abono.');
+            if (!monto || monto <= 0) return alert('Ingresa un monto válido para el abono.');
+
+            try {
+                estado.innerText = 'Procesando abono...';
+                const respuesta = await fetch('/api/registrar_abono_fiado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cliente_nombre: cliente,
+                        monto,
+                        metodo_pago: metodo,
+                        referencia
+                    })
+                });
+                const resultado = await respuesta.json();
+
+                if (!resultado.success) {
+                    estado.innerText = '';
+                    return alert(`⚠️ Error: ${resultado.error}`);
+                }
+
+                document.getElementById('abono-monto').value = '';
+                if (elRef) elRef.value = '';
+                setEntradaNumericaActiva('efectivo-recibido');
+                estado.innerText = `Abono registrado. Saldo restante: ${dinero(resultado.saldo_restante || 0)}`;
+                await cargarDeudasPendientes();
+                await cargarResumenTurno();
+                alert('✅ Abono registrado y entrada aplicada a caja/cuentas.');
+            } catch (error) {
+                estado.innerText = '';
+                console.error('Error registrando abono:', error);
+                alert('Error crítico al registrar el abono.');
+            }
+        }
+
+        async function registrarIngresoIntangible() {
+            const concepto = (document.getElementById('intangible-concepto').value || '').trim();
+            const monto = Number(document.getElementById('intangible-monto').value || 0);
+            const metodo = (document.getElementById('intangible-metodo').value || 'efectivo').trim();
+            const elRef = document.getElementById('intangible-referencia');
+            const referencia = elRef ? (elRef.value || '').trim() : '';
+            const estado = document.getElementById('intangible-estado');
+
+            if (!concepto) return alert('Debes escribir el concepto del ingreso intangible.');
+            if (!monto || monto <= 0) return alert('Ingresa un monto válido para el ingreso intangible.');
+
+            try {
+                estado.innerText = 'Registrando ingreso...';
+                const respuesta = await fetch('/api/registrar_ingreso_intangible', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        concepto,
+                        monto,
+                        metodo_pago: metodo,
+                        referencia
+                    })
+                });
+                const resultado = await respuesta.json();
+
+                if (!resultado.success) {
+                    estado.innerText = '';
+                    return alert(`⚠️ Error: ${resultado.error}`);
+                }
+
+                document.getElementById('intangible-concepto').value = '';
+                document.getElementById('intangible-monto').value = '';
+                if (elRef) elRef.value = '';
+                setEntradaNumericaActiva('efectivo-recibido');
+                estado.innerText = `Ingreso registrado: ${dinero(resultado.monto || 0)} (${resultado.concepto || ''}).`;
+                await cargarResumenTurno();
+                await cargarMovimientosPagoRecientes();
+                alert('✅ Ingreso intangible registrado correctamente.');
+            } catch (error) {
+                estado.innerText = '';
+                console.error('Error registrando ingreso intangible:', error);
+                alert('Error crítico al registrar el ingreso intangible.');
+            }
+        }
+
+        async function cargarResumenTurno() {
+            try {
+                const respuesta = await fetch('/api/resumen_turno_actual');
+                if (!respuesta.ok) throw new Error('No se pudo consultar el resumen del turno');
+                const data = await respuesta.json();
+                if (!data.success) throw new Error(data.error || 'Error de datos');
+
+                const hayTurno = Boolean(data.turno_id);
+                document.getElementById('badge-turno-actual').innerText = hayTurno ? `Turno #${data.turno_id}` : 'Sin turno';
+                document.getElementById('estado-turno-header').innerText = hayTurno ? `⏱️ Turno activo #${data.turno_id}` : '⏱️ Sin turno activo';
+
+                const formIniciar = document.getElementById('form-iniciar-turno');
+                const btnCerrar = document.getElementById('btn-cerrar-turno');
+                if (formIniciar) formIniciar.style.display = hayTurno ? 'none' : 'inline';
+                if (btnCerrar) btnCerrar.style.display = hayTurno ? 'inline' : 'none';
+                document.getElementById('turno-total-vendido').innerText = dinero(data.total_ventas);
+                document.getElementById('turno-total-gastos').innerText = dinero(data.total_gastos);
+                const saldo = Number(data.saldo_turno || 0);
+                const saldoEl = document.getElementById('turno-saldo-neto');
+                saldoEl.innerText = dinero(saldo);
+                saldoEl.className = `font-black text-sm ${saldo >= 0 ? 'text-slate-800' : 'text-rose-700'}`;
+                document.getElementById('turno-movimientos').innerText = String(data.movimientos || 0);
+
+                document.getElementById('caja-efectivo-actual').innerText = dinero(data.caja_efectivo_actual || 0);
+                document.getElementById('deuda-fiado-actual').innerText = dinero(data.deuda_fiado_actual || 0);
+                const cuentas = data.saldos_cuentas_actuales || [];
+                const totalDigital = cuentas
+                    .filter(c => {
+                        const metodo = String(c.metodo_pago || '').toLowerCase();
+                        return metodo !== 'efectivo' && metodo !== 'fiado';
+                    })
+                    .reduce((acc, c) => acc + Number(c.saldo || 0), 0);
+                document.getElementById('cuentas-digitales-total').innerText = dinero(totalDigital);
+
+                const detalleCuentas = document.getElementById('detalle-cuentas-actuales');
+                detalleCuentas.innerHTML = '';
+                if (cuentas.length === 0) {
+                    detalleCuentas.innerHTML = '<span class="text-gray-400 italic">Sin movimientos en cuentas todavía.</span>';
+                } else {
+                    cuentas.forEach(cuenta => {
+                        const tag = document.createElement('span');
+                        const metodo = String(cuenta.metodo_pago || '').toUpperCase();
+                        tag.className = 'px-2 py-0.5 rounded-full bg-white border border-sky-200 text-sky-800 font-semibold';
+                        tag.innerText = `${metodo}: ${dinero(cuenta.saldo || 0)}`;
+                        detalleCuentas.appendChild(tag);
+                    });
+                }
+
+                const contMetodos = document.getElementById('turno-metodos');
+                contMetodos.innerHTML = '';
+                if ((data.ventas_por_metodo || []).length === 0) {
+                    contMetodos.innerHTML = '<span class="text-gray-400 italic">Sin ventas aún</span>';
+                } else {
+                    data.ventas_por_metodo.forEach(m => {
+                        const tag = document.createElement('span');
+                        tag.className = 'px-2 py-0.5 rounded-full bg-white border border-emerald-200 text-emerald-800 font-semibold';
+                        tag.innerText = `${String(m.metodo_pago || '').toUpperCase()}: ${dinero(m.total)}`;
+                        contMetodos.appendChild(tag);
+                    });
+                }
+
+                const contProductos = document.getElementById('turno-productos-vendidos');
+                contProductos.innerHTML = '';
+                if ((data.productos_vendidos || []).length === 0) {
+                    contProductos.innerHTML = '<p class="text-gray-400 italic">Sin productos vendidos en este turno.</p>';
+                } else {
+                    data.productos_vendidos.forEach(p => {
+                        const row = document.createElement('div');
+                        row.className = 'flex justify-between items-center bg-white border border-gray-200 rounded-lg px-2 py-1';
+                        row.innerHTML = `
+                            <span class="font-semibold text-gray-700 truncate pr-2">${p.producto}</span>
+                            <span class="text-blue-700 font-bold whitespace-nowrap">${Math.floor(Number(p.cantidad || 0))} uds</span>
+                        `;
+                        contProductos.appendChild(row);
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando resumen de turno:', error);
+            }
+        }
+
+        async function cobrarPedido() {
+            if(carrito.length === 0) return alert("El carrito está vacío.");
+            
+            let efectivoInput = document.getElementById('efectivo-recibido').value.trim();
+            let efectivoNumerico = (efectivoInput === "" || efectivoInput === "0") ? totalVentaActual : parseFloat(efectivoInput);
+            const clienteFiado = (document.getElementById('cliente-fiado').value || '').trim();
+            const referenciaFiado = (document.getElementById('referencia-fiado').value || '').trim();
+            const imprimirFactura = document.getElementById('imprimir-factura')?.checked;
+            let ventanaFactura = null;
+
+            if (imprimirFactura) {
+                ventanaFactura = window.open('', '_blank');
+            }
+            
+            if (metodoPagoActual === 'efectivo' && efectivoNumerico < totalVentaActual) {
+                return alert("⚠️ Monto insuficiente. El pago no cubre el total de la venta.");
+            }
+
+            if (metodoPagoActual === 'fiado' && !clienteFiado) {
+                return alert('⚠️ Debes seleccionar un cliente exclusivo para registrar venta fiada.');
+            }
+            
+            try {
+                const respuesta = await fetch('/api/cobrar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        carrito, 
+                        metodo_pago: metodoPagoActual, 
+                        efectivo_recibido: efectivoNumerico, 
+                        referencia_pago: metodoPagoActual === 'fiado'
+                            ? referenciaFiado
+                            : document.getElementById('referencia-pago').value.trim(),
+                        cliente_fiado: clienteFiado,
+                        orden_abierta_id: ordenAbiertaEditandoId
+                    })
+                });
+                const resultado = await respuesta.json();
+                if (resultado.success) {
+                    ordenAbiertaEditandoId = null;
+                    cargarOrdenesAbiertas();
+                    if (imprimirFactura) {
+                        const urlFactura = `/venta/factura/${resultado.venta_id}?autoprint=1`;
+                        if (ventanaFactura && !ventanaFactura.closed) {
+                            ventanaFactura.location = urlFactura;
+                            ventanaFactura.focus();
+                        } else {
+                            const nuevaVentana = window.open(urlFactura, '_blank');
+                            if (!nuevaVentana) {
+                                alert('La venta se registró, pero el navegador bloqueó la factura automática.');
+                            }
+                        }
+                    }
+
+                    alert("💸 Venta Procesada Exitosamente.");
+                    carrito = [];
+                    document.getElementById('efectivo-recibido').value = '0';
+                    document.getElementById('referencia-pago').value = '';
+                    document.getElementById('cliente-fiado').value = '';
+                    document.getElementById('referencia-fiado').value = '';
+                    document.getElementById('imprimir-factura').checked = false;
+                    setEntradaNumericaActiva('efectivo-recibido');
+                    document.getElementById('carrito-vacio').style.display = 'block';
+                    actualizarInterfazCarrito();
+                    await cargarProductosDesdeDB();
+                    await cargarResumenTurno();
+                    await cargarDeudasPendientes();
+                } else alert("⚠️ Error: " + resultado.error);
+            } catch (e) { 
+                if (ventanaFactura && !ventanaFactura.closed) ventanaFactura.close();
+                alert("Error crítico de conexión con la caja.");
+                console.error(e);
+            }
+        }
+
+        document.getElementById('form_gasto_ventas').addEventListener('submit', function (event) {
+            const tipo = document.getElementById('tipo_gasto_ventas').value;
+            const productoId = document.getElementById('producto_id_ventas').value;
+            if (tipo === 'producto' && !productoId) {
+                event.preventDefault();
+                alert('Selecciona un producto válido de la lista para registrar inventario.');
+            }
+        });
+
+        document.getElementById('efectivo-recibido').addEventListener('focus', () => setEntradaNumericaActiva('efectivo-recibido'));
+        document.getElementById('monto-gasto-ventas').addEventListener('focus', () => setEntradaNumericaActiva('monto-gasto-ventas'));
+        document.getElementById('abono-monto').addEventListener('focus', () => setEntradaNumericaActiva('abono-monto'));
+        document.getElementById('referencia-pago').addEventListener('focus', () => setEntradaNumericaActiva('referencia-pago'));
+        document.getElementById('referencia-fiado').addEventListener('focus', () => setEntradaNumericaActiva('referencia-fiado'));
+        document.getElementById('intangible-monto').addEventListener('focus', () => setEntradaNumericaActiva('intangible-monto'));
+        const inputCodigoBarras = document.getElementById('codigo-barras-venta');
+        if (inputCodigoBarras) {
+            inputCodigoBarras.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    agregarProductoPorCodigoBarras(inputCodigoBarras.value);
+                }
+            });
+            inputCodigoBarras.addEventListener('change', () => {
+                if (inputCodigoBarras.value.trim()) {
+                    agregarProductoPorCodigoBarras(inputCodigoBarras.value);
+                }
+            });
+        }
+
+        let saldosEsperadosCierre = { efectivo: 0, nequi: 0, daviplata: 0, tarjeta: 0 };
+
+        function abrirModalCierreTurno() {
+            const modal = document.getElementById('modal-cierre-turno');
+            const btnConfirmar = document.getElementById('btn-confirmar-cierre');
+
+            ['efectivo', 'nequi', 'daviplata', 'tarjeta'].forEach(m => {
+                const inputReal = document.getElementById(`cierre-real-${m}`);
+                if (inputReal) inputReal.value = '';
+                calcularArqueoMetodo(m);
+            });
+
+            document.getElementById('cierre-observaciones').value = '';
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerHTML = '<span>Cargando... ⏱️</span>';
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+            }, 50);
+
+            fetch('/api/turno/preliminar')
+                .then(r => {
+                    if (!r.ok) throw new Error('No se pudo obtener el resumen preliminar.');
+                    return r.json();
+                })
+                .then(data => {
+                    if (!data.success) throw new Error(data.error || 'Error de datos');
+                    
+                    document.getElementById('cierre-responsable').innerText = `${data.turno.usuario} (${data.turno.rol.toUpperCase()})`;
+                    document.getElementById('cierre-fecha-apertura').innerText = data.turno.fecha_apertura;
+
+                    if (document.getElementById('cierre-resumen-turno-info')) {
+                        document.getElementById('cierre-resumen-turno-info').innerText = `Ventas turno: ${dinero(data.turno_ventas)} | Gastos: ${dinero(data.turno_gastos)}`;
+                    }
+
+                    saldosEsperadosCierre = data.saldos_acumulados || { efectivo: 0, nequi: 0, daviplata: 0, tarjeta: 0 };
+                    
+                    ['efectivo', 'nequi', 'daviplata', 'tarjeta'].forEach(m => {
+                        const espEl = document.getElementById(`cierre-esp-${m}`);
+                        if (espEl) espEl.innerText = dinero(saldosEsperadosCierre[m] || 0);
+                        calcularArqueoMetodo(m);
+                    });
+                    
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.innerHTML = '<span>Finalizar Turno ⏹</span>';
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert(`⚠️ Error al cargar balance del turno: ${err.message}`);
+                    cerrarModalCierreTurno();
+                });
+        }
+
+        function cerrarModalCierreTurno() {
+            const modal = document.getElementById('modal-cierre-turno');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function calcularArqueoMetodo(metodo) {
+            const inputReal = document.getElementById(`cierre-real-${metodo}`);
+            const badge = document.getElementById(`cierre-dif-badge-${metodo}`);
+            if (!inputReal || !badge) return;
+
+            const valStr = inputReal.value;
+            if (valStr === '' || valStr === null) {
+                badge.innerText = '--';
+                badge.className = 'text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 min-w-[80px] text-center';
+                return;
+            }
+
+            const real = Number(valStr);
+            const esp = Number(saldosEsperadosCierre[metodo] || 0);
+            const dif = real - esp;
+
+            const difSigno = dif > 0 ? '+' : '';
+            badge.innerText = `${difSigno}${dinero(dif)}`;
+
+            if (dif === 0) {
+                badge.className = 'text-[11px] font-bold px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 min-w-[80px] text-center';
+            } else if (dif > 0) {
+                badge.className = 'text-[11px] font-bold px-2 py-1 rounded-lg bg-blue-100 text-blue-800 min-w-[80px] text-center';
+            } else {
+                badge.className = 'text-[11px] font-bold px-2 py-1 rounded-lg bg-rose-100 text-rose-800 min-w-[80px] text-center';
+            }
+        }
+
+        function confirmarCierreTurno() {
+            const efectivoStr = document.getElementById('cierre-real-efectivo').value;
+            if (efectivoStr === '' || efectivoStr === null) {
+                alert('⚠️ Por favor ingresa el monto físico de Efectivo en Caja para continuar.');
+                return;
+            }
+
+            const parseInput = id => {
+                const val = document.getElementById(id)?.value;
+                return (val !== '' && val !== null) ? Number(val) : null;
+            };
+
+            const payload = {
+                efectivo_real: parseInput('cierre-real-efectivo'),
+                nequi_real: parseInput('cierre-real-nequi'),
+                daviplata_real: parseInput('cierre-real-daviplata'),
+                tarjeta_real: parseInput('cierre-real-tarjeta'),
+                observaciones: document.getElementById('cierre-observaciones').value
+            };
+
+            const btnConfirmar = document.getElementById('btn-confirmar-cierre');
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerHTML = '<span>Procesando... 🔄</span>';
+
+            fetch('/turno/cerrar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(async r => {
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok || !data.success) {
+                    throw new Error(data.error || 'Error al procesar el cierre del turno en el servidor.');
+                }
+                return data;
+            })
+            .then(data => {
+                cerrarModalCierreTurno();
+                
+                const pdfLink = document.getElementById('cierre-link-pdf');
+                if (data.pdf_url) {
+                    pdfLink.href = data.pdf_url;
+                    pdfLink.classList.remove('hidden');
+                } else {
+                    pdfLink.classList.add('hidden');
+                }
+                
+                const modalExito = document.getElementById('modal-cierre-exito');
+                modalExito.classList.remove('hidden');
+                setTimeout(() => {
+                    modalExito.classList.remove('opacity-0');
+                    modalExito.querySelector('div').classList.remove('scale-95');
+                }, 50);
+            })
+            .catch(err => {
+                console.error(err);
+                alert(`⚠️ Error crítico al finalizar turno: ${err.message}`);
+                btnConfirmar.disabled = false;
+                btnConfirmar.innerHTML = '<span>Finalizar Turno ⏹</span>';
+            });
+        }
+
+
+        function aceptarExitoCierre() {
+            const modalExito = document.getElementById('modal-cierre-exito');
+            modalExito.classList.add('opacity-0');
+            modalExito.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                modalExito.classList.add('hidden');
+                location.reload();
+            }, 300);
+        }
+        
+        function cancelarOrdenMesa(tabId) {
+            const tab = pestañas.find(p => p.id === tabId);
+            if (!tab || !tab.db_id) return;
+
+            if (!confirm(`¿Seguro que deseas cancelar la orden "${tab.nombre}"?`)) return;
+
+            fetch(`/api/ordenes_abiertas/${tab.db_id}/cancelar`, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        pestañas = pestañas.filter(p => p.id !== tabId);
+                        if (pestañaActivaId === tabId) {
+                            pestañaActivaId = 'rapida';
+                            const tabRapida = getPestañaActiva();
+                            carrito = [...(tabRapida.items || [])];
+                            actualizarInterfazCarrito();
+                        }
+                        renderBarraPestañas();
+                    }
+                });
+        }
+
+        cargarProductosDesdeDB();
+        toggleCamposGastoVentas('general');
+        const idsCategorias = Object.keys(mapaCategorias);
+        if (idsCategorias.length > 0) {
+            filtrarCategoria(idsCategorias[0]);
+        }
+        renderCategoriasCompra();
+        renderListaProductosCompra('', '');
+        renderClientesExclusivos();
+        cargarDeudasPendientes();
+        cargarMovimientosPagoRecientes();
+        cambiarMetodoPago('efectivo');
+        setEntradaNumericaActiva('efectivo-recibido');
+        const PLANTILLAS_INTANGIBLES_DEFECTO = [
+            { concepto: 'Parqueadero', monto: 2000 },
+            { concepto: 'Calentar Comida', monto: 1000 },
+            { concepto: 'Servicio Especial', monto: 3000 },
+            { concepto: 'Fotocopia / Impresión', monto: 500 }
+        ];
+
+        const ES_ADMIN = {{ 'true' if rol == 'administrador' else 'false' }};
+
+        function cargarPlantillasIntangibles() {
+            const cont = document.getElementById('contenedor-plantillas-intangibles');
+            if (!cont) return;
+
+            let plantillas = [];
+            try {
+                const guardadas = localStorage.getItem('plantillas_intangibles');
+                plantillas = guardadas ? JSON.parse(guardadas) : PLANTILLAS_INTANGIBLES_DEFECTO;
+            } catch(e) {
+                plantillas = PLANTILLAS_INTANGIBLES_DEFECTO;
+            }
+
+            cont.innerHTML = plantillas.map((p, idx) => `
+                <span onclick="aplicarPlantillaIntangible('${p.concepto}', ${p.monto})" class="cursor-pointer bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow-sm transition active:scale-95" title="Clic para seleccionar">
+                    <span>${p.concepto} ($${Number(p.monto).toLocaleString('es-CO')})</span>
+                    ${ES_ADMIN ? `<button onclick="event.stopPropagation(); borrarPlantillaIntangible(${idx})" class="text-rose-600 hover:text-rose-800 ml-1 font-black" title="Eliminar plantilla">&times;</button>` : ''}
+                </span>
+            `).join('');
+        }
+
+        function aplicarPlantillaIntangible(concepto, monto) {
+            document.getElementById('intangible-concepto').value = concepto;
+            document.getElementById('intangible-monto').value = monto;
+        }
+
+        function guardarPlantillaIntangible() {
+            if (!ES_ADMIN) {
+                alert('Solo el administrador puede agregar o modificar intangibles fijos.');
+                return;
+            }
+
+            const concepto = (document.getElementById('intangible-concepto').value || '').trim();
+            const monto = parseFloat(document.getElementById('intangible-monto').value || 0);
+
+            if (!concepto || isNaN(monto) || monto <= 0) {
+                alert('Escribe el concepto y monto que deseas guardar como fijo.');
+                return;
+            }
+
+            let plantillas = [];
+            try {
+                const guardadas = localStorage.getItem('plantillas_intangibles');
+                plantillas = guardadas ? JSON.parse(guardadas) : [...PLANTILLAS_INTANGIBLES_DEFECTO];
+            } catch(e) {
+                plantillas = [...PLANTILLAS_INTANGIBLES_DEFECTO];
+            }
+
+            if (!plantillas.some(p => p.concepto.toLowerCase() === concepto.toLowerCase())) {
+                plantillas.push({ concepto, monto });
+                localStorage.setItem('plantillas_intangibles', JSON.stringify(plantillas));
+                cargarPlantillasIntangibles();
+            }
+        }
+
+        function borrarPlantillaIntangible(idx) {
+            if (!ES_ADMIN) {
+                alert('Solo el administrador puede eliminar intangibles fijos.');
+                return;
+            }
+
+            let plantillas = [];
+            try {
+                const guardadas = localStorage.getItem('plantillas_intangibles');
+                plantillas = guardadas ? JSON.parse(guardadas) : [...PLANTILLAS_INTANGIBLES_DEFECTO];
+            } catch(e) {
+                plantillas = [...PLANTILLAS_INTANGIBLES_DEFECTO];
+            }
+
+            plantillas.splice(idx, 1);
+            localStorage.setItem('plantillas_intangibles', JSON.stringify(plantillas));
+            cargarPlantillasIntangibles();
+        }
+
+        cargarResumenTurno();
+        cargarOrdenesAbiertas();
+        cargarPlantillasIntangibles();
+        setInterval(cargarOrdenesAbiertas, 20000);
+        setInterval(cargarResumenTurno, 30000);
+        setInterval(cargarDeudasPendientes, 30000);
+        setInterval(cargarMovimientosPagoRecientes, 30000);
+        if (typeof inputCodigoBarras !== 'undefined' && inputCodigoBarras) {
+            setTimeout(() => inputCodigoBarras.focus(), 200);
+        }
+
+        // Restaurar estado del teclado retráctil
+        const tecladoVisible = localStorage.getItem('teclado_visible');
+        if (tecladoVisible === 'no') {
+            const contenedor = document.getElementById('contenedor-teclado-ventas');
+            const boton = document.getElementById('btn-toggle-teclado');
+            if (contenedor && boton) {
+                contenedor.classList.add('hidden');
+                boton.innerText = 'Mostrar Teclado ▴';
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
