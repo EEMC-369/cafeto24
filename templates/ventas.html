@@ -118,6 +118,7 @@
                 <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-1 rounded font-semibold text-sm transition">Iniciar Turno ▶</button>
             </form>
             <button id="btn-cerrar-turno" type="button" onclick="abrirModalCierreTurno()" class="bg-rose-600 hover:bg-rose-700 px-4 py-1 rounded font-semibold text-sm transition" style="display: none;">Terminar Turno ⏹</button>
+            <button id="btn-abrir-cajon-manual" type="button" onclick="abrirCajonMonederoManual()" class="bg-amber-600 hover:bg-amber-700 px-4 py-1 rounded font-semibold text-sm transition text-slate-100 flex items-center gap-1">🔑 Abrir Cajón</button>
             {% if rol == 'administrador' %}
             <a href="/admin" class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded font-semibold text-sm transition">Panel Admin ⚙️</a>
             {% endif %}
@@ -797,6 +798,33 @@
                 </a>
                 <button onclick="aceptarExitoCierre()" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold transition">
                     Aceptar y Recargar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE PREVISUALIZACIÓN DE FACTURA (IFRAME) -->
+    <div id="modal-factura-pos" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden border border-slate-100 flex flex-col p-6 transform scale-95 transition-transform duration-300 h-[85vh]">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">📄</span>
+                    <h3 class="text-lg font-black text-slate-800 uppercase tracking-wide">Impresión de Factura</h3>
+                </div>
+                <button onclick="cerrarModalFactura()" class="text-slate-400 hover:text-slate-600 font-bold p-1 text-lg">✕</button>
+            </div>
+            
+            <!-- IFrame contenedor de la factura -->
+            <div class="flex-1 w-full border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 relative">
+                <iframe id="iframe-factura" class="w-full h-full" src="about:blank"></iframe>
+            </div>
+            
+            <div class="mt-4 flex gap-3">
+                <button onclick="imprimirIframeFactura()" class="flex-1 bg-amber-500 hover:bg-amber-600 active:scale-95 transition text-slate-950 font-black py-3 rounded-xl shadow-md text-xs uppercase tracking-wider">
+                    🖨️ Imprimir Factura
+                </button>
+                <button onclick="cerrarModalFactura()" class="w-32 bg-slate-100 hover:bg-slate-200 active:scale-95 transition text-slate-700 font-bold py-3 rounded-xl text-xs uppercase tracking-wider">
+                    Cerrar
                 </button>
             </div>
         </div>
@@ -1972,11 +2000,6 @@
             const clienteFiado = (document.getElementById('cliente-fiado').value || '').trim();
             const referenciaFiado = (document.getElementById('referencia-fiado').value || '').trim();
             const imprimirFactura = document.getElementById('imprimir-factura')?.checked;
-            let ventanaFactura = null;
-
-            if (imprimirFactura) {
-                ventanaFactura = window.open('', '_blank');
-            }
             
             if (metodoPagoActual === 'efectivo' && efectivoNumerico < totalVentaActual) {
                 return alert("⚠️ Monto insuficiente. El pago no cubre el total de la venta.");
@@ -2005,17 +2028,14 @@
                 if (resultado.success) {
                     ordenAbiertaEditandoId = null;
                     cargarOrdenesAbiertas();
+                    
+                    // Disparar apertura de cajón si es efectivo
+                    if (metodoPagoActual === 'efectivo') {
+                        fetch('/api/abrir_cajon', { method: 'POST' }).catch(err => console.error("Error al abrir cajón:", err));
+                    }
+
                     if (imprimirFactura) {
-                        const urlFactura = `/venta/factura/${resultado.venta_id}?autoprint=1`;
-                        if (ventanaFactura && !ventanaFactura.closed) {
-                            ventanaFactura.location = urlFactura;
-                            ventanaFactura.focus();
-                        } else {
-                            const nuevaVentana = window.open(urlFactura, '_blank');
-                            if (!nuevaVentana) {
-                                alert('La venta se registró, pero el navegador bloqueó la factura automática.');
-                            }
-                        }
+                        abrirModalFactura(resultado.venta_id);
                     }
 
                     alert("💸 Venta Procesada Exitosamente.");
@@ -2033,7 +2053,6 @@
                     await cargarDeudasPendientes();
                 } else alert("⚠️ Error: " + resultado.error);
             } catch (e) { 
-                if (ventanaFactura && !ventanaFactura.closed) ventanaFactura.close();
                 alert("Error crítico de conexión con la caja.");
                 console.error(e);
             }
@@ -2349,6 +2368,68 @@
             plantillas.splice(idx, 1);
             localStorage.setItem('plantillas_intangibles', JSON.stringify(plantillas));
             cargarPlantillasIntangibles();
+        }
+
+        function abrirModalFactura(ventaId) {
+            const modal = document.getElementById('modal-factura-pos');
+            const iframe = document.getElementById('iframe-factura');
+            if (!modal || !iframe) return;
+            
+            iframe.src = `/venta/factura/${ventaId}?autoprint=0`;
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                const content = modal.querySelector('.transform');
+                if (content) {
+                    content.classList.remove('scale-95');
+                    content.classList.add('scale-100');
+                }
+            }, 50);
+        }
+
+        function cerrarModalFactura() {
+            const modal = document.getElementById('modal-factura-pos');
+            const iframe = document.getElementById('iframe-factura');
+            if (!modal) return;
+
+            modal.classList.add('opacity-0');
+            const content = modal.querySelector('.transform');
+            if (content) {
+                content.classList.remove('scale-100');
+                content.classList.add('scale-95');
+            }
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                if (iframe) iframe.src = 'about:blank';
+            }, 300);
+        }
+
+        function imprimirIframeFactura() {
+            const iframe = document.getElementById('iframe-factura');
+            if (!iframe) return;
+            try {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            } catch (err) {
+                console.error("Error al imprimir iframe:", err);
+                alert("No se pudo iniciar la impresión directamente. Intenta reintentar.");
+            }
+        }
+
+        function abrirCajonMonederoManual() {
+            fetch('/api/abrir_cajon', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log("Cajón abierto manual.");
+                    } else {
+                        alert("Error al abrir cajón: " + data.error);
+                    }
+                })
+                .catch(e => {
+                    console.error("Error al abrir cajón:", e);
+                    alert("Error al comunicarse con la caja.");
+                });
         }
 
         cargarResumenTurno();

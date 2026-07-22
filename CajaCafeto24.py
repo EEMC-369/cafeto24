@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.1.0"
+VERSION = "3.2.0"
 
 app = Flask(
     __name__,
@@ -3900,6 +3900,40 @@ def api_cobrar():
         return jsonify({'error': str(e), 'success': False}), 500
     finally:
         db.close()
+
+
+def abrir_cajon_monedero():
+    try:
+        import win32print
+        printer_name = win32print.GetDefaultPrinter()
+        hPrinter = win32print.OpenPrinter(printer_name)
+        try:
+            hJob = win32print.StartDocPrinter(hPrinter, 1, ("Abrir Cajon", None, "RAW"))
+            try:
+                win32print.StartPagePrinter(hPrinter)
+                # Comando ESC/POS para abrir cajón en pin 2 y pin 5 para máxima compatibilidad
+                win32print.WritePrinter(hPrinter, b"\x1b\x70\x00\x19\xfa")
+                win32print.WritePrinter(hPrinter, b"\x1b\x70\x01\x19\xfa")
+                win32print.EndPagePrinter(hPrinter)
+            finally:
+                win32print.EndDocPrinter(hPrinter)
+        finally:
+            win32print.ClosePrinter(hPrinter)
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
+@app.route('/api/abrir_cajon', methods=['POST'])
+def api_abrir_cajon():
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado', 'success': False}), 401
+    
+    exito, error = abrir_cajon_monedero()
+    if exito:
+        return jsonify({'success': True, 'message': 'Se envió señal de apertura al cajón monedero.'})
+    else:
+        return jsonify({'success': False, 'error': f"No se pudo abrir el cajón: {error}"}), 500
 
 
 @app.route('/venta/factura/<int:venta_id>')
