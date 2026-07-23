@@ -50,30 +50,52 @@
                 text-shadow: none !important;
                 box-shadow: none !important;
             }
-            body {
+            html, body {
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                display: block !important;
                 background: #ffffff !important;
                 background-image: none !important;
                 color: #000000 !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 width: 100% !important;
-                max-width: 80mm !important;
+                max-width: 54mm !important;
             }
             .no-print {
                 display: none !important;
             }
             .ticket-container {
                 width: 100% !important;
-                max-width: 80mm !important;
+                max-width: 54mm !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
                 margin: 0 !important;
-                padding: 4mm 2mm !important;
+                padding: 2mm 1mm !important;
                 box-shadow: none !important;
                 border: none !important;
                 background: #ffffff !important;
                 backdrop-filter: none !important;
+                font-size: 11px !important;
+                display: flex !important;
+                flex-direction: column !important;
             }
             .ticket-zigzag::after {
                 display: none !important;
+            }
+            .text-sm {
+                font-size: 11px !important;
+            }
+            .text-xs {
+                font-size: 9px !important;
+            }
+            .text-lg {
+                font-size: 12px !important;
+            }
+            .text-2xl {
+                font-size: 15px !important;
             }
         }
     </style>

@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=Cafeto24
-AppVersion=3.7.0
+AppVersion=3.9.0
 AppPublisher=Cafeto24
 DefaultDirName={autopf}\Cafeto24
 DefaultGroupName=Cafeto24
@@ -54,3 +54,13 @@ Filename: "{app}\CajaCafeto24.exe"; Description: "{cm:LaunchProgram,Cafeto24}"; 
 [UninstallRun]
 ; Limpiar la regla del firewall al desinstalar
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Cafeto24"""; Flags: runhidden
+
+[Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  // Cerrar el proceso si esta corriendo para evitar bloqueo de archivos
+  Exec('taskkill.exe', '/f /im CajaCafeto24.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;

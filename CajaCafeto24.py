@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.7.0"
+VERSION = "3.9.0"
 
 app = Flask(
     __name__,
@@ -1829,8 +1829,8 @@ def pantalla_ventas():
         
     db = conectar_db()
     
-    categorias = db.execute("SELECT id, nombre_categoria FROM categorias ORDER BY nombre_categoria ASC;").fetchall()
-    insumos = db.execute("SELECT id, nombre_insumo, unidad_medida FROM insumos ORDER BY nombre_insumo ASC;").fetchall()
+    categorias = [dict(c) for c in db.execute("SELECT id, nombre_categoria FROM categorias ORDER BY nombre_categoria ASC;").fetchall()]
+    insumos = [dict(i) for i in db.execute("SELECT id, nombre_insumo, unidad_medida FROM insumos ORDER BY nombre_insumo ASC;").fetchall()]
     productos = db.execute("""
         SELECT DISTINCT p.id, p.nombre, p.es_pack, p.unidades_por_pack, p.categoria_id,
                COALESCE(c.nombre_categoria, 'Sin categoría') AS categoria_nombre
@@ -1909,9 +1909,9 @@ def panel_administrador():
             'precio_medio_venta': p['precio_medio_venta'] if 'precio_medio_venta' in p.keys() else None
         })
     
-    categorias = db.execute("SELECT * FROM categorias").fetchall()
-    usuarios = db.execute("SELECT id, nombre, usuario, rol FROM usuarios").fetchall()
-    insumos = db.execute("SELECT * FROM insumos").fetchall()
+    categorias = [dict(c) for c in db.execute("SELECT * FROM categorias").fetchall()]
+    usuarios = [dict(u) for u in db.execute("SELECT id, nombre, usuario, rol FROM usuarios").fetchall()]
+    insumos = [dict(i) for i in db.execute("SELECT * FROM insumos").fetchall()]
     clientes_exclusivos = db.execute("""
         SELECT id, nombre, COALESCE(fecha_creacion, DATETIME('now', 'localtime')) as fecha_creacion
         FROM clientes_exclusivos
@@ -3169,7 +3169,11 @@ def api_productos():
             d['categoria_id'] = None
         lista_productos.append(d)
         
-    return jsonify(lista_productos)
+    resp = jsonify(lista_productos)
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 
 @app.route('/api/resumen_turno_actual')
@@ -4040,15 +4044,15 @@ def imprimir_factura_directa(venta_id):
                 # Datos del ticket
                 raw_data.extend(izquierda)
                 ticket_num = f"261-1-{venta['id']:06d}"
-                raw_data.extend(f"Ticket: {ticket_num}\n".encode('utf-8'))
-                raw_data.extend(f"Fecha: {venta['fecha']}\n".encode('utf-8'))
+                raw_data.extend(f"Ticket: {ticket_num}\n".encode('latin1', errors='replace'))
+                raw_data.extend(f"Fecha: {venta['fecha']}\n".encode('latin1', errors='replace'))
                 
                 vendedor = venta['vendedor_nombre'] or 'Cajero'
-                raw_data.extend(f"Atendido: {vendedor}\n".encode('utf-8'))
+                raw_data.extend(f"Atendido: {vendedor}\n".encode('latin1', errors='replace'))
                 
                 cliente = venta['cliente_fiado']
                 if cliente:
-                    raw_data.extend(f"Cliente: {cliente}\n".encode('utf-8'))
+                    raw_data.extend(f"Cliente: {cliente}\n".encode('latin1', errors='replace'))
                 
                 raw_data.extend(b"--------------------------------\n")
                 raw_data.extend(negrita_on + b"Cant Producto           Subtotal\n" + negrita_off)
@@ -4066,7 +4070,7 @@ def imprimir_factura_directa(venta_id):
                     
                     # Formatear la línea: Cant (3 chars) + Nombre (18 chars) + Subtotal (11 chars derecha)
                     linea = f"{cant:<3}{nombre:<18}{sub:>11}\n"
-                    raw_data.extend(linea.encode('latin1', errors='ignore'))
+                    raw_data.extend(linea.encode('latin1', errors='replace'))
                     
                 raw_data.extend(b"--------------------------------\n")
                 
@@ -4082,9 +4086,9 @@ def imprimir_factura_directa(venta_id):
                 cambio_val = venta['cambio'] or 0.0
                 cambio_str = f"${cambio_val:.0f}"
                 
-                raw_data.extend(f"Pago: {metodo_label:<15}{recibido_str:>11}\n".encode('utf-8'))
+                raw_data.extend(f"Pago: {metodo_label:<15}{recibido_str:>11}\n".encode('latin1', errors='replace'))
                 if metodo == 'efectivo' and cambio_val > 0:
-                    raw_data.extend(f"Cambio:        {cambio_str:>11}\n".encode('utf-8'))
+                    raw_data.extend(f"Cambio:        {cambio_str:>11}\n".encode('latin1', errors='replace'))
                 
                 raw_data.extend(b"--------------------------------\n")
                 raw_data.extend(centrado + b"Gracias por su compra\n")

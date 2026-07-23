@@ -1345,7 +1345,7 @@
 
         async function cargarProductosDesdeDB() {
             try {
-                const respuesta = await fetch('/api/productos');
+                const respuesta = await fetch('/api/productos?t=' + Date.now());
                 if (!respuesta.ok) throw new Error("Error de red");
                 const productosArr = await respuesta.json();
                 
