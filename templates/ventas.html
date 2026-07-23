@@ -1391,9 +1391,14 @@
                     }
                     baseDatosProductos[categoria].push(prod);
 
-                    const codigo = normalizarCodigoBarras(prod.codigo_barras);
-                    if (codigo) {
-                        productosPorCodigoBarras[codigo] = prod;
+                    if (prod.codigo_barras) {
+                        const codigos = String(prod.codigo_barras)
+                            .split(/[,;\s]+/)
+                            .map(c => normalizarCodigoBarras(c))
+                            .filter(Boolean);
+                        codigos.forEach(cod => {
+                            productosPorCodigoBarras[cod] = prod;
+                        });
                     }
                 });
                 

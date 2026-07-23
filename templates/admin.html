@@ -1080,11 +1080,12 @@
         }
 
         function filtrarProductos() {
-            const input = document.getElementById('buscadorProductos').value.toLowerCase();
+            const input = document.getElementById('buscadorProductos').value.toLowerCase().trim();
             const productos = document.querySelectorAll('.producto-item');
             productos.forEach(prod => {
                 const nombre = prod.querySelector('p').innerText.toLowerCase();
-                const esCoincidencia = nombre.includes(input);
+                const codigoTxt = prod.querySelector('.font-mono') ? prod.querySelector('.font-mono').innerText.toLowerCase() : '';
+                const esCoincidencia = nombre.includes(input) || codigoTxt.includes(input);
                 prod.style.display = esCoincidencia ? 'flex' : 'none';
                 if (esCoincidencia && input.length > 0) {
                     const catGrupo = prod.closest('.categoria-grupo');
