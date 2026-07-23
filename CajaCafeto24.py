@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.11.0"
+VERSION = "3.12.0"
 
 app = Flask(
     __name__,
@@ -4033,8 +4033,9 @@ def imprimir_factura_directa(venta_id):
                 if metodo == 'efectivo':
                     raw_data.extend(abrir_cajon)
                 
-                # Encabezado
-                raw_data.extend(centrado + negrita_on + double_size + b"CAFETO 24\n" + normal_size + negrita_off)
+                # Encabezado (ASCII Coffee Cup Logo + Titulo)
+                raw_data.extend(centrado + normal_size + b"  (  )\n   ) (\n .---.\n |   |'-.\n |   |  |\n  \\___/'-'\n\n")
+                raw_data.extend(negrita_on + double_size + b"CAFETO 24\n" + normal_size + negrita_off)
                 raw_data.extend(b"NIT: 1013587664-8\n")
                 raw_data.extend(b"Diagonal 62 sur #22-04, Bogota\n")
                 raw_data.extend(b"Tel.: 3015020637\n")
