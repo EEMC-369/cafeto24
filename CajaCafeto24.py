@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.9.0"
+VERSION = "3.10.0"
 
 app = Flask(
     __name__,
@@ -4076,7 +4076,7 @@ def imprimir_factura_directa(venta_id):
                 
                 # Totales
                 total_str = f"${venta['total']:.0f}"
-                raw_data.extend(negrita_on + double_size + centrado + f"TOTAL: {total_str}\n" + normal_size + negrita_off + izquierda)
+                raw_data.extend(negrita_on + double_size + centrado + f"TOTAL: {total_str}\n".encode('latin1', errors='replace') + normal_size + negrita_off + izquierda)
                 raw_data.extend(b"--------------------------------\n")
                 
                 # Método de pago y cambio
@@ -4678,7 +4678,6 @@ def mostrar_error_gui(titulo, mensaje):
             pass
 
 if __name__ == '__main__':
-    global puerto, host
     try:
         # Inicialización y migración automática de la base de datos al arrancar el servidor
         inicializar_y_migrar_db()
