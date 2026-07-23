@@ -4342,7 +4342,7 @@ def inicializar_y_migrar_db():
     finally:
         conn.close()
         
-    VERSION_OBJETIVO = 2  # Versión actual de la base de datos del sistema
+    VERSION_OBJETIVO = 3  # Versión actual de la base de datos del sistema
     
     if version_actual >= VERSION_OBJETIVO:
         print(f"INFO: Base de datos en su versión más reciente (v{version_actual}).")
@@ -4356,7 +4356,7 @@ def inicializar_y_migrar_db():
     try:
         if os.path.exists(db_path):
             shutil.copy2(db_path, respaldo_path)
-            print(f"✅ RESPALDO de seguridad creado exitosamente en: {respaldo_path}")
+            print(f"INFO: RESPALDO de seguridad creado exitosamente en: {respaldo_path}")
     except Exception as backup_err:
         print(f"ERROR: No se pudo realizar el respaldo de la base de datos: {backup_err}")
         return  # Detener la migración por seguridad
@@ -4641,18 +4641,18 @@ def inicializar_y_migrar_db():
             conn.commit()
             print("INFO: Creado usuario administrador por defecto (admin / admin123).")
 
-        print(f"🎉 Migración exitosa. Base de datos actualizada a la versión {version_actual}.")
+        print(f"INFO: Migracion exitosa. Base de datos actualizada a la version {version_actual}.")
 
     except Exception as migration_err:
         conn.rollback()
-        print(f"❌ ERROR durante la migración de base de datos: {migration_err}")
+        print(f"ERROR: ERROR durante la migracion de base de datos: {migration_err}")
         
         # 5. Si hay un fallo crítico, cerrar la conexión y restaurar la copia de seguridad
         try:
             conn.close()
             if respaldo_path and os.path.exists(respaldo_path):
                 shutil.copy2(respaldo_path, db_path)
-                print("⚠️ Copia de respaldo restaurada exitosamente para preservar la estabilidad de los datos.")
+                print("WARNING: Copia de respaldo restaurada exitosamente para preservar la estabilidad de los datos.")
         except Exception as restore_err:
             print(f"CRITICAL: No se pudo restaurar el respaldo de base de datos: {restore_err}")
         raise migration_err
