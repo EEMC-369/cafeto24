@@ -216,18 +216,18 @@
                     {% else %}
                         {% if emoji == '☕' %}{% set color_name = 'red' %}
                         {% elif emoji == '🥤' %}{% set color_name = 'blue' %}
-                        {% elif emoji == '🍊' %}{% set color_name = 'indigo' %}
+                        {% elif emoji == '🍊' or emoji == '🍹' %}{% set color_name = 'indigo' %}
                         {% elif emoji == '🍔' %}{% set color_name = 'amber' %}
-                        {% elif emoji == '🍿' %}{% set color_name = 'stone' %}
+                        {% elif emoji == '🍿' or emoji == '🧋' %}{% set color_name = 'stone' %}
                         {% elif emoji == '🍫' %}{% set color_name = 'orange' %}
                         {% elif emoji == '🍪' %}{% set color_name = 'cyan' %}
-                        {% elif emoji == '🍰' %}{% set color_name = 'rose' %}
-                        {% elif emoji == '⚡' %}{% set color_name = 'teal' %}
+                        {% elif emoji == '🍰' or emoji == '🍷' %}{% set color_name = 'rose' %}
+                        {% elif emoji == '⚡' or emoji == '🧉' %}{% set color_name = 'teal' %}
                         {% elif emoji == '🍺' %}{% set color_name = 'purple' %}
                         {% elif emoji == '🚬' %}{% set color_name = 'green' %}
                         {% elif emoji == '💊' %}{% set color_name = 'pink' %}
                         {% elif emoji == '🧻' %}{% set color_name = 'yellow' %}
-                        {% elif emoji == '💧' %}{% set color_name = 'sky' %}
+                        {% elif emoji == '💧' or emoji == '🥛' %}{% set color_name = 'sky' %}
                         {% elif emoji == '🚗' %}{% set color_name = 'emerald' %}
                         {% endif %}
                     {% endif %}
@@ -283,7 +283,7 @@
                     {% endif %}
                 <div class="categoria-grupo bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition hover:shadow-md duration-150">
                     
-                    <div class="flex justify-between items-center {{ bg_header }} p-4 border-b border-slate-200/50">
+                    <div class="flex justify-between items-center {{ bg_header }} p-4 border-b border-slate-200/50" style="height: 3cm;">
                         <button onclick="toggleCategoria('cat-{{ cat.id }}')" class="flex-1 text-left flex items-center gap-2 select-none">
                             <span class="text-xl">{{ emoji }}</span>
                             <h2 class="text-base font-black {{ text_color }} uppercase tracking-wide">{{ cat.nombre_categoria }}</h2>
@@ -334,7 +334,7 @@
                 
                 {% if ns.tiene_sin_cat %}
                 <div class="categoria-grupo bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="flex justify-between items-center bg-slate-50 p-4 border-b border-slate-100">
+                    <div class="flex justify-between items-center bg-slate-50 p-4 border-b border-slate-100" style="height: 3cm;">
                         <button onclick="toggleCategoria('cat-sin-categoria')" class="flex-1 text-left">
                             <h2 class="text-lg font-black text-slate-800 uppercase tracking-wide">📁 Sin Categoría</h2>
                         </button>
@@ -682,9 +682,15 @@
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Icono de la Categoría (Opcional)</label>
                         <select name="icono_categoria" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-1 focus:ring-slate-500">
                             <option value="">-- Automático (Basado en nombre) --</option>
-                            <option value="☕">☕ Café / Tinto</option>
-                            <option value="🥤">🥤 Bebidas Frías / Gaseosas</option>
-                            <option value="🍊">🍊 Jugos / Cítricos</option>
+                            <option value="☕">☕ Café / Tinto (Marrón/Rojo)</option>
+                            <option value="🥤">🥤 Gaseosas / Sodas (Azul)</option>
+                            <option value="🥛">🥛 Lácteos / Yogur / Avena (Blanco)</option>
+                            <option value="🍹">🍹 Jugos / Bebidas Tropicales (Naranja)</option>
+                            <option value="🧉">🧉 Aromaticas / Mates / Té Verde (Verde)</option>
+                            <option value="💧">💧 Agua / Hielo (Celeste)</option>
+                            <option value="🧋">🧋 Té de Burbujas / Bebidas Dulces (Marrón claro)</option>
+                            <option value="🍺">🍺 Cervezas / Licores (Amarillo)</option>
+                            <option value="🍷">🍷 Vinos (Rojo oscuro)</option>
                             <option value="🍔">🍔 Comida / Hamburguesa / Arepa</option>
                             <option value="🥐">🥐 Panadería / Croissant</option>
                             <option value="🍩">🍩 Donas / Ponqués</option>
@@ -695,11 +701,9 @@
                             <option value="🍰">🍰 Postres / Tortas</option>
                             <option value="🍨">🍨 Helados / Postres Fríos</option>
                             <option value="⚡">⚡ Energizantes</option>
-                            <option value="🍺">🍺 Cervezas / Licores</option>
                             <option value="🚬">🚬 Cigarrillos / Tabaco</option>
                             <option value="💊">💊 Medicamentos / Droguería</option>
                             <option value="🧻">🧻 Aseo / Higiene</option>
-                            <option value="💧">💧 Agua / Hielo</option>
                             <option value="🚗">🚗 Parqueadero / Vehículos</option>
                             <option value="🍎">🍎 Frutas / Verduras</option>
                         </select>
@@ -1006,9 +1010,15 @@
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Icono de la Categoría</label>
                     <select id="select-edit-cat-icono" name="icono_categoria" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-1 focus:ring-slate-500">
                         <option value="">-- Automático (Basado en nombre) --</option>
-                        <option value="☕">☕ Café / Tinto</option>
-                        <option value="🥤">🥤 Bebidas Frías / Gaseosas</option>
-                        <option value="🍊">🍊 Jugos / Cítricos</option>
+                        <option value="☕">☕ Café / Tinto (Marrón/Rojo)</option>
+                        <option value="🥤">🥤 Gaseosas / Sodas (Azul)</option>
+                        <option value="🥛">🥛 Lácteos / Yogur / Avena (Blanco)</option>
+                        <option value="🍹">🍹 Jugos / Bebidas Tropicales (Naranja)</option>
+                        <option value="🧉">🧉 Aromaticas / Mates / Té Verde (Verde)</option>
+                        <option value="💧">💧 Agua / Hielo (Celeste)</option>
+                        <option value="🧋">🧋 Té de Burbujas / Bebidas Dulces (Marrón claro)</option>
+                        <option value="🍺">🍺 Cervezas / Licores (Amarillo)</option>
+                        <option value="🍷">🍷 Vinos (Rojo oscuro)</option>
                         <option value="🍔">🍔 Comida / Hamburguesa / Arepa</option>
                         <option value="🥐">🥐 Panadería / Croissant</option>
                         <option value="🍩">🍩 Donas / Ponqués</option>
@@ -1019,11 +1029,9 @@
                         <option value="🍰">🍰 Postres / Tortas</option>
                         <option value="🍨">🍨 Helados / Postres Fríos</option>
                         <option value="⚡">⚡ Energizantes</option>
-                        <option value="🍺">🍺 Cervezas / Licores</option>
                         <option value="🚬">🚬 Cigarrillos / Tabaco</option>
                         <option value="💊">💊 Medicamentos / Droguería</option>
                         <option value="🧻">🧻 Aseo / Higiene</option>
-                        <option value="💧">💧 Agua / Hielo</option>
                         <option value="🚗">🚗 Parqueadero / Vehículos</option>
                         <option value="🍎">🍎 Frutas / Verduras</option>
                     </select>
