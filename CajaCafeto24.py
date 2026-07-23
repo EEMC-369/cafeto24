@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.4.0"
+VERSION = "3.5.0"
 
 app = Flask(
     __name__,
@@ -1935,8 +1935,17 @@ def panel_administrador():
             ), 0) AS saldo_caja_neto
     """).fetchone()
     
-    saldo_actual = resultado_saldo[0] if resultado_saldo else 0
-    
+    saldo_actual = resultado_saldo['saldo_caja_neto'] if (resultado_saldo and 'saldo_caja_neto' in resultado_saldo.keys()) else 0
+    total_stock_unidades = 0
+    total_valor_inventario = 0.0
+    for p in raw_productos:
+        es_preparado = p['es_preparado'] or 0
+        if not es_preparado:
+            stock = p['cantidad_stock'] or 0.0
+            precio = p['precio'] or 0.0
+            total_stock_unidades += stock
+            total_valor_inventario += (stock * precio)
+
     db.close()
     
     return render_template('admin.html', 
@@ -1948,6 +1957,8 @@ def panel_administrador():
                            clientes_exclusivos=clientes_exclusivos,
                            historial_gastos=historial_gastos,
                            saldo_caja=saldo_actual,
+                           total_stock_unidades=total_stock_unidades,
+                           total_valor_inventario=total_valor_inventario,
                            version_actual=VERSION)
 
 

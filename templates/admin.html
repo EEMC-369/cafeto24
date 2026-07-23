@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cafeto24 - Panel de Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(to right, rgba(15, 23, 42, 0.012) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.012) 1px, transparent 1px),
+                radial-gradient(at 0% 0%, rgba(245, 158, 11, 0.06) 0px, transparent 50%), 
+                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.03) 0px, transparent 50%);
+            background-size: 24px 24px, 24px 24px, 100% 100%, 100% 100%, 100% 100%;
+            background-attachment: fixed;
+            position: relative;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -10;
+            background-image: url('/static/background.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            opacity: 0.18;
+            pointer-events: none;
+        }
+        .interactive-element {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .interactive-element:hover {
+            transform: translateY(-1px);
+        }
+        .interactive-element:active {
+            transform: translateY(0) scale(0.98);
+        }
+        .brand-mark {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 3rem;
+            height: 3rem;
+        }
+        .brand-mark__cup {
+            position: relative;
+            width: 3rem;
+            height: 3rem;
+        }
+        .brand-mark__icon {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.9rem;
+            line-height: 1;
+        }
+        .brand-mark__text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .brand-mark__text--back {
+            color: #8a4b18;
+            transform: translate(calc(-50% + 2px), calc(-50% + 1px));
+            opacity: 0.95;
+        }
+        .brand-mark__text--front {
+            color: #ffffff;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+    <header class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-center shadow-lg border-b border-amber-500/20 gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="brand-mark filter drop-shadow">
+                <div class="brand-mark__cup">
+                    <span class="brand-mark__icon">☕</span>
+                    <span class="brand-mark__text brand-mark__text--back text-[10px]">CAFFETO24</span>
+                    <span class="brand-mark__text brand-mark__text--front text-[10px]">CAFFETO24</span>
+                </div>
+            </div>
+            <div>
+                <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Panel de Administración</p>
+                {% if url_acceso_red %}
+                <p class="text-[10px] text-amber-400 font-mono mt-0.5">📍 Acceso en Red: {{ url_acceso_red }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+            <span class="text-slate-300 text-sm">Admin: <strong class="text-white">{{ nombre }}</strong></span>
+            <span class="bg-slate-800/80 px-3 py-1.5 rounded-xl text-sm border border-slate-700 shadow-inner flex items-center gap-1.5">
+                <span class="text-amber-500">💰</span> Efectivo en Caja: <strong class="text-emerald-400 font-extrabold">${{ "{:,.0f}".format(saldo_caja) if saldo_caja is not none else '0' }}</strong>
+            </span>
+            <span class="bg-slate-800/80 px-3 py-1.5 rounded-xl text-sm border border-slate-700 shadow-inner flex items-center gap-1.5">
+                <span class="text-amber-500">📦</span> Inventario: <strong class="text-amber-400 font-extrabold">{{ "{:,.0f}".format(total_stock_unidades) if total_stock_unidades is not none else '0' }} und.</strong>
+                <span class="text-slate-500">|</span>
+                <strong class="text-emerald-400 font-extrabold">${{ "{:,.0f}".format(total_valor_inventario) if total_valor_inventario is not none else '0' }}</strong>
+            </span>
+            <form action="/admin/reset_all_data" method="POST" onsubmit="return confirm('Esto borrará ventas, gastos, turnos y movimientos. ¿Seguro?');" class="inline">
+                <button type="submit" class="interactive-element bg-rose-500 hover:bg-rose-600 px-4 py-2 rounded-xl font-bold text-sm transition">
+                    Reiniciar Caja 🔄
+                </button>
+            </form>
+            <a href="/ventas" class="interactive-element bg-amber-500 hover:bg-amber-600 px-4 py-2 rounded-xl font-bold text-sm text-slate-950 shadow-md shadow-amber-500/10 transition">
+                Ir a Ventas 📱
+            </a>
+            <a href="/logout" class="interactive-element bg-rose-600/90 hover:bg-rose-600 px-4 py-2 rounded-xl font-bold text-sm transition">
+                Cerrar Sesión
+            </a>
+        </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="max-w-7xl w-full mx-auto px-6 mt-4">
+          {% for category, message in messages %}
+            <div class="p-4 rounded-2xl font-bold text-sm shadow-sm border animate-fade-in flex items-center gap-2 {% if category == 'success' %}bg-emerald-50 text-emerald-800 border-emerald-200{% else %}bg-rose-50 text-rose-800 border-rose-200{% endif %}">
+                <span>{% if category == 'success' %}✅{% else %}⚠️{% endif %}</span>
+                <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <main class="flex-1 p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-8">
+            
+            <div class="mb-6">
+                <input type="text" id="buscadorProductos" onkeyup="filtrarProductos()" 
+                       placeholder="🔍 Buscar producto por nombre..." 
+                       class="w-full p-3 rounded-2xl border border-slate-200 outline-none focus:ring-2 focus:ring-amber-500 shadow-sm">
+            </div>
+
+            <div id="contenedor-productos" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                {% for cat in categorias %}
+                    {% set cat_lower = cat.nombre_categoria | lower %}
+                    {% set fallbacks = ['🥐', '🍩', '🥯', '🥪', '🍕', '🌭', '🌮', '🥨', '🍪', '🍨', '🧁', '🍎', '🍉', '🍓', '🥑', '🥞', '🧇', '🧀', '🍖', '🍗', '🍟', '🍣', '🍱', '🥟', '🥡'] %}
+                    {% set length = cat.nombre_categoria | length %}
+                    {% set index = length % (fallbacks | length) %}
+                    {% set emoji = fallbacks[index] %}
+                    {% set color_name = 'slate' %}
+                    
+                    {% if 'caliente' in cat_lower or 'café' in cat_lower or 'cafe' in cat_lower or 'tinto' in cat_lower or 'espresso' in cat_lower or 'milo' in cat_lower or 'cappuccino' in cat_lower or 'latte' in cat_lower %}
+                        {% set emoji = '☕' %}
+                        {% set color_name = 'red' %}
+                    {% elif 'gaseosa' in cat_lower or 'soda' in cat_lower or 'coca' in cat_lower or 'pepsi' in cat_lower or 'fanta' in cat_lower %}
+                        {% set emoji = '🥤' %}
+                        {% set color_name = 'blue' %}
+                    {% elif 'jugo' in cat_lower or 'fruta' in cat_lower or 'limonada' in cat_lower or 'naranja' in cat_lower or 'salpicon' in cat_lower or 'batido' in cat_lower %}
+                        {% set emoji = '🍊' %}
+                        {% set color_name = 'indigo' %}
+                    {% elif 'comida' in cat_lower or 'alimento' in cat_lower or 'sandwich' in cat_lower or 'perro' in cat_lower or 'hamburguesa' in cat_lower or 'empanada' in cat_lower or 'pan' in cat_lower or 'arepa' in cat_lower or 'pastel' in cat_lower %}
+                        {% set emoji = '🍔' %}
+                        {% set color_name = 'amber' %}
+                    {% elif 'paquete' in cat_lower or 'papa' in cat_lower or 'mani' in cat_lower or 'platanito' in cat_lower %}
+                        {% set emoji = '🍿' %}
+                        {% set color_name = 'stone' %}
+                    {% elif 'chocolatina' in cat_lower or 'chocolate' in cat_lower or 'dulce' in cat_lower or 'goma' in cat_lower or 'bombón' in cat_lower %}
+                        {% set emoji = '🍫' %}
+                        {% set color_name = 'orange' %}
+                    {% elif 'galleta' in cat_lower or 'cracker' in cat_lower %}
+                        {% set emoji = '🍪' %}
+                        {% set color_name = 'cyan' %}
+                    {% elif 'torta' in cat_lower or 'ponqué' in cat_lower or 'muffin' in cat_lower or 'cupcake' in cat_lower %}
+                        {% set emoji = '🍰' %}
+                        {% set color_name = 'rose' %}
+                    {% elif 'energizante' in cat_lower or 'red bull' in cat_lower or 'monster' in cat_lower or 'speed' in cat_lower or 'vive' in cat_lower %}
+                        {% set emoji = '⚡' %}
+                        {% set color_name = 'teal' %}
+                    {% elif 'cerveza' in cat_lower or 'licor' in cat_lower or 'trago' in cat_lower or 'club' in cat_lower or 'poker' in cat_lower or 'aguila' in cat_lower %}
+                        {% set emoji = '🍺' %}
+                        {% set color_name = 'purple' %}
+                    {% elif 'cigarrillo' in cat_lower or 'tabaco' in cat_lower or 'cigarro' in cat_lower %}
+                        {% set emoji = '🚬' %}
+                        {% set color_name = 'green' %}
+                    {% elif 'medicamento' in cat_lower or 'pastilla' in cat_lower or 'drog' in cat_lower or 'dolex' in cat_lower %}
+                        {% set emoji = '💊' %}
+                        {% set color_name = 'pink' %}
+                    {% elif 'higienico' in cat_lower or 'aseo' in cat_lower or 'baño' in cat_lower or 'servilleta' in cat_lower %}
+                        {% set emoji = '🧻' %}
+                        {% set color_name = 'yellow' %}
+                    {% elif 'agua' in cat_lower or 'hielo' in cat_lower or 'brisa' in cat_lower %}
+                        {% set emoji = '💧' %}
+                        {% set color_name = 'sky' %}
+                    {% elif 'parqueadero' in cat_lower or 'carro' in cat_lower or 'moto' in cat_lower or 'casco' in cat_lower %}
+                        {% set emoji = '🚗' %}
+                        {% set color_name = 'emerald' %}
+                    {% endif %}
+
+                    {% set bg_header = 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-900' %}
+                    {% set text_color = 'text-slate-900' %}
+                    
+                    {% if color_name == 'red' %}
+                        {% set bg_header = 'bg-red-100 border-red-200 hover:bg-red-200 text-red-900 shadow-sm' %}
+                        {% set text_color = 'text-red-900' %}
+                    {% elif color_name == 'blue' %}
+                        {% set bg_header = 'bg-blue-100 border-blue-200 hover:bg-blue-200 text-blue-900 shadow-sm' %}
+                        {% set text_color = 'text-blue-900' %}
+                    {% elif color_name == 'indigo' %}
+                        {% set bg_header = 'bg-indigo-100 border-indigo-200 hover:bg-indigo-200 text-indigo-900 shadow-sm' %}
+                        {% set text_color = 'text-indigo-900' %}
+                    {% elif color_name == 'amber' %}
+                        {% set bg_header = 'bg-amber-100 border-amber-200 hover:bg-amber-200 text-amber-950 font-black shadow-sm' %}
+                        {% set text_color = 'text-amber-950' %}
+                    {% elif color_name == 'stone' %}
+                        {% set bg_header = 'bg-stone-200 border-stone-300 hover:bg-stone-300 text-stone-900 shadow-sm' %}
+                        {% set text_color = 'text-stone-900' %}
+                    {% elif color_name == 'orange' %}
+                        {% set bg_header = 'bg-orange-100 border-orange-200 hover:bg-orange-200 text-orange-900 shadow-sm' %}
+                        {% set text_color = 'text-orange-900' %}
+                    {% elif color_name == 'cyan' %}
+                        {% set bg_header = 'bg-cyan-100 border-cyan-200 hover:bg-cyan-200 text-cyan-900 shadow-sm' %}
+                        {% set text_color = 'text-cyan-900' %}
+                    {% elif color_name == 'rose' %}
+                        {% set bg_header = 'bg-rose-100 border-rose-200 hover:bg-rose-200 text-rose-900 shadow-sm' %}
+                        {% set text_color = 'text-rose-900' %}
+                    {% elif color_name == 'teal' %}
+                        {% set bg_header = 'bg-teal-100 border-teal-200 hover:bg-teal-200 text-teal-900 shadow-sm' %}
+                        {% set text_color = 'text-teal-900' %}
+                    {% elif color_name == 'purple' %}
+                        {% set bg_header = 'bg-purple-100 border-purple-200 hover:bg-purple-200 text-purple-900 shadow-sm' %}
+                        {% set text_color = 'text-purple-900' %}
+                    {% elif color_name == 'green' %}
+                        {% set bg_header = 'bg-green-100 border-green-200 hover:bg-green-200 text-green-900 shadow-sm' %}
+                        {% set text_color = 'text-green-900' %}
+                    {% elif color_name == 'pink' %}
+                        {% set bg_header = 'bg-pink-100 border-pink-200 hover:bg-pink-200 text-pink-900 shadow-sm' %}
+                        {% set text_color = 'text-pink-900' %}
+                    {% elif color_name == 'yellow' %}
+                        {% set bg_header = 'bg-yellow-100 border-yellow-250 hover:bg-yellow-200 text-yellow-950 font-black shadow-sm' %}
+                        {% set text_color = 'text-yellow-950 font-black' %}
+                    {% elif color_name == 'sky' %}
+                        {% set bg_header = 'bg-sky-100 border-sky-200 hover:bg-sky-200 text-sky-900 shadow-sm' %}
+                        {% set text_color = 'text-sky-900' %}
+                    {% elif color_name == 'emerald' %}
+                        {% set bg_header = 'bg-emerald-100 border-emerald-200 hover:bg-emerald-200 text-emerald-900 shadow-sm' %}
+                        {% set text_color = 'text-emerald-900' %}
+                    {% endif %}
+                <div class="categoria-grupo bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition hover:shadow-md duration-150">
+                    
+                    <div class="flex justify-between items-center {{ bg_header }} p-4 border-b border-slate-200/50">
+                        <button onclick="toggleCategoria('cat-{{ cat.id }}')" class="flex-1 text-left flex items-center gap-2 select-none">
+                            <span class="text-xl">{{ emoji }}</span>
+                            <h2 class="text-base font-black {{ text_color }} uppercase tracking-wide">{{ cat.nombre_categoria }}</h2>
+                        </button>
+                        
+                        <div class="flex gap-1.5">
+                            <button onclick="abrirModalEditarCat('{{ cat.id }}', '{{ cat.nombre_categoria }}')" 
+                                    class="text-xs bg-white hover:bg-slate-50 border border-slate-250 text-slate-700 p-2 rounded-xl shadow-sm transition active:scale-95">✏️</button>
+                            
+                            <form action="/admin/eliminar_categoria/{{ cat.id }}" method="POST" 
+                                  onsubmit="return confirm('¿Seguro? Se eliminará la categoría.');" class="inline">
+                                <button type="submit" class="text-xs bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 p-2 rounded-xl shadow-sm transition active:scale-95">🗑️</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="cat-{{ cat.id }}" class="productos-lista hidden">
+                        {% for prod in productos if prod.categoria_id == cat.id %}
+                        <div class="producto-item p-4 border-b border-slate-50 flex justify-between items-center hover:bg-slate-50">
+                            <div>
+                                <p class="font-bold text-slate-900">{{ prod.nombre }}</p>
+                                <p class="text-xs text-slate-500">${{ "{:,.0f}".format(prod.precio) }} | Stock: {{ prod.cantidad_stock }}</p>
+                                {% if prod.codigo_barras %}
+                                <p class="text-[10px] text-slate-400 font-mono mt-0.5">Código: {{ prod.codigo_barras }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="abrirModalEditar('{{ prod.id }}', '{{ prod.nombre }}', '{{ prod.precio }}', '{{ prod.cantidad_stock }}', '{{ prod.es_pack }}', '{{ prod.unidades_por_pack }}', '{{ cat.id }}', '{{ prod.es_preparado }}', '{{ prod.codigo_barras or '' }}', '{{ prod.precio_unidad_venta if prod.precio_unidad_venta is not none else '' }}', '{{ prod.precio_medio_venta if prod.precio_medio_venta is not none else '' }}')" 
+                                        class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 p-2 rounded-xl text-xs shadow-sm transition active:scale-95">✏️</button>
+                                
+                                <form action="/admin/eliminar_producto/{{ prod.id }}" method="POST" onsubmit="return confirm('¿Eliminar?');" class="inline">
+                                    <button type="submit" class="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 p-2 rounded-xl text-xs shadow-sm transition active:scale-95">🗑️</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Sección para Productos Sin Categoría -->
+                {% set ns = namespace(tiene_sin_cat=false) %}
+                {% for prod in productos %}
+                    {% if prod.categoria_id == '' or prod.categoria_id is none %}
+                        {% set ns.tiene_sin_cat = true %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if ns.tiene_sin_cat %}
+                <div class="categoria-grupo bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="flex justify-between items-center bg-slate-50 p-4 border-b border-slate-100">
+                        <button onclick="toggleCategoria('cat-sin-categoria')" class="flex-1 text-left">
+                            <h2 class="text-lg font-black text-slate-800 uppercase tracking-wide">📁 Sin Categoría</h2>
+                        </button>
+                    </div>
+                    <div id="cat-sin-categoria" class="productos-lista hidden">
+                        {% for prod in productos if prod.categoria_id == '' or prod.categoria_id is none %}
+                        <div class="producto-item p-4 border-b border-slate-50 flex justify-between items-center hover:bg-slate-50">
+                            <div>
+                                <p class="font-bold text-slate-900">{{ prod.nombre }}</p>
+                                <p class="text-xs text-slate-500">${{ "{:,.0f}".format(prod.precio) }} | Stock: {{ prod.cantidad_stock }}</p>
+                                {% if prod.codigo_barras %}
+                                <p class="text-[10px] text-slate-400 font-mono mt-0.5">Código: {{ prod.codigo_barras }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="flex items-center gap-2">
+                                <button onclick="abrirModalEditar('{{ prod.id }}', '{{ prod.nombre }}', '{{ prod.precio }}', '{{ prod.cantidad_stock }}', '{{ prod.es_pack }}', '{{ prod.unidades_por_pack }}', '', '{{ prod.es_preparado }}', '{{ prod.codigo_barras or '' }}', '{{ prod.precio_unidad_venta if prod.precio_unidad_venta is not none else '' }}', '{{ prod.precio_medio_venta if prod.precio_medio_venta is not none else '' }}')" 
+                                        class="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl text-xs">✏️</button>
+                                
+                                <form action="/admin/eliminar_producto/{{ prod.id }}" method="POST" onsubmit="return confirm('¿Eliminar?');">
+                                    <button type="submit" class="bg-rose-500 hover:bg-rose-600 text-white p-2 rounded-xl text-xs">🗑️</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+                    
+            <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-slate-200/80 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h2 class="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                        <span>🌾</span> Inventario de Materia Prima (Insumos)
+                    </h2>
+                    <span class="text-xs text-slate-500 font-bold bg-slate-200/60 px-2.5 py-1 rounded-full">{{ insumos|length }} Insumos</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                <th class="p-4">Insumo</th>
+                                <th class="p-4 text-center">Cantidad Actual</th>
+                                <th class="p-4 text-center">Medida</th>
+                                <th class="p-4 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700 text-sm">
+                            {% for ins in insumos %}
+                            <tr class="hover:bg-slate-50/80 transition duration-150">
+                                <td class="p-4 font-bold text-slate-900">{{ ins.nombre_insumo }}</td>
+                                <td class="p-4 text-center text-lg font-black text-slate-800">{{ "%g"|format(ins.cantidad_actual) }}</td>
+                                <td class="p-4 text-center">
+                                    <span class="px-2.5 py-1 bg-slate-100 rounded-lg text-xs font-extrabold text-slate-500 uppercase">
+                                        {{ ins.unidad_medida }}
+                                    </span>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <div class="flex justify-center items-center gap-1.5">
+                                        <button onclick="abrirModalEditarInsumo('{{ ins.id }}', '{{ ins.nombre_insumo }}', '{{ ins.cantidad_actual }}')" 
+                                                class="interactive-element bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold p-2 rounded-xl shadow-sm transition">
+                                            ✏️
+                                        </button>
+                                        <form action="/admin/eliminar_insumo/{{ ins.id }}" method="POST" onsubmit="return confirm('¿Inhabilitar o eliminar este insumo? Asegúrate de que no esté en una receta activa.');" class="inline">
+                                            <button type="submit" class="interactive-element bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold p-2 rounded-xl shadow-sm transition">
+                                                🗑️
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-slate-400 italic text-center py-6">No hay insumos registrados.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-800 border-b border-slate-100 pb-2 mb-3 flex justify-between items-center">
+                            <span>👥 Empleados de Nómina</span>
+                            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{{ usuarios_empleados|length }}</span>
+                        </h3>
+                        <div class="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                            {% for user in usuarios_empleados %}
+                            <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl hover:bg-slate-100/80 border border-slate-100 transition duration-150">
+                                <div>
+                                    <span class="font-bold text-slate-800 text-xs">{{ user.nombre }}</span>
+                                    <span class="text-[10px] text-slate-400 block font-medium">@{{ user.usuario }} ({{ user.rol }})</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <button onclick="abrirModalEditarUsuario('{{ user.id }}', '{{ user.nombre }}', '{{ user.usuario }}', '{{ user.rol }}')" class="interactive-element text-amber-500 hover:text-amber-600 font-bold p-1 text-sm">✏️</button>
+                                    <form action="/admin/eliminar_usuario/{{ user.id }}" method="POST" onsubmit="return confirm('¿Dar de baja a este usuario? Perderá acceso inmediato al sistema.');" class="inline">
+                                        <button type="submit" class="interactive-element text-rose-500 hover:text-rose-600 font-bold p-1 text-sm">✕</button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="text-slate-400 italic text-center py-2 text-xs">No hay empleados registrados.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-rose-200 bg-rose-50/30 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center space-x-2 text-rose-800 font-extrabold text-sm mb-4 border-b border-rose-100 pb-2">
+                        <span>📉</span>
+                        <h2>Registrar Gasto de Caja Inteligente</h2>
+                    </div>
+                    
+                    <form action="/admin/add_gasto" method="POST" class="space-y-3 flex-1 flex flex-col justify-between text-xs">
+                        <div>
+                            <label class="block text-[10px] font-bold text-rose-700 uppercase mb-1">Tipo de Movimiento:</label>
+                            <select name="tipo_gasto" id="tipo_gasto" onchange="toggleCamposGastoInsumo(this.value)" class="w-full bg-white border border-rose-200 p-2 rounded-xl font-bold text-slate-700 outline-none focus:ring-1 focus:ring-rose-500" required>
+                                <option value="general">Gasto Fijo / Pedidos (No altera stock)</option>
+                                <option value="insumo">Compra de Insumo / Ingredientes (Suma a Inventario)</option>
+                            </select>
+                        </div>
+
+                        <div id="seccion-gasto-insumo" class="hidden bg-white p-3 rounded-xl border border-rose-200/80 space-y-2.5 my-1 shadow-sm">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Insumo Comprado:</label>
+                                    <select name="insumo_id" class="w-full bg-white border border-slate-200 p-1.5 rounded-lg text-xs text-slate-700 outline-none">
+                                        <option value="">-- Seleccionar --</option>
+                                        {% for ins in insumos %}
+                                        <option value="{{ ins.id }}">{{ ins.nombre_insumo }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cantidad Comprada:</label>
+                                    <input type="number" step="any" name="cantidad_comprada" placeholder="Ej: 12 o 500" class="w-full bg-white border border-slate-200 p-1.5 rounded-lg text-xs outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-rose-700 uppercase mb-1">Categoría del Gasto:</label>
+                                <select name="categoria_gasto" class="w-full bg-white border border-rose-200 p-2 rounded-xl text-slate-700 outline-none" required>
+                                    {% for cat in categorias %}
+                                        <option value="{{ cat.nombre_categoria }}">{{ cat.nombre_categoria }}</option>
+                                    {% endfor %}
+                                    <option value="Servicios Publicos">Servicios Públicos</option>
+                                    <option value="Mantenimiento">Mantenimiento / Emergencia</option>
+                                    <option value="Otros Gastos">Otros Gastos Generales</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-rose-700 uppercase mb-1">Monto Retirado ($):</label>
+                                <input type="number" name="monto" placeholder="Ej: 45000" required class="w-full bg-white border border-rose-200 p-2 rounded-xl font-bold text-slate-800 outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-rose-700 uppercase mb-1">Método de Pago del Gasto:</label>
+                            <select name="metodo_pago" class="w-full bg-white border border-rose-200 p-2 rounded-xl text-slate-700 outline-none" required>
+                                <option value="efectivo">💵 Efectivo</option>
+                                <option value="nequi">📱 Nequi</option>
+                                <option value="daviplata">📲 Daviplata</option>
+                                <option value="tarjeta">💳 Tarjeta</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-rose-700 uppercase mb-1">Descripción / Justificación:</label>
+                            <input type="text" name="descripcion" placeholder="Ej: Compra de 12L de leche alpina por quiebre de stock" required class="w-full bg-white border border-rose-200 p-2 rounded-xl text-slate-800 outline-none">
+                        </div>
+                        <button type="submit" class="interactive-element w-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2.5 rounded-xl shadow-md shadow-rose-600/10 active:scale-95 transition mt-3">
+                            💸 Registrar y Descontar de Caja
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <h2 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                        <span>🕒</span> Historial de Gastos y Salidas de Caja Recientes
+                    </h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                                <th class="p-3">Fecha / Hora</th>
+                                <th class="p-3">Concepto / Destino</th>
+                                <th class="p-3">Método</th>
+                                <th class="p-3">Descripción / Justificación</th>
+                                <th class="p-3 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-150 text-slate-700">
+                            {% for gasto in historial_gastos %}
+                            <tr class="hover:bg-slate-50/80 transition">
+                                <td class="p-3 text-slate-500 whitespace-nowrap">{{ gasto.fecha }}</td>
+                                <td class="p-3 font-bold text-slate-800">{{ gasto.categoria_gasto }}</td>
+                                <td class="p-3 text-slate-600 font-semibold">{{ gasto.metodo_pago|default('efectivo')|title }}</td>
+                                <td class="p-3 text-slate-600 italic font-medium">{{ gasto.descripcion }}</td>
+                                <td class="p-3 text-right font-extrabold text-rose-600">-${{ "%d"|format(gasto.monto) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-slate-400 italic text-center py-6">No se han registrado salidas de dinero en caja hoy.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-5">
+            <a href="/admin/informes" class="interactive-element flex items-center space-x-4 bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-5 rounded-2xl shadow-md hover:from-emerald-700 hover:to-teal-800 transition duration-150 group">
+                <span class="text-3xl bg-white/20 p-2.5 rounded-xl group-hover:scale-105 transition duration-150">📊</span>
+                <div class="flex-1">
+                    <h3 class="font-extrabold text-base tracking-wide">Informes de Ventas</h3>
+                    <p class="text-xs text-emerald-100/90 mt-0.5 font-medium">Auditoría general y por vendedor en tiempo real.</p>
+                </div>
+                <span class="text-xl font-bold opacity-70 group-hover:translate-x-1 transition duration-150">➔</span>
+            </a>
+
+            <div class="bg-slate-100 p-1.5 rounded-2xl flex flex-wrap gap-1 text-xs font-bold text-slate-600 border border-slate-200">
+                <button onclick="cambiarPestaña('tab-productos')" id="btn-tab-productos" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 shadow-sm font-black transition whitespace-nowrap active:scale-95">🛒 Menú</button>
+                <button onclick="cambiarPestaña('tab-categorias')" id="btn-tab-categorias" class="flex-1 py-2.5 rounded-xl hover:bg-blue-100 text-slate-700 transition whitespace-nowrap active:scale-95">📁 Cat</button>
+                <button onclick="cambiarPestaña('tab-insumos')" id="btn-tab-insumos" class="flex-1 py-2.5 rounded-xl hover:bg-emerald-100 text-slate-700 transition whitespace-nowrap active:scale-95">🌾 Insumos</button>
+                <button onclick="cambiarPestaña('tab-personal')" id="btn-tab-personal" class="flex-1 py-2.5 rounded-xl hover:bg-indigo-100 text-slate-700 transition whitespace-nowrap active:scale-95">👥 Personal</button>
+                <button onclick="cambiarPestaña('tab-perfil')" id="btn-tab-perfil" class="flex-1 py-2.5 rounded-xl hover:bg-purple-100 text-slate-700 transition whitespace-nowrap active:scale-95">⚙️ Perfil</button>
+                <button onclick="cambiarPestaña('tab-datos')" id="btn-tab-datos" class="flex-1 py-2.5 rounded-xl hover:bg-slate-200 text-slate-700 transition whitespace-nowrap active:scale-95">💾 Datos</button>
+            </div>
+            
+            <div id="tab-productos" class="ContenedorTab bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85">
+                <h3 class="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-1.5">
+                    <span>➕</span> Registrar en el Menú
+                </h3>
+                
+                <form action="/admin/add_producto" method="POST" class="space-y-4" id="formCrearProducto">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Nombre del Producto</label>
+                        <input type="text" name="nombre" required placeholder="Ej: Café Latte" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Código de Barras</label>
+                        <input type="text" name="codigo_barras" placeholder="Opcional, si el producto tiene código" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Categoría</label>
+                        <select name="categoria" required class="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none">
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id }}">{{ cat.nombre_categoria }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2 py-2">
+                        <input type="checkbox" id="es_pack" name="es_pack" value="1" onchange="togglePackCrear(this.checked)" class="w-4 h-4 text-amber-500">
+                        <label for="es_pack" class="text-sm font-semibold text-slate-600">¿Es producto por pacas/cajas?</label>
+                    </div>
+
+                    <div id="contenedor-stock-simple" class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Precio COP ($)</label>
+                            <input type="number" id="precio-simple" name="precio" required placeholder="5500" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none">
+                        </div>
+                        <div id="contenedor-solo-stock">
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Stock Inicial</label>
+                            <input type="number" id="stock-simple" name="stock" placeholder="24" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none">
+                        </div>
+                    </div>
+
+                    <div id="contenedor-pack-crear" class="hidden space-y-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Precio COP ($)</label>
+                            <input type="number" id="precio-pack" name="precio_pack" placeholder="5500" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Cant. Pacas</label>
+                                <input type="number" id="stock-pacas" name="stock_pacas" placeholder="Ej: 5" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Unidades x Paca</label>
+                                <input type="number" id="unidades-pack" name="unidades_por_pack" placeholder="Ej: 24" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Precio Unidad (Cigarrillo)</label>
+                                <input type="number" id="precio-unidad-venta" name="precio_unidad_venta" placeholder="Opcional" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1.5">Precio Medio (Cigarrillo)</label>
+                                <input type="number" id="precio-medio-venta" name="precio_medio_venta" placeholder="Opcional" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/60">
+                        <input type="checkbox" id="create-es-preparado" name="es_preparado" value="1" 
+                               onchange="toggleSeccionReceta(this, 'seccion-receta-dinamica', 'contenedor-solo-stock')" 
+                               class="w-5 h-5 text-amber-600 rounded border-slate-300">
+                        <label for="create-es-preparado" class="ml-3 text-sm font-bold text-amber-900 cursor-pointer">¿Lleva receta de materia prima?</label>
+                    </div>
+
+                    <div id="seccion-receta-dinamica" class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300">
+                        <div id="contenedor-filas-receta" class="space-y-2.5">
+                            <div class="flex space-x-2 FilaIngrediente items-center">
+                                <select name="insumos_receta[]" class="flex-1 p-2 border border-slate-200 rounded-xl bg-white text-xs outline-none">
+                                    <option value="">-- Seleccionar Insumo --</option>
+                                    {% for ins in insumos %}
+                                    <option value="{{ ins.id }}">{{ ins.nombre_insumo }} ({{ ins.unidad_medida }})</option>
+                                    {% endfor %}
+                                </select>
+                                <input type="number" name="cantidades_receta[]" step="any" placeholder="Cant" class="w-20 p-2 border border-slate-200 rounded-xl text-xs text-center outline-none">
+                                <button type="button" onclick="eliminarFilaIngrediente(this)" class="text-rose-500 hover:text-rose-700 font-bold px-2 transition" title="Eliminar ingrediente">✕</button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="agregarFilaIngrediente('contenedor-filas-receta', 'FilaIngrediente')" class="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 mt-1 transition">
+                            ➕ Añadir ingrediente
+                        </button>
+                    </div>
+
+                    <button type="submit" class="interactive-element w-full bg-slate-800 text-white p-3 rounded-xl text-sm font-bold hover:bg-slate-900 transition">
+                        Guardar Producto
+                    </button>
+                </form>
+            </div>
+
+            <div id="tab-categorias" class="ContenedorTab hidden bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85">
+                <h3 class="text-base font-extrabold text-slate-800 mb-3 flex items-center gap-1.5">
+                    <span>📁</span> Registrar Nueva Categoría
+                </h3>
+                <form action="/admin/add_categoria" method="POST" class="space-y-3.5">
+                    <input type="text" name="nombre_categoria" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-slate-500" placeholder="Ej: Bebidas Calientes" required>
+                    <button type="submit" class="interactive-element w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2.5 rounded-xl text-sm transition shadow-md shadow-amber-600/10">
+                        Guardar Categoría
+                    </button>
+                </form>
+            </div>
+
+            <div id="tab-insumos" class="ContenedorTab hidden bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85">
+                <h3 class="text-base font-extrabold text-slate-800 mb-3 flex items-center gap-1.5">
+                    <span>🌾</span> Registrar Insumo Base
+                </h3>
+                <form action="/admin/add_insumo" method="POST" class="space-y-3.5">
+                    <input type="text" name="nombre_insumo" required placeholder="Ej: Leche Entera" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-slate-500">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="number" name="cantidad_actual" required placeholder="Stock inicial" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-slate-500">
+                        <select name="unidad_medida" class="p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none">
+                            <option value="g">Gramos (g)</option>
+                            <option value="ml">Mililitros (ml)</option>
+                            <option value="ud">Unidades (ud)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="interactive-element w-full bg-slate-700 hover:bg-slate-800 text-white font-extrabold py-2.5 rounded-xl text-sm shadow-sm transition">
+                        Crear Insumo
+                    </button>
+                </form>
+            </div>
+
+            <div id="tab-personal" class="ContenedorTab hidden bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85">
+                <h3 class="text-base font-extrabold text-slate-800 mb-3 flex items-center gap-1.5">
+                    <span>👥</span> Registrar Nuevo Personal
+                </h3>
+                <form action="/admin/add_usuario" method="POST" class="space-y-3.5">
+                    <input type="text" name="nombre" required placeholder="Nombre Completo" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-slate-500">
+                    <input type="text" name="usuario" required placeholder="Usuario (Login)" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-slate-500">
+                    <select name="rol" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none">
+                        <option value="empleado">Empleado</option>
+                        <option value="administrador">Administrador</option>
+                    </select>
+                    <input type="password" name="contrasena" required placeholder="Contraseña" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-slate-500">
+                    <button type="submit" class="interactive-element w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-2.5 rounded-xl text-sm shadow-md shadow-blue-600/10 transition">
+                        Dar de Alta
+                    </button>
+                </form>
+
+                <div class="mt-6 pt-5 border-t border-slate-200">
+                    <h4 class="text-sm font-extrabold text-slate-800 mb-3 flex items-center gap-1.5">
+                        <span>🧾</span> Clientes Exclusivos (Fiado)
+                    </h4>
+                    <form action="/admin/add_cliente_exclusivo" method="POST" class="space-y-3">
+                        <input type="text" name="nombre_cliente" required placeholder="Nombre cliente autorizado para fiado" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500">
+                        <button type="submit" class="interactive-element w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2.5 rounded-xl text-sm transition shadow-md shadow-amber-600/10">
+                            Agregar Cliente Exclusivo
+                        </button>
+                    </form>
+
+                    <div class="mt-4 max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                        {% for cliente in clientes_exclusivos %}
+                        <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl hover:bg-slate-100/80 border border-slate-100 transition duration-150">
+                            <div>
+                                <span class="font-bold text-slate-800 text-xs">{{ cliente.nombre }}</span>
+                                <span class="text-[10px] text-slate-400 block font-medium">Alta: {{ cliente.fecha_creacion }}</span>
+                            </div>
+                            <form action="/admin/eliminar_cliente_exclusivo/{{ cliente.id }}" method="POST" onsubmit="return confirm('¿Quitar cliente exclusivo para fiado?');" class="inline">
+                                <button type="submit" class="interactive-element text-rose-500 hover:text-rose-600 font-bold p-1 text-sm">✕</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p class="text-slate-400 italic text-center py-2 text-xs">No hay clientes exclusivos registrados.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-perfil" class="ContenedorTab hidden bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85">
+                <h3 class="text-base font-extrabold text-slate-800 mb-3 flex items-center gap-1.5">
+                    <span>⚙️</span> Modificar mis Datos
+                </h3>
+                <form action="/admin/editar_perfil" method="POST" class="space-y-3.5">
+                    <input type="text" name="nombre" value="{{ nombre }}" required class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-slate-500">
+                    <input type="password" name="contrasena" placeholder="Nueva Contraseña" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-slate-500">
+                    <button type="submit" class="interactive-element w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2.5 rounded-xl text-sm transition shadow-md shadow-amber-600/10">
+                        Actualizar
+                    </button>
+                </form>
+            </div>
+
+            <div id="tab-datos" class="ContenedorTab hidden bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85 space-y-6">
+                <div>
+                    <h3 class="text-base font-extrabold text-slate-800 mb-2 flex items-center gap-1.5">
+                        <span>📤</span> Exportar Información
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4 font-medium">Descarga catálogos completos en formato CSV compatible con Microsoft Excel.</p>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <a href="/admin/exportar/productos" class="flex items-center justify-center gap-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-bold text-xs py-2.5 px-3 rounded-xl transition shadow-sm font-semibold">
+                            <span>🛒</span> Exportar Productos
+                        </a>
+                        <a href="/admin/exportar/categorias" class="flex items-center justify-center gap-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-bold text-xs py-2.5 px-3 rounded-xl transition shadow-sm font-semibold">
+                            <span>📁</span> Exportar Categorías
+                        </a>
+                    </div>
+                </div>
+
+                <hr class="border-slate-100">
+
+                <div>
+                    <h3 class="text-base font-extrabold text-slate-800 mb-2 flex items-center gap-1.5">
+                        <span>📥</span> Importar / Actualizar
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4 font-medium">Selecciona un archivo Excel (.xlsx) o CSV para cargar nuevos productos o actualizar el inventario.</p>
+                    
+                    <form action="/admin/importar/productos" method="POST" enctype="multipart/form-data" class="space-y-3">
+                        <div class="space-y-1">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase">Archivo Excel o CSV de Productos</label>
+                            <input type="file" name="archivo_csv" accept=".csv, .xlsx, .xls" required class="w-full p-2 border border-slate-200 rounded-xl text-xs outline-none bg-slate-50">
+                        </div>
+                        <button type="submit" class="interactive-element w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold py-2.5 rounded-xl text-sm transition shadow-md">
+                            📥 Importar / Actualizar Productos
+                        </button>
+                    </form>
+                </div>
+
+                <hr class="border-slate-100">
+
+                <div>
+                    <h3 class="text-base font-extrabold text-slate-800 mb-2 flex items-center gap-1.5">
+                        <span>🔄</span> Actualización del Sistema
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4 font-medium">Versión actual instalada: <span class="font-bold text-slate-700">v{{ version_actual }}</span></p>
+                    
+                    <div id="status-actualizador" class="space-y-3">
+                        <button onclick="buscarActualizaciones()" class="interactive-element w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-2.5 rounded-xl text-sm transition shadow-md shadow-indigo-600/10">
+                            🔍 Buscar Actualizaciones
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODALES -->
+    <div id="modalEditarInsumo" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 relative animate-fade-in">
+            <button onclick="cerrarModales()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-650 text-2xl transition">&times;</button>
+            <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-1.5">
+                <span>🌾</span> Ajustar Insumo
+            </h3>
+            <form id="formEditarInsumo" method="POST" class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Nombre del Insumo</label>
+                    <input type="text" id="edit-insumo-nombre" name="nombre_insumo" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Cantidad Actual</label>
+                    <input type="number" step="any" id="edit-insumo-cantidad" name="cantidad_actual" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500">
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="cerrarModales()" class="interactive-element flex-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition">Cancelar</button>
+                    <button type="submit" class="interactive-element flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-md shadow-amber-500/10">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalEditarUsuario" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 relative animate-fade-in">
+            <button onclick="cerrarModales()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-650 text-2xl transition">&times;</button>
+            <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-1.5">
+                <span>👤</span> Editar Personal
+            </h3>
+            <form id="formEditarUsuario" method="POST" class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Nombre Completo</label>
+                    <input type="text" id="edit-usuario-nombre" name="nombre" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-indigo-500" required>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Usuario (Login)</label>
+                    <input type="text" id="edit-usuario-user" name="usuario" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-indigo-500" required>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Rol</label>
+                    <select id="edit-usuario-rol" name="rol" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500">
+                        <option value="administrador">Administrador</option>
+                        <option value="empleado">Empleado</option>
+                    </select>
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="cerrarModales()" class="interactive-element flex-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition">Cancelar</button>
+                    <button type="submit" class="interactive-element flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-md shadow-indigo-650/10">
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalEditarProducto" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 relative animate-fade-in">
+            <button onclick="cerrarModales()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-650 text-2xl transition">&times;</button>
+            <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-1.5">
+                <span>✏️</span> Editar Producto
+            </h3>
+            
+            <form id="formEditarProducto" method="POST" class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Nombre del Producto</label>
+                    <input type="text" id="edit-nombre" name="nombre" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500" required>
+                    <input type="hidden" id="edit-es-preparado" name="es_preparado" value="0">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Código de Barras</label>
+                    <input type="text" id="edit-codigo-barras" name="codigo_barras" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500" placeholder="Opcional">
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Categoría</label>
+                    <select id="edit-categoria" name="categoria" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-1 focus:ring-amber-500">
+                        {% for cat in categorias %}
+                            <option value="{{ cat.id }}">{{ cat.nombre_categoria }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="edit-contenedor-stock-simple" class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Precio ($)</label>
+                        <input type="number" id="edit-precio" name="precio" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500" required>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Stock</label>
+                        <input type="number" id="edit-stock" name="stock" step="0.1" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500">
+                    </div>
+                </div>
+
+                <div class="flex items-center p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/50">
+                    <input type="checkbox" id="edit-es-pack" name="es_pack" value="1" onchange="togglePackEditar(this.checked)" class="w-5 h-5 text-amber-600 rounded border-slate-300 focus:ring-amber-500">
+                    <label for="edit-es-pack" class="ml-3 text-sm font-bold text-amber-955 cursor-pointer">¿Es venta por Pack?</label>
+                </div>
+
+                <div id="edit-contenedor-pack" class="hidden space-y-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Precio ($)</label>
+                        <input type="number" id="edit-precio-pack" name="precio_pack" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Cant. Pacas</label>
+                            <input type="number" id="edit-stock-pacas" name="stock_pacas" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Unidades x Paca</label>
+                            <input type="number" id="edit-unidades-pack" name="unidades_por_pack" placeholder="Ej: 24" step="0.1" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Precio Unidad (Cigarrillo)</label>
+                            <input type="number" id="edit-precio-unidad-venta" name="precio_unidad_venta" placeholder="Opcional" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Precio Medio (Cigarrillo)</label>
+                            <input type="number" id="edit-precio-medio-venta" name="precio_medio_venta" placeholder="Opcional" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="cerrarModales()" class="interactive-element flex-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition">Cancelar</button>
+                    <button type="submit" class="interactive-element flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-md shadow-amber-500/10">
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-editar-cat" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 relative">
+            <button onclick="cerrarModales()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-650 text-2xl transition">&times;</button>
+            <h3 class="text-lg font-black text-slate-800 mb-4">Editar Categoría</h3>
+            <form id="form-editar-cat" method="POST" class="space-y-4">
+                <input type="text" id="input-edit-cat" name="nuevo_nombre" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none" required>
+                <div class="flex gap-2">
+                    <button type="button" onclick="cerrarModales()" class="interactive-element flex-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition">Cancelar</button>
+                    <button type="submit" class="interactive-element flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-xs font-bold transition">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const configTabs = {
+            'tab-productos': { active: 'bg-amber-500 text-slate-950 shadow-sm font-black', inactive: 'hover:bg-amber-100 text-slate-700' },
+            'tab-categorias': { active: 'bg-blue-500 text-white shadow-sm font-black', inactive: 'hover:bg-blue-100 text-slate-700' },
+            'tab-insumos': { active: 'bg-emerald-600 text-white shadow-sm font-black', inactive: 'hover:bg-emerald-100 text-slate-700' },
+            'tab-personal': { active: 'bg-indigo-600 text-white shadow-sm font-black', inactive: 'hover:bg-indigo-100 text-slate-700' },
+            'tab-perfil': { active: 'bg-purple-600 text-white shadow-sm font-black', inactive: 'hover:bg-purple-100 text-slate-700' },
+            'tab-datos': { active: 'bg-slate-700 text-white shadow-sm font-black', inactive: 'hover:bg-slate-200 text-slate-700' }
+        };
+
+        function cambiarPestaña(tabId) {
+            document.querySelectorAll('.ContenedorTab').forEach(el => {
+                el.classList.add('hidden');
+            });
+            const target = document.getElementById(tabId);
+            if(target) {
+                target.classList.remove('hidden');
+            }
+            document.querySelectorAll('button[id^="btn-tab-"]').forEach(btn => {
+                const id = btn.id.replace('btn-', '');
+                const conf = configTabs[id] || { active: 'bg-white text-slate-900 shadow-sm', inactive: 'hover:bg-white/50' };
+                btn.className = `flex-1 py-2.5 rounded-xl transition duration-150 whitespace-nowrap active:scale-95 ${conf.inactive}`;
+            });
+            const btnActivo = document.getElementById('btn-' + tabId);
+            if(btnActivo) {
+                const conf = configTabs[tabId] || { active: 'bg-white text-slate-900 shadow-sm', inactive: 'hover:bg-white/50' };
+                btnActivo.className = `flex-1 py-2.5 rounded-xl transition duration-150 whitespace-nowrap active:scale-95 ${conf.active}`;
+            }
+        }
+
+        function toggleCategoria(id) {
+            document.getElementById(id).classList.toggle('hidden');
+        }
+
+        function filtrarProductos() {
+            const input = document.getElementById('buscadorProductos').value.toLowerCase();
+            const productos = document.querySelectorAll('.producto-item');
+            productos.forEach(prod => {
+                const nombre = prod.querySelector('p').innerText.toLowerCase();
+                const esCoincidencia = nombre.includes(input);
+                prod.style.display = esCoincidencia ? 'flex' : 'none';
+                if (esCoincidencia && input.length > 0) {
+                    const catGrupo = prod.closest('.categoria-grupo');
+                    catGrupo.querySelector('.productos-lista').classList.remove('hidden');
+                }
+            });
+        }
+
+        function abrirModalEditar(id, nombre, precio, stock, esPack, unidadesPack, categoriaId, esPreparado, codigoBarras, precioUnidadVenta, precioMedioVenta) {
+            const form = document.getElementById('formEditarProducto');
+            form.action = '/admin/editar_producto/' + id;
+            document.getElementById('edit-nombre').value = nombre;
+            document.getElementById('edit-categoria').value = categoriaId;
+            document.getElementById('edit-es-preparado').value = esPreparado;
+            document.getElementById('edit-codigo-barras').value = codigoBarras || '';
+            document.getElementById('edit-precio-unidad-venta').value = precioUnidadVenta || '';
+            document.getElementById('edit-precio-medio-venta').value = precioMedioVenta || '';
+
+            const estaEsPack = (esPack == '1' || esPack === 'true' || esPack === true);
+            document.getElementById('edit-es-pack').checked = estaEsPack;
+            togglePackEditar(estaEsPack);
+            
+            if (estaEsPack) {
+                const unidadesPorPack = parseFloat(unidadesPack) || 1;
+                const stockTotal = parseFloat(stock) || 0;
+                const cantPacas = unidadesPorPack > 0 ? Math.floor(stockTotal / unidadesPorPack) : 0;
+                document.getElementById('edit-precio-pack').value = precio || '';
+                document.getElementById('edit-stock-pacas').value = cantPacas;
+                document.getElementById('edit-unidades-pack').value = unidadesPack || 1;
+                document.getElementById('edit-precio').value = '';
+                document.getElementById('edit-stock').value = '';
+            } else {
+                document.getElementById('edit-precio').value = precio || '';
+                document.getElementById('edit-stock').value = stock || '';
+                document.getElementById('edit-precio-pack').value = '';
+                document.getElementById('edit-stock-pacas').value = '';
+                document.getElementById('edit-unidades-pack').value = '';
+                document.getElementById('edit-precio-unidad-venta').value = '';
+                document.getElementById('edit-precio-medio-venta').value = '';
+            }
+            document.getElementById('modalEditarProducto').classList.remove('hidden');
+        }
+
+        function abrirModalEditarInsumo(id, nombre, cantidad) {
+            document.getElementById('formEditarInsumo').action = '/admin/editar_insumo/' + id;
+            document.getElementById('edit-insumo-nombre').value = nombre;
+            document.getElementById('edit-insumo-cantidad').value = cantidad;
+            document.getElementById('modalEditarInsumo').classList.remove('hidden');
+        }
+
+        function abrirModalEditarUsuario(id, nombre, usuario, rol) {
+            const form = document.getElementById('formEditarUsuario');
+            form.action = '/admin/editar_usuario/' + id;
+            document.getElementById('edit-usuario-nombre').value = nombre;
+            document.getElementById('edit-usuario-user').value = usuario;
+            document.getElementById('edit-usuario-rol').value = rol;
+            document.getElementById('modalEditarUsuario').classList.remove('hidden');
+        }
+
+        function abrirModalEditarCat(id, nombre) {
+            document.getElementById('form-editar-cat').action = '/admin/editar_categoria/' + id;
+            document.getElementById('input-edit-cat').value = nombre;
+            document.getElementById('modal-editar-cat').classList.remove('hidden');
+        }
+
+        function cerrarModales() {
+            document.querySelectorAll('[id^="modal"]').forEach(el => {
+                if (el.classList.contains('fixed')) {
+                    el.classList.add('hidden');
+                }
+            });
+        }
+
+        function togglePackCrear(checked) {
+            const divPack = document.getElementById('contenedor-pack-crear');
+            const divSimple = document.getElementById('contenedor-stock-simple');
+            if (checked) {
+                document.getElementById('precio-simple').removeAttribute('required');
+                document.getElementById('stock-simple').removeAttribute('required');
+                document.getElementById('precio-pack').setAttribute('required', 'required');
+            } else {
+                document.getElementById('precio-pack').removeAttribute('required');
+                document.getElementById('stock-pacas').removeAttribute('required');
+                document.getElementById('unidades-pack').removeAttribute('required');
+                document.getElementById('precio-simple').setAttribute('required', 'required');
+            }
+            divPack.classList.toggle('hidden', !checked);
+            divSimple.classList.toggle('hidden', checked);
+        }
+
+        function togglePackEditar(checked) {
+            const divPack = document.getElementById('edit-contenedor-pack');
+            const divSimple = document.getElementById('edit-contenedor-stock-simple');
+            if (checked) {
+                document.getElementById('edit-precio').removeAttribute('required');
+                document.getElementById('edit-precio-pack').setAttribute('required', 'required');
+            } else {
+                document.getElementById('edit-precio-pack').removeAttribute('required');
+                document.getElementById('edit-precio').setAttribute('required', 'required');
+            }
+            divPack.classList.toggle('hidden', !checked);
+            divSimple.classList.toggle('hidden', checked);
+        }
+
+        function toggleSeccionReceta(checkbox, idReceta, idStock) {
+            document.getElementById(idReceta).classList.toggle('hidden', !checkbox.checked);
+            document.getElementById(idStock).classList.toggle('hidden', checkbox.checked);
+        }
+
+        function agregarFilaIngrediente(contenedorId, claseFila) {
+            const contenedor = document.getElementById(contenedorId);
+            const filas = contenedor.querySelectorAll('.' + claseFila);
+            const nuevaFila = filas[filas.length - 1].cloneNode(true);
+            nuevaFila.querySelectorAll('input, select').forEach(el => el.value = '');
+            contenedor.appendChild(nuevaFila);
+        }
+
+        function eliminarFilaIngrediente(btn) {
+            const contenedor = document.getElementById('contenedor-filas-receta');
+            if (contenedor.querySelectorAll('.FilaIngrediente').length > 1) {
+                btn.closest('.FilaIngrediente').remove();
+            }
+        }
+
+        function toggleCamposGastoInsumo(valor) {
+            const seccion = document.getElementById('seccion-gasto-insumo');
+            seccion.classList.toggle('hidden', valor !== 'insumo');
+            seccion.querySelectorAll('input, select').forEach(el => el.required = (valor === 'insumo'));
+        }
+
+        async function buscarActualizaciones() {
+            const container = document.getElementById('status-actualizador');
+            container.innerHTML = `
+                <div class="flex items-center justify-center py-4 gap-2 text-slate-500 text-xs font-semibold">
+                    <svg class="animate-spin h-4 w-4 text-indigo-650" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Buscando actualizaciones en el servidor...</span>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/admin/verificar_version');
+                const data = await response.json();
+                
+                if (data.error) {
+                    container.innerHTML = `
+                        <div class="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl font-bold">
+                            ⚠️ ${data.error}
+                        </div>
+                        <button onclick="buscarActualizaciones()" class="interactive-element w-full mt-2 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold py-2 rounded-xl text-xs transition">
+                            Reintentar buscar
+                        </button>
+                    `;
+                    return;
+                }
+                
+                if (data.actualizacion_disponible) {
+                    container.innerHTML = `
+                        <div class="p-4 bg-emerald-50 border border-emerald-250 text-emerald-900 rounded-xl space-y-3">
+                            <div class="flex items-start gap-2.5">
+                                <span class="text-lg">🎉</span>
+                                <div class="space-y-0.5">
+                                    <h4 class="text-xs font-black font-bold">¡Nueva versión disponible: v${data.nueva_version}!</h4>
+                                    <p class="text-[10px] text-slate-500 font-medium">Hay mejoras y optimizaciones listas para instalar.</p>
+                                </div>
+                            </div>
+                            
+                            <form action="/admin/actualizar_software" method="POST" onsubmit="prepararReinicio(this)">
+                                <input type="hidden" name="url_descarga" value="${data.url_descarga}">
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl text-xs transition shadow-md shadow-emerald-600/10">
+                                    📥 Descargar e Instalar v${data.nueva_version}
+                                </button>
+                            </form>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="p-3 bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl font-bold text-center">
+                            ✅ Tienes la última versión instalada (v${data.actual_version}).
+                        </div>
+                        <button onclick="buscarActualizaciones()" class="interactive-element w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold py-2 rounded-xl text-xs transition border border-slate-200">
+                            Volver a buscar
+                        </button>
+                    `;
+                }
+            } catch (err) {
+                container.innerHTML = `
+                    <div class="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl font-bold">
+                        ⚠️ Error de conexión: no se pudo consultar el servidor de actualizaciones.
+                    </div>
+                    <button onclick="buscarActualizaciones()" class="interactive-element w-full mt-2 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold py-2 rounded-xl text-xs transition">
+                        Reintentar buscar
+                    </button>
+                `;
+            }
+        }
+        
+        function prepararReinicio(form) {
+            const btn = form.querySelector('button');
+            btn.disabled = true;
+            btn.innerHTML = `
+                <div class="flex items-center justify-center gap-1.5">
+                    <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Descargando y Reiniciando...</span>
+                </div>
+            `;
+            alert('Se iniciará la descarga en segundo plano. Cafeto24 se cerrará automáticamente en unos segundos, aplicará los cambios e iniciará la nueva versión. Por favor espera.');
+        }
+    </script>
+</body>
+</html>
