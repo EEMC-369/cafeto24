@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.6.0"
+VERSION = "3.7.0"
 
 app = Flask(
     __name__,
@@ -1846,7 +1846,15 @@ def pantalla_ventas():
     """).fetchall()
 
     categorias_json = {str(cat['id']): cat['nombre_categoria'] for cat in categorias}
-    productos_compra_json = [dict(p) for p in productos]
+    productos_compra_json = []
+    for p in productos:
+        d = dict(p)
+        try:
+            d['categoria_id'] = int(p['categoria_id']) if (p['categoria_id'] is not None and str(p['categoria_id']).strip() != '') else None
+        except (ValueError, TypeError):
+            d['categoria_id'] = None
+        productos_compra_json.append(d)
+        
     clientes_exclusivos_json = [dict(c) for c in clientes_exclusivos]
     
     db.close()
@@ -1881,6 +1889,11 @@ def panel_administrador():
     
     productos_procesados = []
     for p in raw_productos:
+        try:
+            cat_id = int(p['categoria_id']) if (p['categoria_id'] is not None and str(p['categoria_id']).strip() != '') else None
+        except (ValueError, TypeError):
+            cat_id = None
+            
         productos_procesados.append({
             'id': p['id'],
             'nombre': p['nombre'],
@@ -1890,7 +1903,7 @@ def panel_administrador():
             'nombre_categoria': p['nombre_categoria'],
             'es_pack': p['es_pack'] if p['es_pack'] is not None else 0,
             'unidades_por_pack': p['unidades_por_pack'] if p['unidades_por_pack'] is not None else 0,
-            'categoria_id': p['categoria_id'] if p['categoria_id'] is not None else '',
+            'categoria_id': cat_id if cat_id is not None else '',
             'codigo_barras': p['codigo_barras'] if 'codigo_barras' in p.keys() else '',
             'precio_unidad_venta': p['precio_unidad_venta'] if 'precio_unidad_venta' in p.keys() else None,
             'precio_medio_venta': p['precio_medio_venta'] if 'precio_medio_venta' in p.keys() else None
@@ -1936,14 +1949,14 @@ def panel_administrador():
     """).fetchone()
     
     saldo_actual = resultado_saldo['saldo_caja_neto'] if (resultado_saldo and 'saldo_caja_neto' in resultado_saldo.keys()) else 0
-    total_stock_unidades = 0
+    total_productos_inventario = 0
     total_valor_inventario = 0.0
     for p in raw_productos:
         es_preparado = p['es_preparado'] or 0
         if not es_preparado:
+            total_productos_inventario += 1
             stock = p['cantidad_stock'] or 0.0
             precio = p['precio'] or 0.0
-            total_stock_unidades += stock
             total_valor_inventario += (stock * precio)
 
     db.close()
@@ -1957,7 +1970,7 @@ def panel_administrador():
                            clientes_exclusivos=clientes_exclusivos,
                            historial_gastos=historial_gastos,
                            saldo_caja=saldo_actual,
-                           total_stock_unidades=total_stock_unidades,
+                           total_productos_inventario=total_productos_inventario,
                            total_valor_inventario=total_valor_inventario,
                            version_actual=VERSION)
 
@@ -3147,10 +3160,15 @@ def api_productos():
     productos = db.execute(query).fetchall()
     db.close()
     
-    # Convertimos filas a una lista de diccionarios
-    lista_productos = [dict(p) for p in productos]
-    
-    # Retornamos la lista plana. El JS se encargará de clasificarla.
+    lista_productos = []
+    for p in productos:
+        d = dict(p)
+        try:
+            d['categoria_id'] = int(p['categoria_id']) if (p['categoria_id'] is not None and str(p['categoria_id']).strip() != '') else None
+        except (ValueError, TypeError):
+            d['categoria_id'] = None
+        lista_productos.append(d)
+        
     return jsonify(lista_productos)
 
 

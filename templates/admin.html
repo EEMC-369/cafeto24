@@ -116,7 +116,7 @@
                 <span class="text-amber-500">💰</span> Efectivo en Caja: <strong class="text-emerald-400 font-extrabold">${{ "{:,.0f}".format(saldo_caja) if saldo_caja is not none else '0' }}</strong>
             </span>
             <span class="bg-slate-800/80 px-3 py-1.5 rounded-xl text-sm border border-slate-700 shadow-inner flex items-center gap-1.5">
-                <span class="text-amber-500">📦</span> Inventario: <strong class="text-amber-400 font-extrabold">{{ "{:,.0f}".format(total_stock_unidades) if total_stock_unidades is not none else '0' }} und.</strong>
+                <span class="text-amber-500">📦</span> Inventario: <strong class="text-amber-400 font-extrabold">{{ "{:,.0f}".format(total_productos_inventario) if total_productos_inventario is not none else '0' }} prod.</strong>
                 <span class="text-slate-500">|</span>
                 <strong class="text-emerald-400 font-extrabold">${{ "{:,.0f}".format(total_valor_inventario) if total_valor_inventario is not none else '0' }}</strong>
             </span>

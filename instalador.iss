@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=Cafeto24
-AppVersion=3.6.0
+AppVersion=3.7.0
 AppPublisher=Cafeto24
 DefaultDirName={autopf}\Cafeto24
 DefaultGroupName=Cafeto24
