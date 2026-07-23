@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.5.0"
+VERSION = "3.6.0"
 
 app = Flask(
     __name__,
@@ -3945,6 +3945,155 @@ def api_abrir_cajon():
         return jsonify({'success': True, 'message': 'Se envió señal de apertura al cajón monedero.'})
     else:
         return jsonify({'success': False, 'error': f"No se pudo abrir el cajón: {error}"}), 500
+
+
+def imprimir_factura_directa(venta_id):
+    try:
+        import sqlite3
+        db = conectar_db()
+        
+        # 1. Obtener la venta
+        venta = db.execute("""
+            SELECT v.*, u.nombre as vendedor_nombre
+            FROM ventas v
+            LEFT JOIN usuarios u ON v.vendedor_id = u.id
+            WHERE v.id = ?
+        """, (venta_id,)).fetchone()
+        
+        if not venta:
+            db.close()
+            return False, "Venta no encontrada"
+        
+        # 2. Obtener los detalles de la venta
+        detalles = db.execute("""
+            SELECT dv.cantidad, dv.precio_unitario, (dv.cantidad * dv.precio_unitario) as subtotal, p.nombre as producto_nombre
+            FROM detalle_ventas dv
+            JOIN productos p ON dv.producto_id = p.id
+            WHERE dv.venta_id = ?
+        """, (venta_id,)).fetchall()
+        db.close()
+        
+        import win32print
+        printer_name = win32print.GetDefaultPrinter()
+        hPrinter = win32print.OpenPrinter(printer_name)
+        try:
+            hJob = win32print.StartDocPrinter(hPrinter, 1, (f"Factura_{venta_id}", None, "RAW"))
+            try:
+                win32print.StartPagePrinter(hPrinter)
+                
+                # ESC/POS Comandos Básicos:
+                ESC = b"\x1b"
+                GS = b"\x1d"
+                
+                # Inicializar impresora
+                init = ESC + b"@"
+                
+                # Modos de texto
+                centrado = ESC + b"a\x01" # Centrar texto
+                izquierda = ESC + b"a\x00" # Alinear izquierda
+                derecha = ESC + b"a\x02" # Alinear derecha
+                negrita_on = ESC + b"E\x01"
+                negrita_off = ESC + b"E\x00"
+                double_size = GS + b"!\x11" # Doble ancho y alto
+                normal_size = GS + b"!\x00"
+                
+                # Corte de papel
+                cortar = GS + b"V\x41\x00" # Corte parcial
+                
+                # Pulso cajon monedero (abrir)
+                abrir_cajon = ESC + b"p\x00\x19\xfa" + ESC + b"p\x01\x19\xfa"
+                
+                raw_data = bytearray()
+                raw_data.extend(init)
+                
+                # Si el pago es en efectivo, abrir cajón
+                metodo = (venta['metodo_pago'] or 'efectivo').strip().lower()
+                if metodo == 'efectivo':
+                    raw_data.extend(abrir_cajon)
+                
+                # Encabezado
+                raw_data.extend(centrado + negrita_on + double_size + b"CAFETO 24\n" + normal_size + negrita_off)
+                raw_data.extend(b"NIT: 1013587664-8\n")
+                raw_data.extend(b"Diagonal 62 sur #22-04, Bogota\n")
+                raw_data.extend(b"Tel.: 3015020637\n")
+                raw_data.extend(b"alej_z@hotmail.com\n")
+                raw_data.extend(b"--------------------------------\n") # 32 caracteres
+                
+                # Datos del ticket
+                raw_data.extend(izquierda)
+                ticket_num = f"261-1-{venta['id']:06d}"
+                raw_data.extend(f"Ticket: {ticket_num}\n".encode('utf-8'))
+                raw_data.extend(f"Fecha: {venta['fecha']}\n".encode('utf-8'))
+                
+                vendedor = venta['vendedor_nombre'] or 'Cajero'
+                raw_data.extend(f"Atendido: {vendedor}\n".encode('utf-8'))
+                
+                cliente = venta['cliente_fiado']
+                if cliente:
+                    raw_data.extend(f"Cliente: {cliente}\n".encode('utf-8'))
+                
+                raw_data.extend(b"--------------------------------\n")
+                raw_data.extend(negrita_on + b"Cant Producto           Subtotal\n" + negrita_off)
+                raw_data.extend(b"--------------------------------\n")
+                
+                # Detalles de productos (ancho total 32 caracteres)
+                for item in detalles:
+                    cant = f"{item['cantidad']:.0f}"
+                    sub = f"${item['subtotal']:.0f}"
+                    nombre = item['producto_nombre']
+                    
+                    # Cortar el nombre
+                    if len(nombre) > 16:
+                        nombre = nombre[:16]
+                    
+                    # Formatear la línea: Cant (3 chars) + Nombre (18 chars) + Subtotal (11 chars derecha)
+                    linea = f"{cant:<3}{nombre:<18}{sub:>11}\n"
+                    raw_data.extend(linea.encode('latin1', errors='ignore'))
+                    
+                raw_data.extend(b"--------------------------------\n")
+                
+                # Totales
+                total_str = f"${venta['total']:.0f}"
+                raw_data.extend(negrita_on + double_size + centrado + f"TOTAL: {total_str}\n" + normal_size + negrita_off + izquierda)
+                raw_data.extend(b"--------------------------------\n")
+                
+                # Método de pago y cambio
+                metodo_label = metodo.upper()
+                recibido_val = venta['efectivo_recibido'] if (metodo == 'efectivo' and venta['efectivo_recibido']) else venta['total']
+                recibido_str = f"${recibido_val:.0f}"
+                cambio_val = venta['cambio'] or 0.0
+                cambio_str = f"${cambio_val:.0f}"
+                
+                raw_data.extend(f"Pago: {metodo_label:<15}{recibido_str:>11}\n".encode('utf-8'))
+                if metodo == 'efectivo' and cambio_val > 0:
+                    raw_data.extend(f"Cambio:        {cambio_str:>11}\n".encode('utf-8'))
+                
+                raw_data.extend(b"--------------------------------\n")
+                raw_data.extend(centrado + b"Gracias por su compra\n")
+                raw_data.extend(b"Tecnologia Cafeto 24\n\n\n\n\n")
+                raw_data.extend(cortar)
+                
+                win32print.WritePrinter(hPrinter, bytes(raw_data))
+                win32print.EndPagePrinter(hPrinter)
+            finally:
+                win32print.EndDocPrinter(hPrinter)
+        finally:
+            win32print.ClosePrinter(hPrinter)
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
+@app.route('/api/imprimir_directo/<int:venta_id>', methods=['POST'])
+def api_imprimir_directo(venta_id):
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado', 'success': False}), 401
+    
+    exito, error = imprimir_factura_directa(venta_id)
+    if exito:
+        return jsonify({'success': True, 'message': 'Factura enviada a la impresora.'})
+    else:
+        return jsonify({'success': False, 'error': f"No se pudo imprimir: {error}"}), 500
 
 
 @app.route('/venta/factura/<int:venta_id>')

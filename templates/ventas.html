@@ -2035,7 +2035,18 @@
                     }
 
                     if (imprimirFactura) {
-                        abrirModalFactura(resultado.venta_id);
+                        fetch(`/api/imprimir_directo/${resultado.venta_id}`, { method: 'POST' })
+                            .then(r => r.json())
+                            .then(res => {
+                                if (!res.success) {
+                                    console.warn("Silent print failed, fallback to modal:", res.error);
+                                    abrirModalFactura(resultado.venta_id);
+                                }
+                            })
+                            .catch(err => {
+                                console.error("Silent print connection failed, fallback to modal:", err);
+                                abrirModalFactura(resultado.venta_id);
+                            });
                     }
 
                     alert("💸 Venta Procesada Exitosamente.");
@@ -2370,7 +2381,10 @@
             cargarPlantillasIntangibles();
         }
 
+        let ventaIdActualParaImprimir = null;
+
         function abrirModalFactura(ventaId) {
+            ventaIdActualParaImprimir = ventaId;
             const modal = document.getElementById('modal-factura-pos');
             const iframe = document.getElementById('iframe-factura');
             if (!modal || !iframe) return;
@@ -2401,10 +2415,29 @@
             setTimeout(() => {
                 modal.classList.add('hidden');
                 if (iframe) iframe.src = 'about:blank';
+                ventaIdActualParaImprimir = null;
             }, 300);
         }
 
         function imprimirIframeFactura() {
+            if (!ventaIdActualParaImprimir) return;
+            fetch(`/api/imprimir_directo/${ventaIdActualParaImprimir}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        cerrarModalFactura();
+                    } else {
+                        console.warn("Direct printing error, falling back to browser print:", data.error);
+                        fallbackImpresionIframe();
+                    }
+                })
+                .catch(err => {
+                    console.error("Direct printing connection failed, falling back to browser print:", err);
+                    fallbackImpresionIframe();
+                });
+        }
+
+        function fallbackImpresionIframe() {
             const iframe = document.getElementById('iframe-factura');
             if (!iframe) return;
             try {
@@ -2412,7 +2445,7 @@
                 iframe.contentWindow.print();
             } catch (err) {
                 console.error("Error al imprimir iframe:", err);
-                alert("No se pudo iniciar la impresión directamente. Intenta reintentar.");
+                alert("No se pudo iniciar la impresión directamente. Reintente.");
             }
         }
 
