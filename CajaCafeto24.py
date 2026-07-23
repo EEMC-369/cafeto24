@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.12.0"
+VERSION = "3.13.0"
 
 app = Flask(
     __name__,
@@ -3141,6 +3141,20 @@ def eliminar_categoria(id):
     finally:
         db.close()
     return redirect(url_for('panel_administrador'))
+
+@app.route('/api/receta/<int:producto_id>')
+def api_receta_producto(producto_id):
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    db = conectar_db()
+    receta = db.execute("""
+        SELECT insumo_id, cantidad_gastada
+        FROM recetas
+        WHERE producto_id = ?
+    """, (producto_id,)).fetchall()
+    db.close()
+    return jsonify([{'insumo_id': r['insumo_id'], 'cantidad_gastada': r['cantidad_gastada']} for r in receta])
+
 
 # ==========================================
 # 8. APIS (JSON) PARA PANTALLA DE VENTAS
