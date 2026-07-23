@@ -528,54 +528,74 @@
                         {% set fallbacks = ['🥐', '🍩', '🥯', '🥪', '🍕', '🌭', '🌮', '🥨', '🍪', '🍨', '🧁', '🍎', '🍉', '🍓', '🥑', '🥞', '🧇', '🧀', '🍖', '🍗', '🍟', '🍣', '🍱', '🥟', '🥡'] %}
                         {% set length = cat.nombre_categoria | length %}
                         {% set index = length % (fallbacks | length) %}
-                        {% set emoji = fallbacks[index] %}
+                        {% set emoji = cat.icono if cat.icono else '' %}
                         {% set color_name = 'slate' %}
                         
-                        {% if 'caliente' in cat_lower or 'café' in cat_lower or 'cafe' in cat_lower or 'tinto' in cat_lower or 'espresso' in cat_lower or 'milo' in cat_lower or 'cappuccino' in cat_lower or 'latte' in cat_lower %}
-                            {% set emoji = '☕' %}
-                            {% set color_name = 'red' %}
-                        {% elif 'gaseosa' in cat_lower or 'soda' in cat_lower or 'coca' in cat_lower or 'pepsi' in cat_lower or 'fanta' in cat_lower %}
-                            {% set emoji = '🥤' %}
-                            {% set color_name = 'blue' %}
-                        {% elif 'jugo' in cat_lower or 'fruta' in cat_lower or 'limonada' in cat_lower or 'naranja' in cat_lower or 'salpicon' in cat_lower or 'batido' in cat_lower %}
-                            {% set emoji = '🍊' %}
-                            {% set color_name = 'indigo' %}
-                        {% elif 'comida' in cat_lower or 'alimento' in cat_lower or 'sandwich' in cat_lower or 'perro' in cat_lower or 'hamburguesa' in cat_lower or 'empanada' in cat_lower or 'pan' in cat_lower or 'arepa' in cat_lower or 'pastel' in cat_lower %}
-                            {% set emoji = '🍔' %}
-                            {% set color_name = 'amber' %}
-                        {% elif 'paquete' in cat_lower or 'papa' in cat_lower or 'mani' in cat_lower or 'platanito' in cat_lower %}
-                            {% set emoji = '🍿' %}
-                            {% set color_name = 'stone' %}
-                        {% elif 'chocolatina' in cat_lower or 'chocolate' in cat_lower or 'dulce' in cat_lower or 'goma' in cat_lower or 'bombón' in cat_lower %}
-                            {% set emoji = '🍫' %}
-                            {% set color_name = 'orange' %}
-                        {% elif 'galleta' in cat_lower or 'cracker' in cat_lower %}
-                            {% set emoji = '🍪' %}
-                            {% set color_name = 'cyan' %}
-                        {% elif 'torta' in cat_lower or 'ponqué' in cat_lower or 'muffin' in cat_lower or 'cupcake' in cat_lower %}
-                            {% set emoji = '🍰' %}
-                            {% set color_name = 'rose' %}
-                        {% elif 'energizante' in cat_lower or 'red bull' in cat_lower or 'monster' in cat_lower or 'speed' in cat_lower or 'vive' in cat_lower %}
-                            {% set emoji = '⚡' %}
-                            {% set color_name = 'teal' %}
-                        {% elif 'cerveza' in cat_lower or 'licor' in cat_lower or 'trago' in cat_lower or 'club' in cat_lower or 'poker' in cat_lower or 'aguila' in cat_lower %}
-                            {% set emoji = '🍺' %}
-                            {% set color_name = 'purple' %}
-                        {% elif 'cigarrillo' in cat_lower or 'tabaco' in cat_lower or 'cigarro' in cat_lower %}
-                            {% set emoji = '🚬' %}
-                            {% set color_name = 'green' %}
-                        {% elif 'medicamento' in cat_lower or 'pastilla' in cat_lower or 'drog' in cat_lower or 'dolex' in cat_lower %}
-                            {% set emoji = '💊' %}
-                            {% set color_name = 'pink' %}
-                        {% elif 'higienico' in cat_lower or 'aseo' in cat_lower or 'baño' in cat_lower or 'servilleta' in cat_lower %}
-                            {% set emoji = '🧻' %}
-                            {% set color_name = 'yellow' %}
-                        {% elif 'agua' in cat_lower or 'hielo' in cat_lower or 'brisa' in cat_lower %}
-                            {% set emoji = '💧' %}
-                            {% set color_name = 'sky' %}
-                        {% elif 'parqueadero' in cat_lower or 'carro' in cat_lower or 'moto' in cat_lower or 'casco' in cat_lower %}
-                            {% set emoji = '🚗' %}
-                            {% set color_name = 'emerald' %}
+                        {% if not emoji %}
+                            {% set emoji = fallbacks[index] %}
+                            {% if 'caliente' in cat_lower or 'café' in cat_lower or 'cafe' in cat_lower or 'tinto' in cat_lower or 'espresso' in cat_lower or 'milo' in cat_lower or 'cappuccino' in cat_lower or 'latte' in cat_lower %}
+                                {% set emoji = '☕' %}
+                                {% set color_name = 'red' %}
+                            {% elif 'gaseosa' in cat_lower or 'soda' in cat_lower or 'coca' in cat_lower or 'pepsi' in cat_lower or 'fanta' in cat_lower %}
+                                {% set emoji = '🥤' %}
+                                {% set color_name = 'blue' %}
+                            {% elif 'jugo' in cat_lower or 'fruta' in cat_lower or 'limonada' in cat_lower or 'naranja' in cat_lower or 'salpicon' in cat_lower or 'batido' in cat_lower %}
+                                {% set emoji = '🍊' %}
+                                {% set color_name = 'indigo' %}
+                            {% elif 'comida' in cat_lower or 'alimento' in cat_lower or 'sandwich' in cat_lower or 'perro' in cat_lower or 'hamburguesa' in cat_lower or 'empanada' in cat_lower or 'pan' in cat_lower or 'arepa' in cat_lower or 'pastel' in cat_lower %}
+                                {% set emoji = '🍔' %}
+                                {% set color_name = 'amber' %}
+                            {% elif 'paquete' in cat_lower or 'papa' in cat_lower or 'mani' in cat_lower or 'platanito' in cat_lower %}
+                                {% set emoji = '🍿' %}
+                                {% set color_name = 'stone' %}
+                            {% elif 'chocolatina' in cat_lower or 'chocolate' in cat_lower or 'dulce' in cat_lower or 'goma' in cat_lower or 'bombón' in cat_lower %}
+                                {% set emoji = '🍫' %}
+                                {% set color_name = 'orange' %}
+                            {% elif 'galleta' in cat_lower or 'cracker' in cat_lower %}
+                                {% set emoji = '🍪' %}
+                                {% set color_name = 'cyan' %}
+                            {% elif 'torta' in cat_lower or 'ponqué' in cat_lower or 'muffin' in cat_lower or 'cupcake' in cat_lower %}
+                                {% set emoji = '🍰' %}
+                                {% set color_name = 'rose' %}
+                            {% elif 'energizante' in cat_lower or 'red bull' in cat_lower or 'monster' in cat_lower or 'speed' in cat_lower or 'vive' in cat_lower %}
+                                {% set emoji = '⚡' %}
+                                {% set color_name = 'teal' %}
+                            {% elif 'cerveza' in cat_lower or 'licor' in cat_lower or 'trago' in cat_lower or 'club' in cat_lower or 'poker' in cat_lower or 'aguila' in cat_lower %}
+                                {% set emoji = '🍺' %}
+                                {% set color_name = 'purple' %}
+                            {% elif 'cigarrillo' in cat_lower or 'tabaco' in cat_lower or 'cigarro' in cat_lower %}
+                                {% set emoji = '🚬' %}
+                                {% set color_name = 'green' %}
+                            {% elif 'medicamento' in cat_lower or 'pastilla' in cat_lower or 'drog' in cat_lower or 'dolex' in cat_lower %}
+                                {% set emoji = '💊' %}
+                                {% set color_name = 'pink' %}
+                            {% elif 'higienico' in cat_lower or 'aseo' in cat_lower or 'baño' in cat_lower or 'servilleta' in cat_lower %}
+                                {% set emoji = '🧻' %}
+                                {% set color_name = 'yellow' %}
+                            {% elif 'agua' in cat_lower or 'hielo' in cat_lower or 'brisa' in cat_lower %}
+                                {% set emoji = '💧' %}
+                                {% set color_name = 'sky' %}
+                            {% elif 'parqueadero' in cat_lower or 'carro' in cat_lower or 'moto' in cat_lower or 'casco' in cat_lower %}
+                                {% set emoji = '🚗' %}
+                                {% set color_name = 'emerald' %}
+                            {% endif %}
+                        {% else %}
+                            {% if emoji == '☕' %}{% set color_name = 'red' %}
+                            {% elif emoji == '🥤' %}{% set color_name = 'blue' %}
+                            {% elif emoji == '🍊' %}{% set color_name = 'indigo' %}
+                            {% elif emoji == '🍔' %}{% set color_name = 'amber' %}
+                            {% elif emoji == '🍿' %}{% set color_name = 'stone' %}
+                            {% elif emoji == '🍫' %}{% set color_name = 'orange' %}
+                            {% elif emoji == '🍪' %}{% set color_name = 'cyan' %}
+                            {% elif emoji == '🍰' %}{% set color_name = 'rose' %}
+                            {% elif emoji == '⚡' %}{% set color_name = 'teal' %}
+                            {% elif emoji == '🍺' %}{% set color_name = 'purple' %}
+                            {% elif emoji == '🚬' %}{% set color_name = 'green' %}
+                            {% elif emoji == '💊' %}{% set color_name = 'pink' %}
+                            {% elif emoji == '🧻' %}{% set color_name = 'yellow' %}
+                            {% elif emoji == '💧' %}{% set color_name = 'sky' %}
+                            {% elif emoji == '🚗' %}{% set color_name = 'emerald' %}
+                            {% endif %}
                         {% endif %}
 
                         {% set bg_inactive = 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200 shadow-sm' %}

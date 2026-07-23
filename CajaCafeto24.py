@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.13.0"
+VERSION = "3.14.0"
 
 app = Flask(
     __name__,
@@ -1829,7 +1829,7 @@ def pantalla_ventas():
         
     db = conectar_db()
     
-    categorias = [dict(c) for c in db.execute("SELECT id, nombre_categoria FROM categorias ORDER BY nombre_categoria ASC;").fetchall()]
+    categorias = [dict(c) for c in db.execute("SELECT id, nombre_categoria, icono FROM categorias ORDER BY nombre_categoria ASC;").fetchall()]
     insumos = [dict(i) for i in db.execute("SELECT id, nombre_insumo, unidad_medida FROM insumos ORDER BY nombre_insumo ASC;").fetchall()]
     productos = db.execute("""
         SELECT DISTINCT p.id, p.nombre, p.es_pack, p.unidades_por_pack, p.categoria_id,
@@ -2500,13 +2500,14 @@ def add_categoria():
         return redirect(url_for('login'))
         
     nueva_categoria = request.form.get('nombre_categoria')
+    icono = request.form.get('icono_categoria', '').strip() or None
     if not nueva_categoria:
         return redirect(url_for('panel_administrador'))
     
     db = conectar_db()
     try:
         # Asegúrate de que el nombre de columna en tu tabla 'categorias' sea 'nombre_categoria'
-        db.execute("INSERT INTO categorias (nombre_categoria) VALUES (?)", (nueva_categoria,))
+        db.execute("INSERT INTO categorias (nombre_categoria, icono) VALUES (?, ?)", (nueva_categoria, icono))
         db.commit()
         flash('Categoría agregada con éxito', 'success')
     except Exception as e:
@@ -3099,6 +3100,7 @@ def editar_categoria(id):
         return redirect(url_for('login'))
     
     nuevo_nombre = request.form.get('nuevo_nombre', '').strip()
+    nuevo_icono = request.form.get('icono_categoria', '').strip() or None
     
     if not nuevo_nombre:
         flash("El nombre de la categoría no puede estar vacío", "error")
@@ -3107,7 +3109,7 @@ def editar_categoria(id):
     db = conectar_db()
     try:
         # Asegúrate de que el nombre correcto de la columna sea 'nombre_categoria'
-        db.execute("UPDATE categorias SET nombre_categoria = ? WHERE id = ?", (nuevo_nombre, id))
+        db.execute("UPDATE categorias SET nombre_categoria = ?, icono = ? WHERE id = ?", (nuevo_nombre, nuevo_icono, id))
         db.commit()
         flash(f"✅ Categoría actualizada a '{nuevo_nombre}'", "success")
     except Exception as e:
@@ -4615,6 +4617,18 @@ def inicializar_y_migrar_db():
 
             version_actual = 2
             cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '2')")
+            conn.commit()
+
+        # ==========================================
+        # MIGRACIÓN v3: Columna de icono en categorías
+        # ==========================================
+        if version_actual < 3:
+            print("INFO: Aplicando migración v3 (Agregar columna de icono en categorías)...")
+            columnas_categorias = [info['name'] for info in cursor.execute("PRAGMA table_info(categorias);").fetchall()]
+            if 'icono' not in columnas_categorias:
+                cursor.execute("ALTER TABLE categorias ADD COLUMN icono TEXT;")
+            version_actual = 3
+            cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '3')")
             conn.commit()
 
         # Asegurar que exista al menos un usuario administrador por defecto si la tabla está vacía
