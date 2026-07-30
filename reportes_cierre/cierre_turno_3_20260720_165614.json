@@ -1,0 +1,40 @@
+{
+  "turno": {
+    "id": 3,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-17 12:16:44",
+    "fecha_cierre": "2026-07-17 12:24:06"
+  },
+  "resumen": {
+    "ordenes": 0,
+    "total_ventas": 0.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "nequi": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "movimientos": []
+}

@@ -1,0 +1,63 @@
+{
+  "turno": {
+    "id": 27,
+    "usuario": "edwin",
+    "rol": "empleado",
+    "fecha_apertura": "2026-07-20 21:16:14",
+    "fecha_cierre": "2026-07-20 21:16:56",
+    "efectivo_esperado": 237600.0,
+    "efectivo_real": 237600.0,
+    "diferencia": 0.0,
+    "nequi_esperado": 91500.0,
+    "nequi_real": 91500.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": "hhh"
+  },
+  "resumen": {
+    "ordenes": 1,
+    "total_ventas": 15600.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 15600.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 15600.0
+    },
+    "nequi": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "gastos": [],
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 21:16:23",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #63",
+      "metodo_pago": "efectivo",
+      "monto": 15600.0
+    }
+  ]
+}

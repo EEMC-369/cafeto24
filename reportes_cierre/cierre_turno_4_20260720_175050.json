@@ -1,0 +1,53 @@
+{
+  "turno": {
+    "id": 4,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-20 17:34:34",
+    "fecha_cierre": "2026-07-20 17:50:50",
+    "efectivo_esperado": 0.0,
+    "efectivo_real": 0.0,
+    "diferencia": 0.0,
+    "observaciones": ""
+  },
+  "resumen": {
+    "ordenes": 1,
+    "total_ventas": 18000.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "nequi": {
+      "ventas": 18000.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 18000.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 17:35:38",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #18",
+      "metodo_pago": "nequi",
+      "monto": 18000.0
+    }
+  ]
+}

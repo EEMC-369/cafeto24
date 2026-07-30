@@ -1,0 +1,96 @@
+{
+  "turno": {
+    "id": 22,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-20 20:33:49",
+    "fecha_cierre": "2026-07-20 20:37:28",
+    "efectivo_esperado": 201100.0,
+    "efectivo_real": 201000.0,
+    "diferencia": -100.0,
+    "nequi_esperado": 94000.0,
+    "nequi_real": 94000.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": ""
+  },
+  "resumen": {
+    "ordenes": 2,
+    "total_ventas": 6500.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 6500.0,
+      "abonos": 2000.0,
+      "gastos": 1000.0,
+      "saldo": 7500.0
+    },
+    "nequi": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "gastos": [
+    {
+      "id": 10,
+      "fecha": "2026-07-20 20:36:05",
+      "descripcion": "Compra Inventario: Agua 1 Litro (x2 uds) - 2",
+      "categoria_gasto": "Compra Inventario",
+      "metodo_pago": "efectivo",
+      "monto": 1000.0
+    }
+  ],
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 20:36:05",
+      "tipo_movimiento": "salida",
+      "origen": "gasto",
+      "descripcion": "Compra Inventario: Agua 1 Litro (x2 uds) - 2",
+      "metodo_pago": "efectivo",
+      "monto": 1000.0
+    },
+    {
+      "fecha": "2026-07-20 20:36:22",
+      "tipo_movimiento": "entrada",
+      "origen": "abono_fiado",
+      "descripcion": "Abono deuda cliente: edg",
+      "metodo_pago": "efectivo",
+      "monto": 2000.0
+    },
+    {
+      "fecha": "2026-07-20 20:36:41",
+      "tipo_movimiento": "entrada",
+      "origen": "ingreso_intangible",
+      "descripcion": "Ingreso intangible: Parqueadero",
+      "metodo_pago": "efectivo",
+      "monto": 2000.0
+    },
+    {
+      "fecha": "2026-07-20 20:37:02",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #55",
+      "metodo_pago": "efectivo",
+      "monto": 4500.0
+    }
+  ]
+}

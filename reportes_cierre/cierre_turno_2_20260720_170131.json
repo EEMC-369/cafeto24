@@ -1,0 +1,49 @@
+{
+  "turno": {
+    "id": 2,
+    "usuario": "edwin",
+    "rol": "empleado",
+    "fecha_apertura": "2026-07-14 21:52:02",
+    "fecha_cierre": "2026-07-20 17:01:31"
+  },
+  "resumen": {
+    "ordenes": 0,
+    "total_ventas": 0.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 10000.0,
+      "saldo": -10000.0
+    },
+    "nequi": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "movimientos": [
+    {
+      "fecha": "2026-07-14 22:01:16",
+      "tipo_movimiento": "salida",
+      "origen": "gasto",
+      "descripcion": "2",
+      "metodo_pago": "efectivo",
+      "monto": 10000.0
+    }
+  ]
+}

@@ -311,7 +311,7 @@
                             </div>
                             
                             <div class="flex items-center gap-1.5">
-                                <button onclick="abrirModalEditar('{{ prod.id }}', '{{ prod.nombre }}', '{{ prod.precio }}', '{{ prod.cantidad_stock }}', '{{ prod.es_pack }}', '{{ prod.unidades_por_pack }}', '{{ cat.id }}', '{{ prod.es_preparado }}', '{{ prod.codigo_barras or '' }}', '{{ prod.precio_unidad_venta if prod.precio_unidad_venta is not none else '' }}', '{{ prod.precio_medio_venta if prod.precio_medio_venta is not none else '' }}')" 
+                                <button onclick="abrirModalEditar('{{ prod.id }}', '{{ prod.nombre }}', '{{ prod.precio }}', '{{ prod.cantidad_stock }}', '{{ prod.es_pack }}', '{{ prod.unidades_por_pack }}', '{{ cat.id }}', '{{ prod.es_preparado }}', '{{ prod.codigo_barras or '' }}', '{{ prod.precio_unidad_venta if prod.precio_unidad_venta is not none else '' }}', '{{ prod.precio_medio_venta if prod.precio_medio_venta is not none else '' }}', '{{ prod.receta_personalizable }}')" 
                                         class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 p-2 rounded-xl text-xs shadow-sm transition active:scale-95">✏️</button>
                                 
                                 <form action="/admin/eliminar_producto/{{ prod.id }}" method="POST" onsubmit="return confirm('¿Eliminar?');" class="inline">
@@ -351,7 +351,7 @@
                             </div>
                             
                             <div class="flex items-center gap-2">
-                                <button onclick="abrirModalEditar('{{ prod.id }}', '{{ prod.nombre }}', '{{ prod.precio }}', '{{ prod.cantidad_stock }}', '{{ prod.es_pack }}', '{{ prod.unidades_por_pack }}', '', '{{ prod.es_preparado }}', '{{ prod.codigo_barras or '' }}', '{{ prod.precio_unidad_venta if prod.precio_unidad_venta is not none else '' }}', '{{ prod.precio_medio_venta if prod.precio_medio_venta is not none else '' }}')" 
+                                <button onclick="abrirModalEditar('{{ prod.id }}', '{{ prod.nombre }}', '{{ prod.precio }}', '{{ prod.cantidad_stock }}', '{{ prod.es_pack }}', '{{ prod.unidades_por_pack }}', '', '{{ prod.es_preparado }}', '{{ prod.codigo_barras or '' }}', '{{ prod.precio_unidad_venta if prod.precio_unidad_venta is not none else '' }}', '{{ prod.precio_medio_venta if prod.precio_medio_venta is not none else '' }}', '{{ prod.receta_personalizable }}')" 
                                         class="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl text-xs">✏️</button>
                                 
                                 <form action="/admin/eliminar_producto/{{ prod.id }}" method="POST" onsubmit="return confirm('¿Eliminar?');">
@@ -646,6 +646,10 @@
                     </div>
 
                     <div id="seccion-receta-dinamica" class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300">
+                        <div class="flex items-center p-2.5 bg-amber-100/50 rounded-lg border border-amber-300/40 mb-2">
+                            <input type="checkbox" id="create-receta-personalizable" name="receta_personalizable" value="1" class="w-4.5 h-4.5 text-amber-600 rounded border-slate-300">
+                            <label for="create-receta-personalizable" class="ml-2.5 text-xs font-bold text-amber-900 cursor-pointer">Permitir personalizar ingredientes al vender (Hamburguesas, Perros, etc.)</label>
+                        </div>
                         <div id="contenedor-filas-receta" class="space-y-2.5">
                             <div class="flex space-x-2 FilaIngrediente items-center">
                                 <select name="insumos_receta[]" class="flex-1 p-2 border border-slate-200 rounded-xl bg-white text-xs outline-none">
@@ -931,11 +935,15 @@
                 </div>
 
                 <div class="flex items-center p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/50">
-                    <input type="checkbox" id="edit-es-preparado" name="es_preparado" value="1" onchange="toggleSeccionReceta(this, 'edit-seccion-receta-dinamica', 'edit-contenedor-stock-simple')" class="w-5 h-5 text-amber-600 rounded border-slate-300 focus:ring-amber-500">
+                    <input type="checkbox" id="edit-es-preparado" name="es_preparado" value="1" onchange="toggleSeccionReceta(this, 'edit-seccion-receta-dinamica', 'edit-contenedor-solo-stock')" class="w-5 h-5 text-amber-600 rounded border-slate-300 focus:ring-amber-500">
                     <label for="edit-es-preparado" class="ml-3 text-sm font-bold text-amber-955 cursor-pointer">¿Lleva receta de materia prima?</label>
                 </div>
 
                 <div id="edit-seccion-receta-dinamica" class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300">
+                    <div class="flex items-center p-2.5 bg-amber-100/50 rounded-lg border border-amber-300/40 mb-2">
+                        <input type="checkbox" id="edit-receta-personalizable" name="receta_personalizable" value="1" class="w-4.5 h-4.5 text-amber-600 rounded border-slate-300">
+                        <label for="edit-receta-personalizable" class="ml-2.5 text-xs font-bold text-amber-900 cursor-pointer">Permitir personalizar ingredientes al vender (Hamburguesas, Perros, etc.)</label>
+                    </div>
                     <div id="edit-contenedor-filas-receta" class="space-y-2.5">
                         <!-- Las filas se cargarán aquí dinámicamente -->
                     </div>
@@ -949,7 +957,7 @@
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Precio ($)</label>
                         <input type="number" id="edit-precio" name="precio" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500" required>
                     </div>
-                    <div>
+                    <div id="edit-contenedor-solo-stock">
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Stock</label>
                         <input type="number" id="edit-stock" name="stock" step="0.1" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500">
                     </div>
@@ -1105,11 +1113,13 @@
                 opciones += `<option value="${ins.id}" ${selected}>${ins.nombre_insumo} (${ins.unidad_medida})</option>`;
             });
             
+            const isRequired = document.getElementById('edit-es-preparado').checked ? 'required' : '';
+            
             div.innerHTML = `
-                <select name="insumos_receta[]" class="flex-1 p-2 border border-slate-200 rounded-xl bg-white text-xs outline-none" required>
+                <select name="insumos_receta[]" class="flex-1 p-2 border border-slate-200 rounded-xl bg-white text-xs outline-none" ${isRequired}>
                     ${opciones}
                 </select>
-                <input type="number" name="cantidades_receta[]" step="any" placeholder="Cant" value="${cantidad}" class="w-20 p-2 border border-slate-200 rounded-xl text-xs text-center outline-none" required>
+                <input type="number" name="cantidades_receta[]" step="any" placeholder="Cant" value="${cantidad}" class="w-20 p-2 border border-slate-200 rounded-xl text-xs text-center outline-none" ${isRequired}>
                 <button type="button" onclick="eliminarFilaIngredienteEditar(this)" class="text-rose-500 hover:text-rose-700 font-bold px-2 transition" title="Eliminar ingrediente">✕</button>
             `;
             contenedor.appendChild(div);
@@ -1124,7 +1134,7 @@
             }
         }
 
-        function abrirModalEditar(id, nombre, precio, stock, esPack, unidadesPack, categoriaId, esPreparado, codigoBarras, precioUnidadVenta, precioMedioVenta) {
+        function abrirModalEditar(id, nombre, precio, stock, esPack, unidadesPack, categoriaId, esPreparado, codigoBarras, precioUnidadVenta, precioMedioVenta, recetaPersonalizable) {
             const form = document.getElementById('formEditarProducto');
             form.action = '/admin/editar_producto/' + id;
             document.getElementById('edit-nombre').value = nombre;
@@ -1140,9 +1150,12 @@
             const estaEsPreparado = (esPreparado == '1' || esPreparado === 'true' || esPreparado === true);
             document.getElementById('edit-es-preparado').checked = estaEsPreparado;
             
+            const estaEsPersonalizable = (recetaPersonalizable == '1' || recetaPersonalizable === 'true' || recetaPersonalizable === true);
+            document.getElementById('edit-receta-personalizable').checked = estaEsPersonalizable;
+            
             if (estaEsPreparado) {
                 document.getElementById('edit-seccion-receta-dinamica').classList.remove('hidden');
-                document.getElementById('edit-contenedor-stock-simple').classList.add('hidden');
+                document.getElementById('edit-contenedor-solo-stock').classList.add('hidden');
                 
                 // Cargar receta desde el API
                 fetch('/api/receta/' + id)
@@ -1162,7 +1175,7 @@
                     });
             } else {
                 document.getElementById('edit-seccion-receta-dinamica').classList.add('hidden');
-                document.getElementById('edit-contenedor-stock-simple').classList.remove('hidden');
+                document.getElementById('edit-contenedor-solo-stock').classList.remove('hidden');
                 agregarFilaIngredienteEditar();
             }
 
@@ -1252,8 +1265,19 @@
         }
 
         function toggleSeccionReceta(checkbox, idReceta, idStock) {
-            document.getElementById(idReceta).classList.toggle('hidden', !checkbox.checked);
+            const recetaDiv = document.getElementById(idReceta);
+            recetaDiv.classList.toggle('hidden', !checkbox.checked);
             document.getElementById(idStock).classList.toggle('hidden', checkbox.checked);
+            
+            // Habilitar/deshabilitar required en los elementos de la receta
+            recetaDiv.querySelectorAll('select, input').forEach(el => {
+                if (el.type === 'checkbox') return;
+                if (checkbox.checked) {
+                    el.setAttribute('required', 'required');
+                } else {
+                    el.removeAttribute('required');
+                }
+            });
         }
 
         function agregarFilaIngrediente(contenedorId, claseFila) {

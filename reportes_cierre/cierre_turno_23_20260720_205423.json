@@ -1,0 +1,128 @@
+{
+  "turno": {
+    "id": 23,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-20 20:44:56",
+    "fecha_cierre": "2026-07-20 20:54:23",
+    "efectivo_esperado": 210300.0,
+    "efectivo_real": 210000.0,
+    "diferencia": -300.0,
+    "nequi_esperado": 91500.0,
+    "nequi_real": 91500.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": "falto 300"
+  },
+  "resumen": {
+    "ordenes": 4,
+    "total_ventas": 12700.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 8200.0,
+      "abonos": 0.0,
+      "gastos": 7000.0,
+      "saldo": 1200.0
+    },
+    "nequi": {
+      "ventas": 4500.0,
+      "abonos": 1000.0,
+      "gastos": 0.0,
+      "saldo": 5500.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "gastos": [
+    {
+      "id": 11,
+      "fecha": "2026-07-20 20:48:57",
+      "descripcion": "Compra Inventario: Alpin (x2 uds)",
+      "categoria_gasto": "Compra Inventario",
+      "metodo_pago": "efectivo",
+      "monto": 5000.0
+    },
+    {
+      "id": 12,
+      "fecha": "2026-07-20 20:53:21",
+      "descripcion": "cucharas",
+      "categoria_gasto": "Gasto General",
+      "metodo_pago": "efectivo",
+      "monto": 2000.0
+    }
+  ],
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 20:45:07",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #56",
+      "metodo_pago": "efectivo",
+      "monto": 3200.0
+    },
+    {
+      "fecha": "2026-07-20 20:48:57",
+      "tipo_movimiento": "salida",
+      "origen": "gasto",
+      "descripcion": "Compra Inventario: Alpin (x2 uds)",
+      "metodo_pago": "efectivo",
+      "monto": 5000.0
+    },
+    {
+      "fecha": "2026-07-20 20:49:32",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #57",
+      "metodo_pago": "efectivo",
+      "monto": 3000.0
+    },
+    {
+      "fecha": "2026-07-20 20:51:53",
+      "tipo_movimiento": "entrada",
+      "origen": "ingreso_intangible",
+      "descripcion": "Ingreso intangible: Parqueadero",
+      "metodo_pago": "efectivo",
+      "monto": 2000.0
+    },
+    {
+      "fecha": "2026-07-20 20:52:05",
+      "tipo_movimiento": "entrada",
+      "origen": "abono_fiado",
+      "descripcion": "Abono deuda cliente: edwin",
+      "metodo_pago": "nequi",
+      "monto": 1000.0
+    },
+    {
+      "fecha": "2026-07-20 20:53:21",
+      "tipo_movimiento": "salida",
+      "origen": "gasto",
+      "descripcion": "cucharas",
+      "metodo_pago": "efectivo",
+      "monto": 2000.0
+    },
+    {
+      "fecha": "2026-07-20 20:53:37",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #59",
+      "metodo_pago": "nequi",
+      "monto": 4500.0
+    }
+  ]
+}

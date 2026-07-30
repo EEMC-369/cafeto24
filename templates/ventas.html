@@ -94,6 +94,94 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+        /* ========== BOTONES DE CATEGORÍA ========== */
+        .category-button {
+            width: 90px;
+            height: 90px;
+            min-width: 90px;
+            min-height: 90px;
+            font-size: 11px;
+            font-weight: 900;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            border-radius: 16px;
+            border: 2px solid transparent;
+            transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s, opacity 0.2s;
+            flex-shrink: 0;
+            text-align: center;
+            line-height: 1.2;
+            padding: 4px 2px;
+            word-break: break-word;
+        }
+        .category-button:hover {
+            transform: scale(1.06);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .category-button:active { transform: scale(0.96); }
+        .category-button.categoria-colapsada {
+            display: none !important;
+        }
+        .category-icon { font-size: 2.5rem; line-height: 1; }
+
+        /* ========== PANEL DE MOVIMIENTOS ========== */
+        #panel-movimientos {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            width: 320px;
+            background: rgba(15,23,42,0.97);
+            backdrop-filter: blur(16px);
+            color: #e2e8f0;
+            z-index: 200;
+            transform: translateX(100%);
+            transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 32px rgba(0,0,0,0.3);
+        }
+        #panel-movimientos.visible { transform: translateX(0); }
+        #panel-movimientos .mov-header {
+            background: linear-gradient(135deg, #92400e, #b45309);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        #panel-movimientos .mov-body { flex: 1; overflow-y: auto; padding: 12px; }
+        .mov-row {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 10px;
+            border-radius: 10px;
+            margin-bottom: 6px;
+            background: rgba(255,255,255,0.06);
+            font-size: 11px;
+        }
+        .mov-row.entrada { border-left: 3px solid #34d399; }
+        .mov-row.salida  { border-left: 3px solid #f87171; }
+        .mov-row.deuda   { border-left: 3px solid #fbbf24; }
+        .mov-badge {
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .badge-efectivo   { background:#064e3b; color:#6ee7b7; }
+        .badge-nequi      { background:#1e1b4b; color:#a5b4fc; }
+        .badge-daviplata  { background:#4c1d95; color:#ddd6fe; }
+        .badge-tarjeta    { background:#1e3a5f; color:#93c5fd; }
+        .badge-dividido   { background:#1c1917; color:#fdba74; }
+        .badge-default    { background:#1e293b; color:#94a3b8; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
@@ -119,6 +207,7 @@
             </form>
             <button id="btn-cerrar-turno" type="button" onclick="abrirModalCierreTurno()" class="bg-rose-600 hover:bg-rose-700 px-4 py-1 rounded font-semibold text-sm transition" style="display: none;">Terminar Turno ⏹</button>
             <button id="btn-abrir-cajon-manual" type="button" onclick="abrirCajonMonederoManual()" class="bg-amber-600 hover:bg-amber-700 px-4 py-1 rounded font-semibold text-sm transition text-slate-100 flex items-center gap-1">🔑 Abrir Cajón</button>
+            <button id="btn-toggle-movimientos" type="button" onclick="togglePanelMovimientos()" class="bg-slate-700 hover:bg-slate-600 px-4 py-1 rounded font-semibold text-sm transition text-slate-100 flex items-center gap-1">📊 Movimientos</button>
             {% if rol == 'administrador' %}
             <a href="/admin" class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded font-semibold text-sm transition">Panel Admin ⚙️</a>
             {% endif %}
@@ -218,6 +307,7 @@
                         <div class="grid grid-cols-2 gap-2 text-sm font-black pt-1.5">
                             <button type="button" onclick="cancelarPedido()" class="bg-slate-100 hover:bg-slate-200 border-2 text-slate-700 py-4 rounded-2xl active:scale-95 transition">❌ Cancelar</button>
                             <button type="button" onclick="cobrarPedido()" class="bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl active:scale-95 shadow-md text-base transition">💰 Cobrar</button>
+                            <button type="button" onclick="abrirModalPagoDividido()" class="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl active:scale-95 shadow-md text-base transition">🟦 Pago dividido</button>
                         </div>
 
                         <label class="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 bg-slate-50 border rounded-xl px-2.5 py-2 shadow-sm select-none">
@@ -647,11 +737,11 @@
                             {% set bg_inactive = 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200 shadow-sm' %}
                             {% set bg_active = 'bg-emerald-500 border-emerald-600 text-white font-black ring-2 ring-emerald-400 shadow-md' %}
                         {% endif %}
-                        <button onclick="filtrarCategoria('{{ cat.id }}', this)" data-categoria="{{ cat.id }}" 
+                        <button onclick="filtrarCategoria('{{ cat.id }}', this)" data-categoria="{{ cat.id }}"
                                 data-bg-inactive="{{ bg_inactive }}" data-bg-active="{{ bg_active }}"
-                                class="categoria-btn p-1 {{ bg_inactive }} border rounded-2xl font-black text-[9px] shadow-sm active:scale-95 transition flex flex-col items-center justify-center gap-0.5 text-center w-[74px] h-[74px] min-h-[74px] flex-shrink-0">
-                            <span class="text-2xl leading-none">{{ emoji }}</span>
-                            <span class="leading-tight break-words max-w-full px-0.5">{{ cat.nombre_categoria }}</span>
+                                class="category-button categoria-btn {{ bg_inactive }} border-2">
+                            <span class="category-icon">{{ emoji }}</span>
+                            <span class="leading-tight break-words max-w-full px-1 text-center text-[11px] font-black">{{ cat.nombre_categoria }}</span>
                         </button>
                     {% endfor %}
                 </div>
@@ -850,11 +940,139 @@
         </div>
     </div>
 
+    <div id="modal-pago-dividido" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-slate-100 transform scale-95 transition-transform duration-300">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-700 to-blue-800 text-white px-6 py-4 flex justify-between items-center">
+                <div>
+                    <div class="font-black text-lg">&#128310; Pago Dividido</div>
+                    <div class="text-blue-200 text-xs mt-0.5">Distribuye el pago entre varios m&eacute;todos</div>
+                </div>
+                <button onclick="cerrarModalPagoDividido()" class="text-white/80 hover:text-white font-black text-2xl leading-none">&times;</button>
+            </div>
+            <!-- Total a pagar -->
+            <div class="bg-blue-50 border-b border-blue-100 px-6 py-3 flex justify-between items-center">
+                <span class="text-sm font-bold text-blue-800">Total a pagar:</span>
+                <span id="div-total-venta" class="text-xl font-black text-blue-900">$0</span>
+            </div>
+            <!-- Campos de montos -->
+            <div class="p-6 space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">&#128181; Efectivo</label>
+                        <input type="number" min="0" step="100" id="monto-efectivo"
+                               oninput="actualizarResumenDividido()"
+                               class="w-full bg-slate-50 border-2 border-slate-200 focus:border-green-400 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none transition text-right"
+                               placeholder="0">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">&#128241; Nequi</label>
+                        <input type="number" min="0" step="100" id="monto-nequi"
+                               oninput="actualizarResumenDividido()"
+                               class="w-full bg-slate-50 border-2 border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none transition text-right"
+                               placeholder="0">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">&#128156; Daviplata</label>
+                        <input type="number" min="0" step="100" id="monto-daviplata"
+                               oninput="actualizarResumenDividido()"
+                               class="w-full bg-slate-50 border-2 border-slate-200 focus:border-purple-400 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none transition text-right"
+                               placeholder="0">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">&#128179; Tarjeta</label>
+                        <input type="number" min="0" step="100" id="monto-tarjeta"
+                               oninput="actualizarResumenDividido()"
+                               class="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-400 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none transition text-right"
+                               placeholder="0">
+                    </div>
+                </div>
+                <!-- Barra de progreso / resumen -->
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-500 font-bold">Ingresado:</span>
+                        <span id="div-total-ingresado" class="font-black text-slate-800">$0</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2">
+                        <div id="div-barra-progreso" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Falta: <span id="div-falta" class="font-black text-red-600">$0</span></span>
+                        <span id="div-cambio-label" class="hidden font-black text-green-600">Cambio: <span id="div-cambio-val">$0</span></span>
+                    </div>
+                </div>
+            </div>
+            <!-- Footer -->
+            <div class="px-6 pb-6 flex gap-3">
+                <button type="button" onclick="cerrarModalPagoDividido()"
+                        class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl font-bold text-sm transition active:scale-95">
+                    Cancelar
+                </button>
+                <button type="button" id="btn-confirmar-dividido" onclick="cobrarPagoDividido()"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl font-black text-sm transition active:scale-95 shadow-md">
+                    &#10003; Confirmar Pago
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- MODAL DE PERSONALIZACIÓN DE RECETA -->
+    <div id="modal-personalizar-receta" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden border border-slate-100 flex flex-col p-6 transform scale-95 transition-transform duration-300 max-h-[85vh]">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🍔</span>
+                    <h3 id="custom-receta-titulo" class="text-sm font-black text-slate-850 uppercase tracking-wide">Personalizar Producto</h3>
+                </div>
+                <button onclick="cerrarModalReceta()" class="text-slate-400 hover:text-slate-650 font-bold p-1 text-lg">✕</button>
+            </div>
+            
+            <!-- Lista de ingredientes -->
+            <div class="flex-1 overflow-y-auto pr-1 space-y-4 text-xs" id="custom-receta-cuerpo">
+                <!-- Seccion de ingredientes base -->
+                <div>
+                    <h4 class="text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-2">Ingredientes de la Receta</h4>
+                    <div id="custom-receta-base-lista" class="space-y-2">
+                        <!-- Items cargados dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Seccion de adiciones extra -->
+                <div class="pt-3 border-t border-slate-100">
+                    <h4 class="text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-2">Agregar Adición / Ingrediente Extra</h4>
+                    <div class="flex gap-2 mb-2">
+                        <select id="custom-receta-adicion-select" class="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-slate-500">
+                            <!-- Opciones cargadas dinámicamente -->
+                        </select>
+                        <input type="number" id="custom-receta-adicion-cant" value="1" step="any" placeholder="Cant" class="w-14 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-center outline-none focus:ring-1 focus:ring-slate-500">
+                        <input type="number" id="custom-receta-adicion-precio" value="0" step="any" placeholder="Precio ($)" class="w-20 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-center outline-none focus:ring-1 focus:ring-slate-500">
+                        <button type="button" onclick="agregarAdicionReceta()" class="interactive-element bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-2 rounded-xl text-xs transition">
+                            +
+                        </button>
+                    </div>
+                    <div id="custom-receta-adiciones-lista" class="space-y-2 mt-2">
+                        <!-- Adiciones agregadas listadas aquí -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-5 flex gap-3 border-t border-slate-100 pt-3">
+                <button id="btn-confirmar-receta-estandar" onclick="confirmarRecetaEstandar()" class="interactive-element flex-1 bg-slate-100 hover:bg-slate-200 active:scale-95 transition text-slate-700 font-bold py-3 rounded-xl text-[10px] uppercase tracking-wider">
+                    Receta Estándar
+                </button>
+                <button onclick="confirmarRecetaPersonalizada()" class="interactive-element flex-1 bg-amber-500 hover:bg-amber-650 active:scale-95 transition text-slate-950 font-black py-3 rounded-xl shadow-md text-[10px] uppercase tracking-wider shadow-amber-550/10">
+                    Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script id="categorias-json" type="application/json">{{ categorias_json|tojson }}</script>
     <script id="productos-compra-json" type="application/json">{{ productos_compra_json|tojson }}</script>
     <script id="clientes-exclusivos-json" type="application/json">{{ clientes_exclusivos_json|tojson }}</script>
+    <script id="insumos-json" type="application/json">{{ insumos_disponibles|tojson }}</script>
 
     <script>
+        const todosLosInsumos = JSON.parse(document.getElementById('insumos-json').textContent || '[]');
         let baseDatosProductos = {};
         let carrito = [];
         let categoriaActual = ''; 
@@ -877,6 +1095,14 @@
 
         function dinero(valor) {
             return `$${Number(valor || 0).toLocaleString('es-CO', {maximumFractionDigits: 0})}`;
+        }
+
+        function obtenerProductoPorId(id) {
+            for (const catId in baseDatosProductos) {
+                const prod = baseDatosProductos[catId].find(p => String(p.id) === String(id));
+                if (prod) return prod;
+            }
+            return null;
         }
 
         function getPestañaActiva() {
@@ -973,12 +1199,21 @@
                             nombre: `📝 ${o.mesa_cliente}`,
                             db_id: o.id,
                             es_abierta: true,
-                            items: (itemsToUse || []).map(i => ({
-                                id: i.producto_id || i.id,
-                                nombre: i.nombre_producto || i.nombre,
-                                precio: i.precio_unitario || i.precio,
-                                cantidad: i.cantidad
-                            })),
+                            items: (itemsToUse || []).map(i => {
+                                const itemId = i.producto_id || i.id;
+                                const prodOriginal = obtenerProductoPorId(itemId);
+                                return {
+                                    id: itemId,
+                                    nombre: i.nombre_producto || i.nombre,
+                                    precio: i.precio_unitario || i.precio,
+                                    cantidad: i.cantidad,
+                                    es_preparado: prodOriginal ? prodOriginal.es_preparado : 0,
+                                    receta_personalizable: prodOriginal ? prodOriginal.receta_personalizable : 0,
+                                    precio_base: prodOriginal ? prodOriginal.precio : (i.precio_unitario || i.precio),
+                                    receta_personalizada: i.receta_personalizada || null,
+                                    comentario_personalizado: i.comentario_personalizado || null
+                                };
+                            }),
                             observaciones: o.observaciones || ''
                         });
                     });
@@ -1408,6 +1643,21 @@
             }
         }
 
+        function mostrarTodasCategorias() {
+            document.querySelectorAll('.categoria-btn').forEach(btn => {
+                btn.classList.remove('categoria-colapsada', 'cat-activa');
+                const bgInactive = btn.getAttribute('data-bg-inactive') || 'bg-slate-100 border text-slate-700';
+                btn.className = `category-button categoria-btn border-2 ${bgInactive}`;
+            });
+            const btnTodas = document.getElementById('btn-ver-todas-categorias');
+            if (btnTodas) btnTodas.remove();
+            categoriaActual = 'todo';
+            const titulo = document.getElementById('titulo-categoria');
+            const contenedor = document.getElementById('contenedor-productos');
+            if (titulo) titulo.innerText = 'Selecciona una categoría';
+            if (contenedor) contenedor.innerHTML = '<p class="text-gray-400 italic col-span-full text-center mt-10 text-xs">Haz clic en una categoría para ver sus productos.</p>';
+        }
+
         function filtrarCategoria(categoria, boton = null) {
             categoriaActual = String(categoria);
             const contenedor = document.getElementById('contenedor-productos');
@@ -1416,15 +1666,37 @@
             const textoFiltro = (document.getElementById('filtro_catalogo_ventas').value || '').toLowerCase().trim();
 
             const botonesCategoria = document.querySelectorAll('.categoria-btn');
-            botonesCategoria.forEach(btn => {
-                const bgInactive = btn.getAttribute('data-bg-inactive') || 'bg-slate-100 border text-slate-700 hover:bg-slate-200';
-                btn.className = `categoria-btn p-1 rounded-2xl active:scale-95 transition flex flex-col items-center justify-center gap-0.5 text-center w-[74px] h-[74px] min-h-[74px] flex-shrink-0 font-black text-[9px] ${bgInactive}`;
-            });
 
-            const botonActivo = boton || document.querySelector(`.categoria-btn[data-categoria="${categoriaActual}"]`);
-            if (botonActivo) {
-                const bgActive = botonActivo.getAttribute('data-bg-active') || 'bg-amber-500 text-slate-950 font-black';
-                botonActivo.className = `categoria-btn p-1 rounded-2xl active:scale-95 transition flex flex-col items-center justify-center gap-0.5 text-center w-[74px] h-[74px] min-h-[74px] flex-shrink-0 font-black text-[9px] ${bgActive}`;
+            if (categoriaActual === 'todo') {
+                // Mostrar todos los botones sin colapsar
+                botonesCategoria.forEach(btn => {
+                    btn.classList.remove('categoria-colapsada');
+                    const bgInactive = btn.getAttribute('data-bg-inactive') || 'bg-slate-100 border text-slate-700';
+                    btn.className = `category-button categoria-btn border-2 ${bgInactive}`;
+                });
+                const btnTodas = document.getElementById('btn-ver-todas-categorias');
+                if (btnTodas) btnTodas.remove();
+            } else {
+                // Colapsar todos excepto el seleccionado
+                botonesCategoria.forEach(btn => {
+                    if (btn.getAttribute('data-categoria') === categoriaActual) {
+                        const bgActive = btn.getAttribute('data-bg-active') || 'bg-amber-500 text-slate-950 font-black';
+                        btn.className = `category-button categoria-btn border-2 ${bgActive}`;
+                        btn.classList.remove('categoria-colapsada');
+                    } else {
+                        btn.classList.add('categoria-colapsada');
+                    }
+                });
+                // Botón "← Todas" para volver
+                if (!document.getElementById('btn-ver-todas-categorias')) {
+                    const btnTodas = document.createElement('button');
+                    btnTodas.id = 'btn-ver-todas-categorias';
+                    btnTodas.className = 'category-button border-2 bg-slate-700 hover:bg-slate-600 text-white shadow-lg';
+                    btnTodas.innerHTML = '<span style="font-size:1.6rem">&#8592;</span><span style="font-size:11px;font-weight:900;margin-top:2px">Todas</span>';
+                    btnTodas.onclick = () => mostrarTodasCategorias();
+                    const contenedorBotones = document.querySelector('.categoria-btn')?.parentElement;
+                    if (contenedorBotones) contenedorBotones.prepend(btnTodas);
+                }
             }
 
             titulo.innerText = `Productos: ${nombreCategoria}`;
@@ -1506,30 +1778,388 @@
 
         function seleccionarModoVentaPack(productoId, modo) {
             preferenciaVentaPack[String(productoId)] = modo;
-            if (categoriaActual) filtrarCategoria(categoriaActual);
+            filtrarCategoria(categoriaActual);
         }
 
-        function aplicarFiltroCatalogo() {
-            if (categoriaActual) {
-                filtrarCategoria(categoriaActual);
+        let productoRecetaEditando = null;
+        let recetaPersonalizadaActual = [];
+        let esEdicionEnCarrito = false;
+        let itemIndexEdicionCarrito = -1;
+        let modoVentaPendiente = 'unidad';
+
+        async function abrirModalPersonalizarReceta(producto, modoVenta = 'unidad') {
+            productoRecetaEditando = producto;
+            modoVentaPendiente = modoVenta;
+            esEdicionEnCarrito = false;
+            itemIndexEdicionCarrito = -1;
+            recetaPersonalizadaActual = [];
+
+            document.getElementById('custom-receta-titulo').innerText = `Personalizar: ${producto.nombre}`;
+            document.getElementById('custom-receta-base-lista').innerHTML = '<div class="text-xs text-slate-500 italic p-2">Cargando receta...</div>';
+            document.getElementById('custom-receta-adiciones-lista').innerHTML = '';
+            
+            const selectAdicion = document.getElementById('custom-receta-adicion-select');
+            selectAdicion.innerHTML = '<option value="">-- Seleccionar Adición --</option>';
+            todosLosInsumos.forEach(ins => {
+                selectAdicion.innerHTML += `<option value="${ins.id}">${ins.nombre_insumo} (${ins.unidad_medida})</option>`;
+            });
+            document.getElementById('custom-receta-adicion-cant').value = '1';
+
+            const modal = document.getElementById('modal-personalizar-receta');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            
+            const panel = modal.querySelector('div');
+            setTimeout(() => {
+                panel.classList.remove('scale-95');
+                panel.classList.add('scale-100');
+            }, 10);
+
+            try {
+                const res = await fetch(`/api/receta/${producto.id}`);
+                if (!res.ok) throw new Error("Error cargando receta");
+                const recetaDefault = await res.json();
+                
+                recetaPersonalizadaActual = recetaDefault.map(ing => {
+                    const insinfo = todosLosInsumos.find(ins => String(ins.id) === String(ing.insumo_id));
+                    return {
+                        insumo_id: ing.insumo_id,
+                        nombre_insumo: insinfo ? insinfo.nombre_insumo : 'Insumo',
+                        unidad_medida: insinfo ? insinfo.unidad_medida : 'Unid',
+                        cantidad_gastada: ing.cantidad_gastada,
+                        es_base: true
+                    };
+                });
+                
+                renderizarListaIngredienteModal();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('custom-receta-base-lista').innerHTML = '<div class="text-xs text-red-500 p-2">Este producto no tiene una receta base registrada. Puedes agregar adiciones.</div>';
+                recetaPersonalizadaActual = [];
             }
         }
 
-        function agregarAlCarrito(producto, modoVenta = 'unidad') {
+        function abrirEditarRecetaEnCarrito(index) {
+            const item = carrito[index];
+            if (!item) return;
+
+            productoRecetaEditando = item;
+            modoVentaPendiente = item.modo_venta || 'unidad';
+            esEdicionEnCarrito = true;
+            itemIndexEdicionCarrito = index;
+
+            document.getElementById('custom-receta-titulo').innerText = `Editar Personalización: ${item.nombre}`;
+            document.getElementById('custom-receta-base-lista').innerHTML = '';
+            document.getElementById('custom-receta-adiciones-lista').innerHTML = '';
+
+            const selectAdicion = document.getElementById('custom-receta-adicion-select');
+            selectAdicion.innerHTML = '<option value="">-- Seleccionar Adición --</option>';
+            todosLosInsumos.forEach(ins => {
+                selectAdicion.innerHTML += `<option value="${ins.id}">${ins.nombre_insumo} (${ins.unidad_medida})</option>`;
+            });
+            document.getElementById('custom-receta-adicion-cant').value = '1';
+
+            recetaPersonalizadaActual = [];
+
+            const modal = document.getElementById('modal-personalizar-receta');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            const panel = modal.querySelector('div');
+            setTimeout(() => {
+                panel.classList.remove('scale-95');
+                panel.classList.add('scale-100');
+            }, 10);
+
+            if (item.receta_personalizada) {
+                recetaPersonalizadaActual = JSON.parse(JSON.stringify(item.receta_personalizada));
+                renderizarListaIngredienteModal();
+            } else {
+                document.getElementById('custom-receta-base-lista').innerHTML = '<div class="text-xs text-slate-500 italic p-2">Cargando receta...</div>';
+                fetch(`/api/receta/${item.id}`)
+                    .then(res => res.json())
+                    .then(recetaDefault => {
+                        recetaPersonalizadaActual = recetaDefault.map(ing => {
+                            const insinfo = todosLosInsumos.find(ins => String(ins.id) === String(ing.insumo_id));
+                            return {
+                                insumo_id: ing.insumo_id,
+                                nombre_insumo: insinfo ? insinfo.nombre_insumo : 'Insumo',
+                                unidad_medida: insinfo ? insinfo.unidad_medida : 'Unid',
+                                cantidad_gastada: ing.cantidad_gastada,
+                                es_base: true
+                            };
+                        });
+                        renderizarListaIngredienteModal();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        document.getElementById('custom-receta-base-lista').innerHTML = '<div class="text-xs text-red-500 p-2">No se pudo cargar la receta base.</div>';
+                    });
+            }
+        }
+
+        function renderizarListaIngredienteModal() {
+            const listabase = document.getElementById('custom-receta-base-lista');
+            const listaadiciones = document.getElementById('custom-receta-adiciones-lista');
+            listabase.innerHTML = '';
+            listaadiciones.innerHTML = '';
+
+            let tieneBase = false;
+            let tieneAdicion = false;
+
+            recetaPersonalizadaActual.forEach((ing, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-slate-50 border p-2 rounded-xl';
+                
+                let extraHtml = '';
+                if (!ing.es_base) {
+                    const precioExtra = parseFloat(ing.precio_adicional || 0);
+                    extraHtml = `
+                        <div class="flex items-center gap-1 text-[10px] text-slate-500 mr-2">
+                            <span>$</span>
+                            <input type="number" step="any" placeholder="Precio" value="${precioExtra}" onchange="cambiarPrecioAdicionDirecto(${index}, this.value)" class="w-16 p-1 border text-center text-[10px] bg-white rounded-lg outline-none focus:ring-1 focus:ring-slate-500">
+                        </div>
+                    `;
+                }
+
+                div.innerHTML = `
+                    <div class="font-bold text-slate-800">${ing.nombre_insumo} <span class="text-[10px] text-slate-400 font-medium">(${ing.unidad_medida})</span></div>
+                    <div class="flex items-center space-x-2">
+                        ${extraHtml}
+                        <div class="flex items-center space-x-1.5">
+                            <button type="button" onclick="ajustarCantIngrediente(${index}, -1)" class="w-6 h-6 flex items-center justify-center font-black bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-750 text-xs">-</button>
+                            <input type="number" step="any" onchange="cambiarCantIngredienteDirecto(${index}, this.value)" value="${ing.cantidad_gastada}" class="w-12 p-1 border text-center text-xs bg-white rounded-lg outline-none focus:ring-1 focus:ring-slate-500">
+                            <button type="button" onclick="ajustarCantIngrediente(${index}, 1)" class="w-6 h-6 flex items-center justify-center font-black bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-750 text-xs">+</button>
+                            <button type="button" onclick="eliminarIngredienteModal(${index})" class="text-red-500 hover:text-red-700 font-bold px-1.5 py-1 text-xs">✕</button>
+                        </div>
+                    </div>
+                `;
+
+                if (ing.es_base) {
+                    listabase.appendChild(div);
+                    tieneBase = true;
+                } else {
+                    listaadiciones.appendChild(div);
+                    tieneAdicion = true;
+                }
+            });
+
+            if (!tieneBase) {
+                listabase.innerHTML = '<div class="text-xs text-slate-400 italic p-1">Sin ingredientes base.</div>';
+            }
+            if (!tieneAdicion) {
+                listaadiciones.innerHTML = '<div class="text-xs text-slate-400 italic p-1">Sin adiciones extras.</div>';
+            }
+        }
+
+        function cambiarPrecioAdicionDirecto(index, value) {
+            const ing = recetaPersonalizadaActual[index];
+            if (!ing) return;
+            let val = parseFloat(value || 0);
+            if (val < 0) val = 0;
+            ing.precio_adicional = val;
+        }
+
+        function ajustarCantIngrediente(index, delta) {
+            const ing = recetaPersonalizadaActual[index];
+            if (!ing) return;
+            let val = parseFloat(ing.cantidad_gastada || 0) + delta;
+            if (val < 0) val = 0;
+            ing.cantidad_gastada = val;
+            renderizarListaIngredienteModal();
+        }
+
+        function cambiarCantIngredienteDirecto(index, value) {
+            const ing = recetaPersonalizadaActual[index];
+            if (!ing) return;
+            let val = parseFloat(value || 0);
+            if (val < 0) val = 0;
+            ing.cantidad_gastada = val;
+        }
+
+        function eliminarIngredienteModal(index) {
+            const ing = recetaPersonalizadaActual[index];
+            if (!ing) return;
+            if (ing.es_base) {
+                ing.cantidad_gastada = 0;
+            } else {
+                recetaPersonalizadaActual.splice(index, 1);
+            }
+            renderizarListaIngredienteModal();
+        }
+
+        function agregarAdicionReceta() {
+            const select = document.getElementById('custom-receta-adicion-select');
+            const insId = select.value;
+            const cantVal = parseFloat(document.getElementById('custom-receta-adicion-cant').value || 1);
+            const precioVal = parseFloat(document.getElementById('custom-receta-adicion-precio').value || 0);
+
+            if (!insId) return alert("Por favor selecciona un insumo.");
+            if (cantVal <= 0) return alert("La cantidad debe ser mayor a 0.");
+            if (precioVal < 0) return alert("El precio adicional no puede ser negativo.");
+
+            const insinfo = todosLosInsumos.find(ins => String(ins.id) === String(insId));
+            if (!insinfo) return;
+
+            const existente = recetaPersonalizadaActual.find(ing => String(ing.insumo_id) === String(insId));
+            if (existente) {
+                existente.cantidad_gastada = parseFloat(existente.cantidad_gastada || 0) + cantVal;
+                existente.precio_adicional = (existente.precio_adicional || 0) + precioVal;
+            } else {
+                recetaPersonalizadaActual.push({
+                    insumo_id: parseInt(insId),
+                    nombre_insumo: insinfo.nombre_insumo,
+                    unidad_medida: insinfo.unidad_medida,
+                    cantidad_gastada: cantVal,
+                    precio_adicional: precioVal,
+                    es_base: false
+                });
+            }
+
+            renderizarListaIngredienteModal();
+            select.value = '';
+            document.getElementById('custom-receta-adicion-cant').value = '1';
+            document.getElementById('custom-receta-adicion-precio').value = '0';
+        }
+
+        function cerrarModalReceta() {
+            const modal = document.getElementById('modal-personalizar-receta');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function confirmarRecetaEstandar() {
+            cerrarModalReceta();
+            if (esEdicionEnCarrito && itemIndexEdicionCarrito >= 0) {
+                carrito[itemIndexEdicionCarrito].receta_personalizada = null;
+                carrito[itemIndexEdicionCarrito].comentario_personalizado = null;
+                // Restablecer precio al precio base
+                carrito[itemIndexEdicionCarrito].precio = carrito[itemIndexEdicionCarrito].precio_base || carrito[itemIndexEdicionCarrito].precio;
+                actualizarInterfazCarrito();
+            } else {
+                agregarAlCarrito(productoRecetaEditando, modoVentaPendiente, 'ESTANDAR');
+            }
+        }
+
+        async function confirmarRecetaPersonalizada() {
+            let cambios = [];
+            try {
+                const res = await fetch(`/api/receta/${productoRecetaEditando.id}`);
+                const recetaBase = res.ok ? await res.json() : [];
+                
+                const baseMap = {};
+                recetaBase.forEach(ing => { baseMap[ing.insumo_id] = parseFloat(ing.cantidad_gastada); });
+
+                recetaPersonalizadaActual.forEach(ing => {
+                    const id = ing.insumo_id;
+                    const nombre = ing.nombre_insumo;
+                    const cant = parseFloat(ing.cantidad_gastada);
+
+                    if (ing.es_base) {
+                        const baseCant = baseMap[id] || 0;
+                        if (cant <= 0) {
+                            cambios.push(`Sin ${nombre}`);
+                        } else if (cant > baseCant) {
+                            cambios.push(`+ ${nombre}`);
+                        } else if (cant < baseCant) {
+                            cambios.push(`- ${nombre}`);
+                        }
+                    } else if (cant > 0) {
+                        const prExtra = parseFloat(ing.precio_adicional || 0);
+                        if (prExtra > 0) {
+                            cambios.push(`+ ${nombre} (+$${prExtra.toLocaleString('es-CO', {maximumFractionDigits: 0})})`);
+                        } else {
+                            cambios.push(`+ ${nombre}`);
+                        }
+                    }
+                });
+
+                recetaBase.forEach(ing => {
+                    const finalIng = recetaPersonalizadaActual.find(i => String(i.insumo_id) === String(ing.insumo_id));
+                    if (!finalIng) {
+                        const insinfo = todosLosInsumos.find(i => String(i.id) === String(ing.insumo_id));
+                        cambios.push(`Sin ${insinfo ? insinfo.nombre_insumo : 'Insumo'}`);
+                    }
+                });
+
+            } catch (err) {
+                console.error(err);
+                recetaPersonalizadaActual.forEach(ing => {
+                    if (parseFloat(ing.cantidad_gastada) > 0) {
+                        const prExtra = parseFloat(ing.precio_adicional || 0);
+                        if (prExtra > 0) {
+                            cambios.push(`+ ${ing.nombre_insumo} (+$${prExtra.toLocaleString('es-CO', {maximumFractionDigits: 0})})`);
+                        } else {
+                            cambios.push(`+ ${ing.nombre_insumo}`);
+                        }
+                    }
+                });
+            }
+
+            const comentario = cambios.length > 0 ? cambios.join(', ') : 'Personalizado';
+
+            cerrarModalReceta();
+
+            if (esEdicionEnCarrito && itemIndexEdicionCarrito >= 0) {
+                const basePrice = Number(carrito[itemIndexEdicionCarrito].precio_base || 0);
+                let extraTotal = 0;
+                recetaPersonalizadaActual.forEach(ing => {
+                    if (!ing.es_base && parseFloat(ing.cantidad_gastada) > 0) {
+                        extraTotal += parseFloat(ing.precio_adicional || 0);
+                    }
+                });
+                carrito[itemIndexEdicionCarrito].precio = basePrice + extraTotal;
+                carrito[itemIndexEdicionCarrito].receta_personalizada = recetaPersonalizadaActual;
+                carrito[itemIndexEdicionCarrito].comentario_personalizado = comentario;
+                actualizarInterfazCarrito();
+            } else {
+                agregarAlCarrito(productoRecetaEditando, modoVentaPendiente, recetaPersonalizadaActual, comentario);
+            }
+        }
+
+        function agregarAlCarrito(producto, modoVenta = 'unidad', recetaPersonalizada = null, comentarioPersonalizado = null) {
+            if (esVerdadero(producto.es_preparado) && esVerdadero(producto.receta_personalizable) && recetaPersonalizada === null) {
+                abrirModalPersonalizarReceta(producto, modoVenta);
+                return;
+            }
+
             document.getElementById('carrito-vacio').style.display = 'none';
             const configVenta = obtenerConfiguracionVenta(producto, modoVenta);
-            const itemExistente = carrito.find(item => item.id === producto.id && String(item.modo_venta || 'unidad') === configVenta.modo);
             
+            const itemExistente = (recetaPersonalizada && recetaPersonalizada !== 'ESTANDAR') 
+                ? null 
+                : carrito.find(item => item.id === producto.id && String(item.modo_venta || 'unidad') === configVenta.modo && !item.receta_personalizada);
+            
+            const recetaAEnviar = (recetaPersonalizada && recetaPersonalizada !== 'ESTANDAR') ? recetaPersonalizada : null;
+            const descComentario = (recetaPersonalizada && recetaPersonalizada !== 'ESTANDAR') ? comentarioPersonalizado : null;
+
+            let extraTotal = 0;
+            if (recetaAEnviar && Array.isArray(recetaAEnviar)) {
+                recetaAEnviar.forEach(ing => {
+                    if (!ing.es_base && parseFloat(ing.cantidad_gastada) > 0) {
+                        extraTotal += parseFloat(ing.precio_adicional || 0);
+                    }
+                });
+            }
+
+            const basePrice = Number(configVenta.precioUnitario || 0);
+            const finalPrice = basePrice + extraTotal;
+
             if (itemExistente) {
                 itemExistente.cantidad++;
                 itemExistente.factor_descuento = configVenta.factor;
             } else {
                 carrito.push({ 
                     ...producto, 
-                    precio: Number(configVenta.precioUnitario || 0),
+                    precio_base: basePrice,
+                    precio: finalPrice,
                     cantidad: 1, 
                     factor_descuento: configVenta.factor,
-                    modo_venta: configVenta.modo
+                    modo_venta: configVenta.modo,
+                    receta_personalizada: recetaAEnviar,
+                    comentario_personalizado: descComentario
                 });
             }
             actualizarInterfazCarrito();
@@ -1537,6 +2167,12 @@
 
         function removerDelCarrito(id) {
             carrito = carrito.filter(item => item.id !== id);
+            if (carrito.length === 0) document.getElementById('carrito-vacio').style.display = 'block';
+            actualizarInterfazCarrito();
+        }
+
+        function removerDelCarritoPorIndice(index) {
+            carrito.splice(index, 1);
             if (carrito.length === 0) document.getElementById('carrito-vacio').style.display = 'block';
             actualizarInterfazCarrito();
         }
@@ -1550,7 +2186,7 @@
             
             syncCarritoConPestaña();
             
-            carrito.forEach(item => {
+            carrito.forEach((item, index) => {
                 const subtotal = item.precio * item.cantidad;
                 total += subtotal;
                 
@@ -1566,16 +2202,28 @@
                     }
                 }
                 
+                let divComentario = '';
+                if (item.comentario_personalizado) {
+                    divComentario = `<div class="text-[10px] text-amber-700 font-semibold italic mt-0.5">* ${item.comentario_personalizado}</div>`;
+                }
+
+                let btnEditar = '';
+                if (esVerdadero(item.es_preparado) && esVerdadero(item.receta_personalizable)) {
+                    btnEditar = `<button onclick="abrirEditarRecetaEnCarrito(${index})" class="interactive-element text-amber-600 bg-amber-50 p-2 rounded-lg hover:bg-amber-100 font-bold text-xs transition">✏️</button>`;
+                }
+
                 const div = document.createElement('div');
                 div.className = 'flex justify-between items-center bg-gray-50 p-3 rounded-xl border';
                 div.innerHTML = `
                     <div>
                         <div class="font-bold text-gray-800 text-sm">${item.nombre}</div>
                         <div class="text-xs text-gray-500">${cantidadDisplay} $${item.precio.toLocaleString('es-CO', {maximumFractionDigits: 0})}</div>
+                        ${divComentario}
                     </div>
                     <div class="flex items-center space-x-2">
                         <span class="font-bold text-gray-700">$${subtotal.toLocaleString('es-CO', {maximumFractionDigits: 0})}</span>
-                        <button onclick="removerDelCarrito(${item.id})" class="text-red-500 bg-red-50 p-2 rounded-lg hover:bg-red-100 font-bold text-xs">🗑️</button>
+                        ${btnEditar}
+                        <button onclick="removerDelCarritoPorIndice(${index})" class="interactive-element text-red-500 bg-red-50 p-2 rounded-lg hover:bg-red-100 font-bold text-xs transition">🗑️</button>
                     </div>
                 `;
                 contenedor.appendChild(div);
@@ -1807,9 +2455,7 @@
             }
         }
 
-        function dinero(valor) {
-            return `$${Number(valor || 0).toLocaleString('es-CO', {maximumFractionDigits: 0})}`;
-        }
+
 
         function actualizarSaldoAbonoCliente() {
             const cliente = (document.getElementById('abono-cliente').value || '').trim().toLowerCase();
@@ -2053,6 +2699,7 @@
                 if (resultado.success) {
                     ordenAbiertaEditandoId = null;
                     cargarOrdenesAbiertas();
+                    cargarMovimientosTurno();
                     
                     // Disparar apertura de cajón si es efectivo
                     if (metodoPagoActual === 'efectivo') {
@@ -2313,10 +2960,8 @@
 
         cargarProductosDesdeDB();
         toggleCamposGastoVentas('general');
-        const idsCategorias = Object.keys(mapaCategorias);
-        if (idsCategorias.length > 0) {
-            filtrarCategoria(idsCategorias[0]);
-        }
+        // Mostrar todas las categorías sin colapsar al inicio
+        mostrarTodasCategorias();
         renderCategoriasCompra();
         renderListaProductosCompra('', '');
         renderClientesExclusivos();
@@ -2511,7 +3156,256 @@
                 boton.innerText = 'Mostrar Teclado ▴';
             }
         }
+
+        // ---------- Keyboard navigation ----------
+        function cambiarPestañaSiguiente() {
+            const ids = pestañas.map(p => p.id);
+            const idx = ids.indexOf(pestañaActivaId);
+            const next = ids[(idx + 1) % ids.length];
+            cambiarPestaña(next);
+        }
+        function cambiarPestañaAnterior() {
+            const ids = pestañas.map(p => p.id);
+            const idx = ids.indexOf(pestañaActivaId);
+            const prev = ids[(idx - 1 + ids.length) % ids.length];
+            cambiarPestaña(prev);
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // close any open modal
+                const modals = ['modal-factura-pos','modal-pago-dividido','modal-cierre-turno','modal-cierre-exito','modal-personalizar-receta'];
+                modals.forEach(id => {
+                    const m = document.getElementById(id);
+                    if (m && !m.classList.contains('hidden')) {
+                        // hide modal (simple hide)
+                        m.classList.add('opacity-0');
+                        setTimeout(() => m.classList.add('hidden'), 200);
+                    }
+                });
+            }
+            // Global shortcuts when focus is not on input
+            if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') cambiarPestañaAnterior();
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') cambiarPestañaSiguiente();
+            if (e.key === '1') cambiarMetodoPago('efectivo');
+            if (e.key === '2') cambiarMetodoPago('nequi');
+            if (e.key === '3') cambiarMetodoPago('daviplata');
+            if (e.key === '4') cambiarMetodoPago('tarjeta');
+            if (e.key === 'Enter') {
+                const active = document.activeElement;
+                if (active && active.tagName === 'BUTTON') {
+                    active.click();
+                }
+            }
+        });
+
+        // ---------- Split payment logic ----------
+        function abrirModalPagoDividido() {
+            if (!carrito || carrito.length === 0) return alert('El carrito está vacío.');
+            ['monto-efectivo','monto-nequi','monto-daviplata','monto-tarjeta'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            // Mostrar el total
+            const elTotal = document.getElementById('div-total-venta');
+            if (elTotal) elTotal.textContent = dinero(totalVentaActual);
+            // Resetear barra
+            actualizarResumenDividido();
+            const modal = document.getElementById('modal-pago-dividido');
+            if (modal) {
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.classList.remove('opacity-0'), 10);
+                setTimeout(() => { const fe = document.getElementById('monto-efectivo'); if(fe) fe.focus(); }, 60);
+            }
+        }
+
+        function actualizarResumenDividido() {
+            const montoE = parseFloat(document.getElementById('monto-efectivo')?.value) || 0;
+            const montoN = parseFloat(document.getElementById('monto-nequi')?.value) || 0;
+            const montoD = parseFloat(document.getElementById('monto-daviplata')?.value) || 0;
+            const montoT = parseFloat(document.getElementById('monto-tarjeta')?.value) || 0;
+            const ingresado = montoE + montoN + montoD + montoT;
+            const total = totalVentaActual || 0;
+            const pct = total > 0 ? Math.min(100, (ingresado / total) * 100) : 0;
+
+            const elIngresado = document.getElementById('div-total-ingresado');
+            const elBarra    = document.getElementById('div-barra-progreso');
+            const elFalta    = document.getElementById('div-falta');
+            const elCambioLbl = document.getElementById('div-cambio-label');
+            const elCambioVal = document.getElementById('div-cambio-val');
+            const btnConfirmar = document.getElementById('btn-confirmar-dividido');
+
+            if (elIngresado) elIngresado.textContent = dinero(ingresado);
+            if (elBarra) {
+                elBarra.style.width = pct + '%';
+                elBarra.className = `h-2 rounded-full transition-all duration-300 ${pct >= 100 ? 'bg-green-500' : 'bg-blue-500'}`;
+            }
+            if (ingresado >= total && total > 0) {
+                const cambio = ingresado - total;
+                if (elFalta) elFalta.closest('span')?.classList.add('hidden');
+                if (elFalta) elFalta.textContent = dinero(0);
+                if (elCambioLbl) { elCambioLbl.classList.remove('hidden'); }
+                if (elCambioVal) elCambioVal.textContent = dinero(cambio);
+                if (btnConfirmar) { btnConfirmar.disabled = false; btnConfirmar.classList.remove('opacity-50','cursor-not-allowed'); }
+            } else {
+                const falta = total - ingresado;
+                if (elFalta) elFalta.closest('span')?.classList.remove('hidden');
+                if (elFalta) elFalta.textContent = dinero(falta);
+                if (elCambioLbl) elCambioLbl.classList.add('hidden');
+                if (btnConfirmar) { btnConfirmar.disabled = true; btnConfirmar.classList.add('opacity-50','cursor-not-allowed'); }
+            }
+        }
+        function cerrarModalPagoDividido() {
+            const modal = document.getElementById('modal-pago-dividido');
+            if (modal) {
+                modal.classList.add('opacity-0');
+                setTimeout(() => modal.classList.add('hidden'), 200);
+            }
+        }
+        async function cobrarPagoDividido() {
+            const montoE = parseFloat(document.getElementById('monto-efectivo').value) || 0;
+            const montoN = parseFloat(document.getElementById('monto-nequi').value) || 0;
+            const montoD = parseFloat(document.getElementById('monto-daviplata').value) || 0;
+            const montoT = parseFloat(document.getElementById('monto-tarjeta').value) || 0;
+            const totalIngresado = montoE + montoN + montoD + montoT;
+            if (totalIngresado < totalVentaActual) {
+                return alert('⚠️ El total ingresado es menor al total de la venta.');
+            }
+            const pagos = [];
+            if (montoE > 0) pagos.push({ metodo: 'efectivo', monto: montoE });
+            if (montoN > 0) pagos.push({ metodo: 'nequi', monto: montoN });
+            if (montoD > 0) pagos.push({ metodo: 'daviplata', monto: montoD });
+            if (montoT > 0) pagos.push({ metodo: 'tarjeta', monto: montoT });
+            const imprimirFactura = document.getElementById('imprimir-factura')?.checked;
+            try {
+                const respuesta = await fetch('/api/cobrar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        carrito,
+                        metodo_pago: 'dividido',
+                        pagos,
+                        referencia_pago: document.getElementById('referencia-pago').value.trim(),
+                        cliente_fiado: document.getElementById('cliente-fiado').value.trim(),
+                        orden_abierta_id: ordenAbiertaEditandoId,
+                        imprimir_factura: imprimirFactura
+                    })
+                });
+                const result = await respuesta.json();
+                if (result.success) {
+                    cerrarModalPagoDividido();
+                    ordenAbiertaEditandoId = null;
+                    cargarOrdenesAbiertas();
+                    cargarMovimientosTurno();
+                    const hayEfectivo = pagos.some(p => p.metodo === 'efectivo');
+                    if (hayEfectivo) {
+                        fetch('/api/abrir_cajon', { method: 'POST' }).catch(e => console.error('Error al abrir cajón:', e));
+                    }
+                    if (imprimirFactura) {
+                        fetch(`/api/imprimir_directo/${result.venta_id}`, { method: 'POST' })
+                            .then(r => r.json())
+                            .catch(err => console.error('Silent print failed', err));
+                    }
+                    alert('💸 Venta Dividida Procesada Exitosamente.');
+                    carrito = [];
+                    document.getElementById('efectivo-recibido').value = '0';
+                    document.getElementById('referencia-pago').value = '';
+                    document.getElementById('cliente-fiado').value = '';
+                    document.getElementById('referencia-fiado') && (document.getElementById('referencia-fiado').value = '');
+                    document.getElementById('imprimir-factura').checked = false;
+                    setEntradaNumericaActiva('efectivo-recibido');
+                    document.getElementById('carrito-vacio').style.display = 'block';
+                    actualizarInterfazCarrito();
+                    await cargarProductosDesdeDB();
+                    await cargarResumenTurno();
+                    await cargarDeudasPendientes();
+                } else {
+                    alert('Error al registrar la venta: ' + (result.error || 'desconocido'));
+                }
+            } catch (err) {
+                console.error('Error al cobrar pago dividido:', err);
+                alert('Error crítico: ' + err.message);
+            }
+        }
     </script>
+
+    <!-- PANEL DE MOVIMIENTOS DEL TURNO -->
+    <div id="panel-movimientos" role="complementary" aria-label="Movimientos del turno">
+        <div class="mov-header">
+            <div>
+                <div style="font-weight:900;font-size:15px">&#128202; Movimientos del Turno</div>
+                <div id="mov-resumen" style="font-size:10px;opacity:0.7;margin-top:2px"></div>
+            </div>
+            <button onclick="togglePanelMovimientos()" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:18px;font-weight:900;line-height:1">&#215;</button>
+        </div>
+        <div class="mov-body" id="mov-body">
+            <p style="text-align:center;opacity:0.4;font-size:12px;margin-top:40px">Cargando movimientos...</p>
+        </div>
+    </div>
+
+    <script>
+        // ===== PANEL DE MOVIMIENTOS =====
+        let panelMovimientosVisible = false;
+
+        function togglePanelMovimientos() {
+            const panel = document.getElementById('panel-movimientos');
+            panelMovimientosVisible = !panelMovimientosVisible;
+            if (panelMovimientosVisible) {
+                panel.classList.add('visible');
+                cargarMovimientosTurno();
+            } else {
+                panel.classList.remove('visible');
+            }
+        }
+
+        async function cargarMovimientosTurno() {
+            if (!panelMovimientosVisible) return;
+            const body = document.getElementById('mov-body');
+            const resumen = document.getElementById('mov-resumen');
+            try {
+                const resp = await fetch('/api/movimientos_turno');
+                const movs = await resp.json();
+                if (!Array.isArray(movs) || movs.length === 0) {
+                    body.innerHTML = '<p style="text-align:center;opacity:0.4;font-size:12px;margin-top:40px">No hay movimientos en este turno todavía.</p>';
+                    return;
+                }
+                // Calcular totales
+                let totalEntradas = 0, totalSalidas = 0;
+                const metodoTotales = {};
+                movs.forEach(m => {
+                    if (m.tipo_movimiento === 'entrada') {
+                        totalEntradas += m.monto;
+                        metodoTotales[m.metodo_pago] = (metodoTotales[m.metodo_pago] || 0) + m.monto;
+                    } else if (m.tipo_movimiento === 'salida') {
+                        totalSalidas += m.monto;
+                    }
+                });
+                resumen.textContent = `+${dinero(totalEntradas)}  -${dinero(totalSalidas)}  Net: ${dinero(totalEntradas - totalSalidas)}`;
+
+                const etiquetaMetodo = m => {
+                    const cls = ['efectivo','nequi','daviplata','tarjeta','dividido'].includes(m) ? `badge-${m}` : 'badge-default';
+                    return `<span class="mov-badge ${cls}">${m}</span>`;
+                };
+                const hora = f => f ? f.split(' ').pop().substring(0,5) : '??:??';
+                const iconoTipo = t => t === 'entrada' ? '&#8593;' : t === 'salida' ? '&#8595;' : '&#9888;';
+                const colorMonto = t => t === 'entrada' ? '#34d399' : t === 'salida' ? '#f87171' : '#fbbf24';
+
+                body.innerHTML = movs.map(m => `
+                    <div class="mov-row ${m.tipo_movimiento}">
+                        <div style="font-size:16px">${iconoTipo(m.tipo_movimiento)}</div>
+                        <div>
+                            <div style="font-weight:700;margin-bottom:2px">${m.descripcion || m.origen}</div>
+                            <div style="opacity:0.55">${hora(m.fecha)} &nbsp; ${etiquetaMetodo(m.metodo_pago)}</div>
+                        </div>
+                        <div style="font-weight:900;color:${colorMonto(m.tipo_movimiento)};white-space:nowrap">${dinero(m.monto)}</div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                body.innerHTML = '<p style="text-align:center;color:#f87171;font-size:11px;margin-top:20px">Error al cargar movimientos.</p>';
+            }
+        }
+    </script>
+
 </body>
 </html>
 

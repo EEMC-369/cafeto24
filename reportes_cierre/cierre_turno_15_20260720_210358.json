@@ -1,0 +1,96 @@
+{
+  "turno": {
+    "id": 15,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-20 19:41:53",
+    "fecha_cierre": "2026-07-20 19:45:11",
+    "efectivo_esperado": 200400.0,
+    "efectivo_real": 199900.0,
+    "diferencia": -500.0,
+    "nequi_esperado": 93000.0,
+    "nequi_real": 93000.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": "se decontaron de un cafe 500"
+  },
+  "resumen": {
+    "ordenes": 3,
+    "total_ventas": 46700.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 1600.0,
+      "abonos": 0.0,
+      "gastos": 30000.0,
+      "saldo": -28400.0
+    },
+    "nequi": {
+      "ventas": 45100.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 45100.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "gastos": [
+    {
+      "id": 4,
+      "fecha": "2026-07-20 19:43:34",
+      "descripcion": "vino",
+      "categoria_gasto": "Inventario",
+      "metodo_pago": "efectivo",
+      "monto": 30000.0
+    }
+  ],
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 19:41:59",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #43",
+      "metodo_pago": "efectivo",
+      "monto": 1600.0
+    },
+    {
+      "fecha": "2026-07-20 19:42:17",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #44",
+      "metodo_pago": "nequi",
+      "monto": 22800.0
+    },
+    {
+      "fecha": "2026-07-20 19:42:28",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #45",
+      "metodo_pago": "nequi",
+      "monto": 22300.0
+    },
+    {
+      "fecha": "2026-07-20 19:43:34",
+      "tipo_movimiento": "salida",
+      "origen": "gasto",
+      "descripcion": "vino",
+      "metodo_pago": "efectivo",
+      "monto": 30000.0
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "turno": {
+    "id": 9,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-20 18:32:17",
+    "fecha_cierre": "2026-07-20 19:01:21",
+    "efectivo_esperado": 176900.0,
+    "efectivo_real": 176900.0,
+    "diferencia": 0.0,
+    "nequi_esperado": 46700.0,
+    "nequi_real": 46700.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": ""
+  },
+  "resumen": {
+    "ordenes": 6,
+    "total_ventas": 28600.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 28600.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 28600.0
+    },
+    "nequi": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 18:35:35",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #27",
+      "metodo_pago": "efectivo",
+      "monto": 3200.0
+    },
+    {
+      "fecha": "2026-07-20 18:35:40",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #28",
+      "metodo_pago": "efectivo",
+      "monto": 1400.0
+    },
+    {
+      "fecha": "2026-07-20 18:51:53",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #29",
+      "metodo_pago": "efectivo",
+      "monto": 10000.0
+    },
+    {
+      "fecha": "2026-07-20 19:00:29",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #30",
+      "metodo_pago": "efectivo",
+      "monto": 1200.0
+    },
+    {
+      "fecha": "2026-07-20 19:00:43",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #31",
+      "metodo_pago": "efectivo",
+      "monto": 11300.0
+    },
+    {
+      "fecha": "2026-07-20 19:00:50",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #32",
+      "metodo_pago": "efectivo",
+      "monto": 1500.0
+    }
+  ]
+}

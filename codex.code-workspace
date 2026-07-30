@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "stm32_esclava",
+			"path": "../../Documents/PlatformIO/Projects/stm32_esclava"
+		},
+		{
+			"name": "esp32_maestra",
+			"path": "../../Documents/PlatformIO/Projects/esp32_maestra"
+		},
+		{
+			"name": "coneccion stm32",
+			"path": "../../Documents/PlatformIO/Projects/coneccion stm32"
+		}
+	],
+	"settings": {}
+}

@@ -54,7 +54,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.16.0"
+VERSION = "3.17.0"
 
 app = Flask(
     __name__,
@@ -355,10 +355,15 @@ def generar_archivos_cierre_turno(turno_id):
         metodos = ['efectivo', 'nequi', 'daviplata', 'tarjeta']
         resumen_metodos = {m: {'ventas': 0.0, 'abonos': 0.0, 'gastos': 0.0, 'saldo': 0.0} for m in metodos}
 
+        # Usar caja_movimientos para obtener ventas por método (ya tiene dividido expandido por método)
         ventas_metodo = db.execute("""
-            SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, COALESCE(SUM(total), 0) as total
-            FROM ventas
-            WHERE turno_id = ? AND COALESCE(metodo_pago, 'efectivo') != 'fiado'
+            SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago,
+                   COALESCE(SUM(monto), 0) as total
+            FROM caja_movimientos
+            WHERE turno_id = ?
+              AND tipo_movimiento = 'entrada'
+              AND origen = 'venta'
+              AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
             GROUP BY COALESCE(metodo_pago, 'efectivo')
         """, (turno_id,)).fetchall()
 
@@ -1380,9 +1385,13 @@ def api_turno_preliminar():
         # Saldos acumulados históricos (de toda la base de datos, fuera del turno)
         saldos_acumulados_db = db.execute("""
             WITH movimientos AS (
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(total) as entradas, 0 as salidas
-                FROM ventas
-                WHERE COALESCE(metodo_pago, 'efectivo') != 'fiado'
+                -- Ventas normales (sin dividido) desde caja_movimientos
+                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago,
+                       SUM(monto) as entradas, 0 as salidas
+                FROM caja_movimientos
+                WHERE tipo_movimiento = 'entrada'
+                  AND origen = 'venta'
+                  AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
                 GROUP BY COALESCE(metodo_pago, 'efectivo')
                 UNION ALL
                 SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(monto) as entradas, 0 as salidas
@@ -1540,11 +1549,24 @@ def api_obtener_ordenes_abiertas():
 
         resultado = []
         for o in ordenes:
-            items = db.execute("""
-                SELECT producto_id as id, nombre_producto as nombre, precio_unitario as precio, cantidad, subtotal
+            items_raw = db.execute("""
+                SELECT producto_id as id, nombre_producto as nombre, precio_unitario as precio, cantidad, subtotal, receta_personalizada
                 FROM ordenes_abiertas_items
                 WHERE orden_id = ?
             """, (o['id'],)).fetchall()
+
+            items = []
+            for item in items_raw:
+                d_item = dict(item)
+                import json
+                if d_item.get('receta_personalizada'):
+                    try:
+                        d_item['receta_personalizada'] = json.loads(d_item['receta_personalizada'])
+                    except:
+                        d_item['receta_personalizada'] = None
+                else:
+                    d_item['receta_personalizada'] = None
+                items.append(d_item)
 
             resultado.append({
                 'id': o['id'],
@@ -1552,7 +1574,7 @@ def api_obtener_ordenes_abiertas():
                 'fecha_creacion': o['fecha_creacion'],
                 'observaciones': o['observaciones'] or '',
                 'total': float(o['total'] or 0),
-                'items': [dict(item) for item in items]
+                'items': items
             })
 
         return jsonify({'success': True, 'ordenes': resultado})
@@ -1604,10 +1626,15 @@ def api_guardar_orden_abierta():
             p_cant = int(item['cantidad'])
             p_subtotal = p_precio * p_cant
 
+            receta_pers_json = None
+            if 'receta_personalizada' in item and item['receta_personalizada'] is not None:
+                import json
+                receta_pers_json = json.dumps(item['receta_personalizada'])
+
             db.execute("""
-                INSERT INTO ordenes_abiertas_items (orden_id, producto_id, nombre_producto, precio_unitario, cantidad, subtotal)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (orden_id, p_id, p_nombre, p_precio, p_cant, p_subtotal))
+                INSERT INTO ordenes_abiertas_items (orden_id, producto_id, nombre_producto, precio_unitario, cantidad, subtotal, receta_personalizada)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (orden_id, p_id, p_nombre, p_precio, p_cant, p_subtotal, receta_pers_json))
 
         db.commit()
         return jsonify({'success': True, 'orden_id': orden_id, 'message': 'Orden guardada correctamente.'})
@@ -1652,19 +1679,48 @@ def api_cobrar_orden_abierta(orden_id):
         venta_id = cursor.lastrowid
 
         for item in items:
+            receta_pers_json = item.get('receta_personalizada')
             db.execute("""
-                INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario)
-                VALUES (?, ?, ?, ?)
-            """, (venta_id, item['producto_id'], item['cantidad'], item['precio_unitario']))
+                INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario, receta_personalizada)
+                VALUES (?, ?, ?, ?, ?)
+            """, (venta_id, item['producto_id'], item['cantidad'], item['precio_unitario'], receta_pers_json))
 
-            # Descontar stock recetas/insumos
-            receta = db.execute("SELECT insumo_id, cantidad_gastada FROM recetas WHERE producto_id = ?", (item['producto_id'],)).fetchall()
-            for ing in receta:
+            # Obtener datos del producto para ver si es preparado
+            p_row = db.execute("SELECT es_preparado FROM productos WHERE id = ?", (item['producto_id'],)).fetchone()
+            is_prep = p_row['es_preparado'] if p_row else 0
+
+            if is_prep == 1:
+                # Descontar stock recetas/insumos
+                import json
+                receta_pers = None
+                if receta_pers_json:
+                    try:
+                        receta_pers = json.loads(receta_pers_json)
+                    except:
+                        pass
+                
+                if isinstance(receta_pers, list):
+                    for ing in receta_pers:
+                        db.execute("""
+                            UPDATE insumos
+                            SET cantidad_actual = cantidad_actual - ?
+                            WHERE id = ?
+                        """, (item['cantidad'] * float(ing['cantidad_gastada']), int(ing['insumo_id'])))
+                else:
+                    receta = db.execute("SELECT insumo_id, cantidad_gastada FROM recetas WHERE producto_id = ?", (item['producto_id'],)).fetchall()
+                    for ing in receta:
+                        db.execute("""
+                            UPDATE insumos
+                            SET cantidad_actual = cantidad_actual - ?
+                            WHERE id = ?
+                        """, (item['cantidad'] * ing['cantidad_gastada'], ing['insumo_id']))
+            else:
+                # Si no es preparado, descontar stock del producto
                 db.execute("""
-                    UPDATE insumos
-                    SET cantidad_actual = cantidad_actual - ?
+                    UPDATE productos 
+                    SET cantidad_stock = cantidad_stock - ?
                     WHERE id = ?
-                """, (item['cantidad'] * ing['cantidad_gastada'], ing['insumo_id']))
+                """, (item['cantidad'], item['producto_id']))
 
         db.execute("UPDATE ordenes_abiertas SET estado = 'pagada' WHERE id = ?", (orden_id,))
         db.commit()
@@ -2935,16 +2991,18 @@ def add_producto():
         
         es_pack_int = 1 if es_pack == '1' else 0
         es_preparado_int = 1 if es_preparado == '1' else 0
+        receta_personalizable_int = 1 if request.form.get('receta_personalizable') in ('1', 'on') else 0
 
         cursor_producto = db.cursor()
         cursor_producto.execute("""
             INSERT INTO productos (nombre, precio, cantidad_stock, es_pack, 
                                    unidades_por_pack, categoria_id, es_preparado, codigo_barras,
-                                   precio_unidad_venta, precio_medio_venta)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   precio_unidad_venta, precio_medio_venta, receta_personalizable)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (nombre, precio, cantidad_stock, es_pack_int, 
               request.form.get('unidades_por_pack', 1) if es_pack == '1' else 0,
-              categoria_id, es_preparado_int, codigo_barras, precio_unidad_venta, precio_medio_venta))
+              categoria_id, es_preparado_int, codigo_barras, precio_unidad_venta, precio_medio_venta,
+              receta_personalizable_int))
         
         producto_id = cursor_producto.lastrowid
         
@@ -3004,6 +3062,7 @@ def editar_producto(id_producto):
         nombre = request.form.get('nombre', 'Producto').strip()
         categoria_id = int(request.form.get('categoria', 1))
         es_preparado = int(request.form.get('es_preparado', 0))
+        receta_personalizable = 1 if request.form.get('receta_personalizable') in ('1', 'on') else 0
         es_pack = 1 if request.form.get('es_pack') == '1' else 0
         codigo_barras = (request.form.get('codigo_barras') or '').strip() or None
         precio_unidad_venta = request.form.get('precio_unidad_venta')
@@ -3040,7 +3099,7 @@ def editar_producto(id_producto):
                 UPDATE productos 
                 SET nombre = ?, precio = ?, cantidad_stock = ?, categoria_id = ?, 
                     es_preparado = ?, es_pack = ?, unidades_por_pack = ?, codigo_barras = ?,
-                    precio_unidad_venta = ?, precio_medio_venta = ?
+                    precio_unidad_venta = ?, precio_medio_venta = ?, receta_personalizable = ?
                 WHERE id = ?
             """, (
                 nombre,
@@ -3053,6 +3112,7 @@ def editar_producto(id_producto):
                 codigo_barras,
                 precio_unidad_venta,
                 precio_medio_venta,
+                receta_personalizable,
                 id_producto
             ))
             
@@ -3168,7 +3228,7 @@ def api_productos():
     query = """
         SELECT p.id, p.nombre, p.precio, p.cantidad_stock, p.es_preparado, 
                p.es_pack, p.unidades_por_pack, p.categoria_id, p.codigo_barras,
-               p.precio_unidad_venta, p.precio_medio_venta,
+               p.precio_unidad_venta, p.precio_medio_venta, p.receta_personalizable,
                c.nombre_categoria as categoria_nombre
         FROM productos p
         LEFT JOIN categorias c ON p.categoria_id = c.id
@@ -3289,16 +3349,20 @@ def api_resumen_turno_actual():
             WHERE turno_id = ? AND usuario_id = ?
         """, (turno_id, usuario_id)).fetchone()
 
+        # Leer desde caja_movimientos para distribuir correctamente el pago dividido
         ventas_por_metodo = db.execute("""
             SELECT
-                metodo_pago,
-                COUNT(id) as cantidad,
-                COALESCE(SUM(total), 0) as total
-            FROM ventas
-            WHERE turno_id = ? AND vendedor_id = ?
-            GROUP BY metodo_pago
+                COALESCE(metodo_pago, 'efectivo') as metodo_pago,
+                COUNT(DISTINCT descripcion) as cantidad,
+                COALESCE(SUM(monto), 0) as total
+            FROM caja_movimientos
+            WHERE turno_id = ?
+              AND tipo_movimiento = 'entrada'
+              AND origen = 'venta'
+              AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
+            GROUP BY COALESCE(metodo_pago, 'efectivo')
             ORDER BY total DESC
-        """, (turno_id, usuario_id)).fetchall()
+        """, (turno_id,)).fetchall()
 
         productos_vendidos = db.execute("""
             SELECT
@@ -3822,11 +3886,12 @@ def api_cobrar():
     carrito = data.get('carrito', [])
     metodo_pago = (data.get('metodo_pago', 'efectivo') or 'efectivo').strip().lower()
     efectivo_recibido = data.get('efectivo_recibido', 0)
+    pagos_divididos = data.get('pagos', [])  # Lista de {metodo, monto} para pago dividido
     referencia_pago = data.get('referencia_pago', '')
     cliente_fiado = (data.get('cliente_fiado', '') or '').strip()
     vendedor_id = session.get('id')
     turno_id = session.get('turno_id') or obtener_turno_activo(vendedor_id)
-    metodos_validos = {'efectivo', 'nequi', 'daviplata', 'tarjeta', 'fiado'}
+    metodos_validos = {'efectivo', 'nequi', 'daviplata', 'tarjeta', 'fiado', 'dividido'}
     if metodo_pago not in metodos_validos:
         metodo_pago = 'efectivo'
     
@@ -3857,6 +3922,11 @@ def api_cobrar():
         if metodo_pago == 'fiado':
             efectivo_recibido_val = 0.0
             cambio_val = 0.0
+        elif metodo_pago == 'dividido':
+            # Para pago dividido, efectivo_recibido es la suma de todos los montos
+            total_pagado_dividido = sum(float(p.get('monto', 0)) for p in pagos_divididos)
+            efectivo_recibido_val = total_pagado_dividido
+            cambio_val = max(0.0, total_pagado_dividido - total_venta)
         elif metodo_pago != 'efectivo':
             efectivo_recibido_val = total_venta
             cambio_val = 0.0
@@ -3885,17 +3955,26 @@ def api_cobrar():
         
         venta_id = cursor_venta.lastrowid
 
-        tipo_movimiento_caja = 'entrada' if metodo_pago != 'fiado' else 'deuda'
-        registrar_movimiento_caja(
-            db,
-            turno_id,
-            vendedor_id,
-            tipo_movimiento_caja,
-            'venta',
-            f'Venta #{venta_id}',
-            metodo_pago,
-            total_venta
-        )
+        if metodo_pago == 'dividido':
+            # Registrar un movimiento de caja por cada método de pago
+            for pago in pagos_divididos:
+                metodo_parcial = pago.get('metodo', 'efectivo').lower()
+                monto_parcial = float(pago.get('monto', 0))
+                if monto_parcial > 0:
+                    registrar_movimiento_caja(
+                        db, turno_id, vendedor_id,
+                        'entrada', 'venta',
+                        f'Venta #{venta_id} (dividido/{metodo_parcial})',
+                        metodo_parcial, monto_parcial
+                    )
+        else:
+            tipo_movimiento_caja = 'entrada' if metodo_pago != 'fiado' else 'deuda'
+            registrar_movimiento_caja(
+                db, turno_id, vendedor_id,
+                tipo_movimiento_caja, 'venta',
+                f'Venta #{venta_id}',
+                metodo_pago, total_venta
+            )
 
         if metodo_pago == 'fiado':
             db.execute("""
@@ -3914,10 +3993,15 @@ def api_cobrar():
         
         # Insertar detalles de venta y actualizar stock
         for item in carrito:
+            receta_pers_json = None
+            if 'receta_personalizada' in item and item['receta_personalizada'] is not None:
+                import json
+                receta_pers_json = json.dumps(item['receta_personalizada'])
+
             db.execute("""
-                INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario)
-                VALUES (?, ?, ?, ?)
-            """, (venta_id, item['id'], item['cantidad'], item['precio']))
+                INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario, receta_personalizada)
+                VALUES (?, ?, ?, ?, ?)
+            """, (venta_id, item['id'], item['cantidad'], item['precio'], receta_pers_json))
             
             # Actualizar stock (solo si no es preparado)
             if item.get('es_preparado') != 1:
@@ -3930,13 +4014,21 @@ def api_cobrar():
                 """, (cantidad_a_descontar, item['id']))
             else:
                 # Si es preparado, descontar insumos según la receta
-                receta = db.execute("SELECT insumo_id, cantidad_gastada FROM recetas WHERE producto_id = ?", (item['id'],)).fetchall()
-                for ing in receta:
-                    db.execute("""
-                        UPDATE insumos
-                        SET cantidad_actual = cantidad_actual - ?
-                        WHERE id = ?
-                    """, (item['cantidad'] * ing['cantidad_gastada'], ing['insumo_id']))
+                if 'receta_personalizada' in item and isinstance(item['receta_personalizada'], list):
+                    for ing in item['receta_personalizada']:
+                        db.execute("""
+                            UPDATE insumos
+                            SET cantidad_actual = cantidad_actual - ?
+                            WHERE id = ?
+                        """, (item['cantidad'] * float(ing['cantidad_gastada']), int(ing['insumo_id'])))
+                else:
+                    receta = db.execute("SELECT insumo_id, cantidad_gastada FROM recetas WHERE producto_id = ?", (item['id'],)).fetchall()
+                    for ing in receta:
+                        db.execute("""
+                            UPDATE insumos
+                            SET cantidad_actual = cantidad_actual - ?
+                            WHERE id = ?
+                        """, (item['cantidad'] * ing['cantidad_gastada'], ing['insumo_id']))
         
         orden_abierta_id = data.get('orden_abierta_id')
         if orden_abierta_id:
@@ -3947,6 +4039,31 @@ def api_cobrar():
     except Exception as e:
         db.rollback()
         return jsonify({'error': str(e), 'success': False}), 500
+    finally:
+        db.close()
+
+
+@app.route('/api/movimientos_turno', methods=['GET'])
+def api_movimientos_turno():
+    """Retorna los movimientos de caja del turno activo para mostrar en la pantalla de ventas."""
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    vendedor_id = session.get('id')
+    turno_id = session.get('turno_id') or obtener_turno_activo(vendedor_id)
+    if not turno_id:
+        return jsonify([])
+    db = conectar_db()
+    try:
+        rows = db.execute("""
+            SELECT tipo_movimiento, origen, descripcion, metodo_pago, monto, fecha
+            FROM caja_movimientos
+            WHERE turno_id = ?
+            ORDER BY fecha DESC
+            LIMIT 100
+        """, (turno_id,)).fetchall()
+        return jsonify([dict(r) for r in rows])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     finally:
         db.close()
 
@@ -3985,11 +4102,60 @@ def api_abrir_cajon():
         return jsonify({'success': False, 'error': f"No se pudo abrir el cajón: {error}"}), 500
 
 
-def imprimir_factura_directa(venta_id):
+def obtener_comentario_receta_personalizada(db, producto_id, receta_pers_json):
+    import json
+    if not receta_pers_json:
+        return None
     try:
-        import sqlite3
-        db = conectar_db()
+        receta_pers = json.loads(receta_pers_json)
+    except:
+        return None
         
+    if not isinstance(receta_pers, list):
+        return None
+        
+    # Consultar receta base
+    receta_base = db.execute("""
+        SELECT r.insumo_id, r.cantidad_gastada, i.nombre_insumo
+        FROM recetas r
+        JOIN insumos i ON r.insumo_id = i.id
+        WHERE r.producto_id = ?
+    """, (producto_id,)).fetchall()
+    
+    base_dict = {r['insumo_id']: (r['nombre_insumo'], float(r['cantidad_gastada'])) for r in receta_base}
+    pers_dict = {int(ing['insumo_id']): float(ing['cantidad_gastada']) for ing in receta_pers}
+    
+    cambios = []
+    
+    # 1. Ingredientes eliminados o modificados de la receta base
+    for ins_id, (nombre, cant_base) in base_dict.items():
+        if ins_id not in pers_dict or pers_dict[ins_id] <= 0:
+            cambios.append(f"Sin {nombre}")
+        elif pers_dict[ins_id] > cant_base:
+            cambios.append(f"+ {nombre}")
+        elif pers_dict[ins_id] < cant_base:
+            cambios.append(f"- {nombre}")
+            
+    # 2. Nuevos ingredientes agregados (no estaban en la receta base)
+    for ing in receta_pers:
+        ins_id = int(ing['insumo_id'])
+        if ins_id not in base_dict and float(ing['cantidad_gastada']) > 0:
+            ins_row = db.execute("SELECT nombre_insumo FROM insumos WHERE id = ?", (ins_id,)).fetchone()
+            nombre_insumo = ins_row['nombre_insumo'] if ins_row else "Insumo"
+            pr_extra = float(ing.get('precio_adicional') or 0)
+            if pr_extra > 0:
+                cambios.append(f"+ {nombre_insumo} (+${int(pr_extra)})")
+            else:
+                cambios.append(f"+ {nombre_insumo}")
+            
+    if cambios:
+        return ", ".join(cambios)
+    return None
+
+
+def imprimir_factura_directa(venta_id):
+    db = conectar_db()
+    try:
         # 1. Obtener la venta
         venta = db.execute("""
             SELECT v.*, u.nombre as vendedor_nombre
@@ -4004,12 +4170,12 @@ def imprimir_factura_directa(venta_id):
         
         # 2. Obtener los detalles de la venta
         detalles = db.execute("""
-            SELECT dv.cantidad, dv.precio_unitario, (dv.cantidad * dv.precio_unitario) as subtotal, p.nombre as producto_nombre
+            SELECT dv.cantidad, dv.precio_unitario, (dv.cantidad * dv.precio_unitario) as subtotal, 
+                   p.nombre as producto_nombre, dv.producto_id, dv.receta_personalizada
             FROM detalle_ventas dv
             JOIN productos p ON dv.producto_id = p.id
             WHERE dv.venta_id = ?
         """, (venta_id,)).fetchall()
-        db.close()
         
         import win32print
         printer_name = win32print.GetDefaultPrinter()
@@ -4089,6 +4255,15 @@ def imprimir_factura_directa(venta_id):
                     linea = f"{cant:<3}{nombre:<18}{sub:>11}\n"
                     raw_data.extend(linea.encode('latin1', errors='replace'))
                     
+                    # Si tiene receta personalizada, agregar los comentarios abajo
+                    if item.get('receta_personalizada'):
+                        comentario = obtener_comentario_receta_personalizada(db, item['producto_id'], item['receta_personalizada'])
+                        if comentario:
+                            comentario_linea = f"   * {comentario}\n"
+                            if len(comentario_linea) > 32:
+                                comentario_linea = comentario_linea[:29] + "...\n"
+                            raw_data.extend(comentario_linea.encode('latin1', errors='replace'))
+                    
                 raw_data.extend(b"--------------------------------\n")
                 
                 # Totales
@@ -4121,6 +4296,11 @@ def imprimir_factura_directa(venta_id):
         return True, None
     except Exception as e:
         return False, str(e)
+    finally:
+        try:
+            db.close()
+        except:
+            pass
 
 
 @app.route('/api/imprimir_directo/<int:venta_id>', methods=['POST'])
@@ -4163,17 +4343,25 @@ def ver_factura_venta(venta_id):
         if not venta:
             return "Venta no encontrada", 404
 
-        detalles = db.execute("""
+        detalles_raw = db.execute("""
             SELECT
                 p.nombre as producto_nombre,
                 dv.cantidad,
                 dv.precio_unitario,
-                (dv.cantidad * dv.precio_unitario) as subtotal
+                (dv.cantidad * dv.precio_unitario) as subtotal,
+                dv.producto_id,
+                dv.receta_personalizada
             FROM detalle_ventas dv
             JOIN productos p ON p.id = dv.producto_id
             WHERE dv.venta_id = ?
             ORDER BY p.nombre ASC
         """, (venta_id,)).fetchall()
+
+        detalles = []
+        for d in detalles_raw:
+            item_d = dict(d)
+            item_d['comentario_personalizado'] = obtener_comentario_receta_personalizada(db, d['producto_id'], d['receta_personalizada'])
+            detalles.append(item_d)
 
         return render_template(
             'factura.html',
@@ -4342,7 +4530,7 @@ def inicializar_y_migrar_db():
     finally:
         conn.close()
         
-    VERSION_OBJETIVO = 3  # Versión actual de la base de datos del sistema
+    VERSION_OBJETIVO = 5  # Versión actual de la base de datos del sistema
     
     if version_actual >= VERSION_OBJETIVO:
         print(f"INFO: Base de datos en su versión más reciente (v{version_actual}).")
@@ -4629,6 +4817,37 @@ def inicializar_y_migrar_db():
                 cursor.execute("ALTER TABLE categorias ADD COLUMN icono TEXT;")
             version_actual = 3
             cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '3')")
+            conn.commit()
+
+        # ==========================================
+        # MIGRACIÓN v4: Recetas personalizadas en detalle de ventas y órdenes abiertas
+        # ==========================================
+        if version_actual < 4:
+            print("INFO: Aplicando migración v4 (Agregar columnas de receta personalizada)...")
+            # 1. Agregar a detalle_ventas
+            columnas_detalle = [info['name'] for info in cursor.execute("PRAGMA table_info(detalle_ventas);").fetchall()]
+            if 'receta_personalizada' not in columnas_detalle:
+                cursor.execute("ALTER TABLE detalle_ventas ADD COLUMN receta_personalizada TEXT;")
+            
+            # 2. Agregar a ordenes_abiertas_items
+            columnas_ordenes = [info['name'] for info in cursor.execute("PRAGMA table_info(ordenes_abiertas_items);").fetchall()]
+            if 'receta_personalizada' not in columnas_ordenes:
+                cursor.execute("ALTER TABLE ordenes_abiertas_items ADD COLUMN receta_personalizada TEXT;")
+                
+            version_actual = 4
+            cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '4')")
+            conn.commit()
+
+        # ==========================================
+        # MIGRACIÓN v5: Bandera receta_personalizable en tabla productos
+        # ==========================================
+        if version_actual < 5:
+            print("INFO: Aplicando migración v5 (Agregar receta_personalizable a productos)...")
+            columnas_productos = [info['name'] for info in cursor.execute("PRAGMA table_info(productos);").fetchall()]
+            if 'receta_personalizable' not in columnas_productos:
+                cursor.execute("ALTER TABLE productos ADD COLUMN receta_personalizable INTEGER DEFAULT 0;")
+            version_actual = 5
+            cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '5')")
             conn.commit()
 
         # Asegurar que exista al menos un usuario administrador por defecto si la tabla está vacía

@@ -1,0 +1,87 @@
+{
+  "turno": {
+    "id": 20,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-20 20:08:50",
+    "fecha_cierre": "2026-07-20 20:12:18",
+    "efectivo_esperado": 190400.0,
+    "efectivo_real": 190400.0,
+    "diferencia": 0.0,
+    "nequi_esperado": 94000.0,
+    "nequi_real": 94000.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": "sdcbhdsj"
+  },
+  "resumen": {
+    "ordenes": 2,
+    "total_ventas": 4200.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 3200.0,
+      "abonos": 0.0,
+      "gastos": 8000.0,
+      "saldo": -4800.0
+    },
+    "nequi": {
+      "ventas": 1000.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 1000.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "gastos": [
+    {
+      "fecha": "2026-07-20 20:09:56",
+      "descripcion": "1",
+      "categoria_gasto": "Inventario",
+      "metodo_pago": "efectivo",
+      "monto": 8000.0
+    }
+  ],
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 20:09:56",
+      "tipo_movimiento": "salida",
+      "origen": "gasto",
+      "descripcion": "1",
+      "metodo_pago": "efectivo",
+      "monto": 8000.0
+    },
+    {
+      "fecha": "2026-07-20 20:11:06",
+      "tipo_movimiento": "entrada",
+      "origen": "ingreso_intangible",
+      "descripcion": "Ingreso intangible: Calentar Comida",
+      "metodo_pago": "efectivo",
+      "monto": 1000.0
+    },
+    {
+      "fecha": "2026-07-20 20:11:52",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #52",
+      "metodo_pago": "efectivo",
+      "monto": 3200.0
+    }
+  ]
+}

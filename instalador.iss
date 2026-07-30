@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=Cafeto24
-AppVersion=3.16.0
+AppVersion=3.17.0
 AppPublisher=Cafeto24
 DefaultDirName={autopf}\Cafeto24
 DefaultGroupName=Cafeto24
@@ -53,7 +53,7 @@ Filename: "{app}\CajaCafeto24.exe"; Description: "{cm:LaunchProgram,Cafeto24}"; 
 
 [UninstallRun]
 ; Limpiar la regla del firewall al desinstalar
-Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Cafeto24"""; Flags: runhidden
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Cafeto24"""; Flags: runhidden; RunOnceId: "RemoveFirewallRule"
 
 [Code]
 function PrepareToInstall(var NeedsRestart: Boolean): String;

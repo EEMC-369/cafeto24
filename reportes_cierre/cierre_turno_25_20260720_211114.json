@@ -1,0 +1,88 @@
+{
+  "turno": {
+    "id": 25,
+    "usuario": "edwin",
+    "rol": "empleado",
+    "fecha_apertura": "2026-07-20 21:09:01",
+    "fecha_cierre": "2026-07-20 21:11:14",
+    "efectivo_esperado": 222000.0,
+    "efectivo_real": 222000.0,
+    "diferencia": 0.0,
+    "nequi_esperado": 91500.0,
+    "nequi_real": 91500.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": "oooo"
+  },
+  "resumen": {
+    "ordenes": 2,
+    "total_ventas": 13700.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 13700.0,
+      "abonos": 0.0,
+      "gastos": 4000.0,
+      "saldo": 9700.0
+    },
+    "nequi": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "gastos": [
+    {
+      "id": 13,
+      "fecha": "2026-07-20 21:10:10",
+      "descripcion": "Compra Inventario: Alpin (x10 uds)",
+      "categoria_gasto": "Compra Inventario",
+      "metodo_pago": "efectivo",
+      "monto": 4000.0
+    }
+  ],
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 21:09:23",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #61",
+      "metodo_pago": "efectivo",
+      "monto": 6500.0
+    },
+    {
+      "fecha": "2026-07-20 21:10:10",
+      "tipo_movimiento": "salida",
+      "origen": "gasto",
+      "descripcion": "Compra Inventario: Alpin (x10 uds)",
+      "metodo_pago": "efectivo",
+      "monto": 4000.0
+    },
+    {
+      "fecha": "2026-07-20 21:10:42",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #62",
+      "metodo_pago": "efectivo",
+      "monto": 7200.0
+    }
+  ]
+}

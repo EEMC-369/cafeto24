@@ -1,0 +1,53 @@
+{
+  "turno": {
+    "id": 17,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-20 19:51:49",
+    "fecha_cierre": "2026-07-20 19:52:44",
+    "efectivo_esperado": 191900.0,
+    "efectivo_real": 191000.0,
+    "diferencia": -900.0,
+    "nequi_esperado": 93000.0,
+    "nequi_real": 93000.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": "falto 900 devolucion cafe"
+  },
+  "resumen": {
+    "ordenes": 0,
+    "total_ventas": 0.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "nequi": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "movimientos": []
+}

@@ -1,0 +1,78 @@
+{
+  "turno": {
+    "id": 11,
+    "usuario": "Administrador Principal",
+    "rol": "administrador",
+    "fecha_apertura": "2026-07-20 19:17:36",
+    "fecha_cierre": "2026-07-20 19:26:12",
+    "efectivo_esperado": 215500.0,
+    "efectivo_real": 214500.0,
+    "diferencia": -1000.0,
+    "nequi_esperado": 47900.0,
+    "nequi_real": 47900.0,
+    "diferencia_nequi": 0.0,
+    "daviplata_esperado": 8500.0,
+    "daviplata_real": 8500.0,
+    "diferencia_daviplata": 0.0,
+    "tarjeta_esperado": 0.0,
+    "tarjeta_real": 0.0,
+    "diferencia_tarjeta": 0.0,
+    "observaciones": ""
+  },
+  "resumen": {
+    "ordenes": 3,
+    "total_ventas": 11400.0
+  },
+  "metodos": {
+    "efectivo": {
+      "ventas": 10200.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 10200.0
+    },
+    "nequi": {
+      "ventas": 1200.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 1200.0
+    },
+    "daviplata": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    },
+    "tarjeta": {
+      "ventas": 0.0,
+      "abonos": 0.0,
+      "gastos": 0.0,
+      "saldo": 0.0
+    }
+  },
+  "movimientos": [
+    {
+      "fecha": "2026-07-20 19:17:50",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #35",
+      "metodo_pago": "efectivo",
+      "monto": 8700.0
+    },
+    {
+      "fecha": "2026-07-20 19:25:19",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #36",
+      "metodo_pago": "nequi",
+      "monto": 1200.0
+    },
+    {
+      "fecha": "2026-07-20 19:25:28",
+      "tipo_movimiento": "entrada",
+      "origen": "venta",
+      "descripcion": "Venta #37",
+      "metodo_pago": "efectivo",
+      "monto": 1500.0
+    }
+  ]
+}
