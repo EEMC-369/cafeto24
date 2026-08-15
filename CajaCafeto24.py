@@ -1,5 +1,6 @@
 import sqlite3
 import os
+
 import json
 import shutil
 from datetime import datetime
@@ -54,7 +55,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.17.0"
+VERSION = "3.19.0"
 
 app = Flask(
     __name__,
@@ -3263,9 +3264,9 @@ def api_resumen_turno_actual():
     try:
         saldos_cuentas_actuales = db.execute("""
             WITH movimientos AS (
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(total) as entradas, 0 as salidas
-                FROM ventas
-                WHERE COALESCE(metodo_pago, 'efectivo') != 'fiado'
+                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(monto) as entradas, 0 as salidas
+                FROM caja_movimientos
+                WHERE tipo_movimiento = 'entrada' AND origen = 'venta' AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
                 GROUP BY COALESCE(metodo_pago, 'efectivo')
                 UNION ALL
                 SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(monto) as entradas, 0 as salidas
@@ -3289,9 +3290,9 @@ def api_resumen_turno_actual():
         caja_efectivo_actual = db.execute("""
             SELECT
                 COALESCE((
-                    SELECT SUM(total)
-                    FROM ventas
-                    WHERE COALESCE(metodo_pago, 'efectivo') = 'efectivo'
+                    SELECT SUM(monto)
+                    FROM caja_movimientos
+                    WHERE tipo_movimiento = 'entrada' AND COALESCE(metodo_pago, 'efectivo') = 'efectivo'
                 ), 0)
                 +
                 COALESCE((
@@ -3306,6 +3307,7 @@ def api_resumen_turno_actual():
                     WHERE COALESCE(metodo_pago, 'efectivo') = 'efectivo'
                 ), 0) AS caja_efectivo
         """).fetchone()
+
 
         deuda_fiado_actual = db.execute("""
             SELECT COALESCE(SUM(saldo_pendiente), 0) as total_deuda
