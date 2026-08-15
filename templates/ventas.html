@@ -96,36 +96,45 @@
         }
         /* ========== BOTONES DE CATEGORÍA ========== */
         .category-button {
-            width: 90px;
-            height: 90px;
-            min-width: 90px;
-            min-height: 90px;
-            font-size: 11px;
+            width: 135px;
+            height: 125px;
+            min-width: 135px;
+            min-height: 125px;
+            font-size: 12px;
             font-weight: 900;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 6px;
             cursor: pointer;
-            border-radius: 16px;
-            border: 2px solid transparent;
-            transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s, opacity 0.2s;
+            border-radius: 20px;
+            border: 2.5px solid transparent;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s, opacity 0.2s;
             flex-shrink: 0;
             text-align: center;
             line-height: 1.2;
-            padding: 4px 2px;
+            padding: 8px 6px;
             word-break: break-word;
         }
         .category-button:hover {
-            transform: scale(1.06);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            transform: scale(1.05);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
         }
         .category-button:active { transform: scale(0.96); }
         .category-button.categoria-colapsada {
             display: none !important;
         }
-        .category-icon { font-size: 2.5rem; line-height: 1; }
+        .category-icon { font-size: 3.2rem; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+
+        /* ========== MENÚ KEBAB SUPERIOR ========== */
+        #dropdown-kebab-menu {
+            transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #dropdown-kebab-menu.visible {
+            opacity: 1 !important;
+            transform: scale(1) translateY(0) !important;
+        }
 
         /* ========== PANEL DE MOVIMIENTOS ========== */
         #panel-movimientos {
@@ -186,7 +195,7 @@
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
 
-    <header class="bg-amber-700 text-white px-6 py-4 flex justify-between items-center shadow-md z-10">
+    <header class="bg-amber-800 text-white px-5 py-2.5 flex justify-between items-center shadow-md z-40 relative">
         <div class="flex items-center space-x-3">
             <div class="brand-mark">
                 <div class="brand-mark__cup">
@@ -196,22 +205,59 @@
                 </div>
             </div>
             {% if url_acceso_red %}
-            <span class="text-[10px] bg-amber-800 text-amber-200 px-2.5 py-1 rounded-full border border-amber-600 font-mono">📍 Acceso Red: {{ url_acceso_red }}</span>
+            <span class="text-[10px] bg-amber-900/80 text-amber-200 px-2.5 py-1 rounded-full border border-amber-600/50 font-mono hidden sm:inline-flex items-center gap-1">📍 {{ url_acceso_red }}</span>
             {% endif %}
         </div>
-        <div class="flex items-center space-x-4">
-            <span class="bg-amber-800 px-3 py-1 rounded-full text-sm">👤 Usuario: {{ nombre }} ({{ rol | upper }})</span>
-            <span id="estado-turno-header" class="bg-slate-900 px-3 py-1 rounded-full text-sm font-bold">⏱️ Turno: cargando...</span>
-            <form id="form-iniciar-turno" action="/turno/iniciar" method="POST" class="inline" style="display: none;">
-                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-1 rounded font-semibold text-sm transition">Iniciar Turno ▶</button>
-            </form>
-            <button id="btn-cerrar-turno" type="button" onclick="abrirModalCierreTurno()" class="bg-rose-600 hover:bg-rose-700 px-4 py-1 rounded font-semibold text-sm transition" style="display: none;">Terminar Turno ⏹</button>
-            <button id="btn-abrir-cajon-manual" type="button" onclick="abrirCajonMonederoManual()" class="bg-amber-600 hover:bg-amber-700 px-4 py-1 rounded font-semibold text-sm transition text-slate-100 flex items-center gap-1">🔑 Abrir Cajón</button>
-            <button id="btn-toggle-movimientos" type="button" onclick="togglePanelMovimientos()" class="bg-slate-700 hover:bg-slate-600 px-4 py-1 rounded font-semibold text-sm transition text-slate-100 flex items-center gap-1">📊 Movimientos</button>
-            {% if rol == 'administrador' %}
-            <a href="/admin" class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded font-semibold text-sm transition">Panel Admin ⚙️</a>
-            {% endif %}
-            <a href="/logout" class="bg-red-600 hover:bg-red-700 px-4 py-1 rounded font-semibold text-sm transition">Salir</a>
+        
+        <div class="flex items-center space-x-3">
+            <span class="bg-amber-900/60 text-amber-100 px-3 py-1.5 rounded-full text-xs font-semibold border border-amber-700/50 flex items-center gap-1.5 shadow-sm">
+                <span>👤</span> <span>{{ nombre }}</span> <span class="text-[10px] opacity-75 uppercase">({{ rol }})</span>
+            </span>
+            <span id="estado-turno-header" class="bg-slate-900 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-700 flex items-center gap-1 shadow-sm">⏱️ Turno: cargando...</span>
+            
+            <!-- BOTÓN DE MENÚ DE TRES PUNTITOS (KEBAB) -->
+            <div class="relative">
+                <button id="btn-kebab-menu" onclick="toggleMenuKebab(event)" type="button" class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-900/90 hover:bg-amber-950 text-white font-black text-xl shadow border border-amber-600/50 transition active:scale-95 cursor-pointer" title="Menú de Acciones">
+                    ⋮
+                </button>
+                
+                <!-- MENÚ DESPLEGABLE FLOTANTE -->
+                <div id="dropdown-kebab-menu" class="hidden absolute right-0 mt-2 w-64 bg-slate-900/98 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl p-2 z-50 transform opacity-0 scale-95 transition-all duration-150 space-y-1">
+                    <!-- INICIAR / CERRAR TURNO -->
+                    <form id="form-iniciar-turno" action="/turno/iniciar" method="POST" style="display: none;">
+                        <button type="submit" class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-300 hover:bg-emerald-950/70 flex items-center gap-2.5 transition">
+                            <span class="text-base">▶️</span> Iniciar Turno
+                        </button>
+                    </form>
+                    <button id="btn-cerrar-turno" type="button" onclick="cerrarMenuKebab(); abrirModalCierreTurno();" class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-300 hover:bg-rose-950/70 flex items-center gap-2.5 transition" style="display: none;">
+                        <span class="text-base">⏹️</span> Terminar Turno
+                    </button>
+                    
+                    <!-- ABRIR CAJÓN -->
+                    <button id="btn-abrir-cajon-manual" type="button" onclick="cerrarMenuKebab(); abrirCajonMonederoManual();" class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-300 hover:bg-amber-950/70 flex items-center gap-2.5 transition">
+                        <span class="text-base">🔑</span> Abrir Cajón Monedero
+                    </button>
+                    
+                    <!-- MOVIMIENTOS -->
+                    <button id="btn-toggle-movimientos" type="button" onclick="cerrarMenuKebab(); togglePanelMovimientos();" class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-sky-300 hover:bg-sky-950/70 flex items-center gap-2.5 transition">
+                        <span class="text-base">📊</span> Ver Movimientos del Turno
+                    </button>
+                    
+                    {% if rol == 'administrador' %}
+                    <div class="border-t border-slate-800 my-1"></div>
+                    <!-- PANEL ADMIN -->
+                    <a href="/admin" class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-300 hover:bg-blue-950/70 flex items-center gap-2.5 transition block">
+                        <span class="text-base">⚙️</span> Panel Administrador
+                    </a>
+                    {% endif %}
+                    
+                    <div class="border-t border-slate-800 my-1"></div>
+                    <!-- SALIR -->
+                    <a href="/logout" class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:bg-red-950/70 flex items-center gap-2.5 transition block">
+                        <span class="text-base">🚪</span> Cerrar Sesión / Salir
+                    </a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -294,7 +340,7 @@
                             <div class="grid grid-cols-2 gap-2 items-center bg-slate-50 p-2.5 rounded-xl border">
                                 <div>
                                     <label class="block text-[9px] font-bold text-gray-400 uppercase">Paga Con ($):</label>
-                                    <input type="text" id="efectivo-recibido" readonly placeholder="0" class="w-full bg-white border p-1 rounded-lg text-base font-bold text-gray-800 text-right outline-none">
+                                    <input type="number" id="efectivo-recibido" placeholder="0" min="0" step="any" oninput="calcularCambio()" onfocus="setEntradaNumericaActiva('efectivo-recibido')" class="w-full bg-white border border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 p-1.5 rounded-lg text-base font-bold text-gray-800 text-right outline-none transition">
                                 </div>
                                 <div class="text-right">
                                     <span class="block text-[9px] font-bold text-gray-400 uppercase">Cambio:</span>
@@ -670,21 +716,21 @@
                                 {% set color_name = 'emerald' %}
                             {% endif %}
                         {% else %}
-                            {% if emoji == '☕' %}{% set color_name = 'red' %}
-                            {% elif emoji == '🥤' %}{% set color_name = 'blue' %}
-                            {% elif emoji == '🍊' or emoji == '🍹' %}{% set color_name = 'indigo' %}
-                            {% elif emoji == '🍔' %}{% set color_name = 'amber' %}
-                            {% elif emoji == '🍿' or emoji == '🧋' %}{% set color_name = 'stone' %}
-                            {% elif emoji == '🍫' %}{% set color_name = 'orange' %}
-                            {% elif emoji == '🍪' %}{% set color_name = 'cyan' %}
-                            {% elif emoji == '🍰' or emoji == '🍷' %}{% set color_name = 'rose' %}
-                            {% elif emoji == '⚡' or emoji == '🧉' %}{% set color_name = 'teal' %}
-                            {% elif emoji == '🍺' %}{% set color_name = 'purple' %}
-                            {% elif emoji == '🚬' %}{% set color_name = 'green' %}
-                            {% elif emoji == '💊' %}{% set color_name = 'pink' %}
-                            {% elif emoji == '🧻' %}{% set color_name = 'yellow' %}
-                            {% elif emoji == '💧' or emoji == '🥛' %}{% set color_name = 'sky' %}
-                            {% elif emoji == '🚗' %}{% set color_name = 'emerald' %}
+                            {% if emoji in ['☕', '🍵', '🍶'] %}{% set color_name = 'red' %}
+                            {% elif emoji in ['🥤', '🧃'] %}{% set color_name = 'blue' %}
+                            {% elif emoji in ['🍊', '🍹', '🍓', '🍇', '🍉'] %}{% set color_name = 'indigo' %}
+                            {% elif emoji in ['🍔', '🍕', '🌭', '🥪', '🌮', '🌯', '🥙', '🍟', '🍳', '🥞', '🥩', '🍗', '🍖', '🥓', '🍝', '🍜', '🍲', '🍛', '🍱', '🥟', '🍣', '🥐', '🥖', '🍞', '🥯', '🥨', '🧀'] %}{% set color_name = 'amber' %}
+                            {% elif emoji in ['🍿', '🧋', '🥜'] %}{% set color_name = 'stone' %}
+                            {% elif emoji in ['🍫', '🍩', '🍯'] %}{% set color_name = 'orange' %}
+                            {% elif emoji in ['🍪', '🍎', '🍌', '🍍', '🥑', '🥥', '🥗'] %}{% set color_name = 'cyan' %}
+                            {% elif emoji in ['🍰', '🧁', '🥧', '🍷', '🍾', '🥂'] %}{% set color_name = 'rose' %}
+                            {% elif emoji in ['⚡', '🧉'] %}{% set color_name = 'teal' %}
+                            {% elif emoji in ['🍺', '🍸', '🥃'] %}{% set color_name = 'purple' %}
+                            {% elif emoji in ['🚬'] %}{% set color_name = 'green' %}
+                            {% elif emoji in ['💊', '🍨', '🍦', '🍧', '🍮', '🍬', '🍭'] %}{% set color_name = 'pink' %}
+                            {% elif emoji in ['🧻'] %}{% set color_name = 'yellow' %}
+                            {% elif emoji in ['💧', '🥛'] %}{% set color_name = 'sky' %}
+                            {% elif emoji in ['🚗', '✨', '🏷️'] %}{% set color_name = 'emerald' %}
                             {% endif %}
                         {% endif %}
 
@@ -1018,7 +1064,7 @@
     <!-- MODAL DE PERSONALIZACIÓN DE RECETA -->
     <div id="modal-personalizar-receta" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden border border-slate-100 flex flex-col p-6 transform scale-95 transition-transform duration-300 max-h-[85vh]">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-3">
                 <div class="flex items-center gap-2">
                     <span class="text-xl">🍔</span>
                     <h3 id="custom-receta-titulo" class="text-sm font-black text-slate-850 uppercase tracking-wide">Personalizar Producto</h3>
@@ -1030,36 +1076,51 @@
             <div class="flex-1 overflow-y-auto pr-1 space-y-4 text-xs" id="custom-receta-cuerpo">
                 <!-- Seccion de ingredientes base -->
                 <div>
-                    <h4 class="text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-2">Ingredientes de la Receta</h4>
+                    <h4 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <span>📋</span> <span>Ingredientes de la Receta Base</span>
+                    </h4>
                     <div id="custom-receta-base-lista" class="space-y-2">
                         <!-- Items cargados dinámicamente -->
                     </div>
                 </div>
 
                 <!-- Seccion de adiciones extra -->
-                <div class="pt-3 border-t border-slate-100">
-                    <h4 class="text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-2">Agregar Adición / Ingrediente Extra</h4>
-                    <div class="flex gap-2 mb-2">
-                        <select id="custom-receta-adicion-select" class="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-slate-500">
-                            <!-- Opciones cargadas dinámicamente -->
-                        </select>
-                        <input type="number" id="custom-receta-adicion-cant" value="1" step="any" placeholder="Cant" class="w-14 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-center outline-none focus:ring-1 focus:ring-slate-500">
-                        <input type="number" id="custom-receta-adicion-precio" value="0" step="any" placeholder="Precio ($)" class="w-20 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-center outline-none focus:ring-1 focus:ring-slate-500">
-                        <button type="button" onclick="agregarAdicionReceta()" class="interactive-element bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-2 rounded-xl text-xs transition">
-                            +
-                        </button>
+                <div class="pt-3 border-t border-slate-150">
+                    <h4 class="text-[10px] font-black text-amber-900 uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <span>➕</span> <span>Agregar Adición / Ingrediente Extra</span>
+                    </h4>
+                    <div class="bg-amber-50/70 p-2.5 rounded-2xl border border-amber-200/80 space-y-2">
+                        <div>
+                            <label class="block text-[9px] font-bold text-amber-800 uppercase mb-0.5">Seleccionar Insumo:</label>
+                            <select id="custom-receta-adicion-select" class="w-full p-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500">
+                                <!-- Opciones cargadas dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 items-end">
+                            <div>
+                                <label class="block text-[9px] font-bold text-amber-800 uppercase mb-0.5">Cantidad:</label>
+                                <input type="number" id="custom-receta-adicion-cant" value="1" min="0.1" step="any" placeholder="1" class="w-full p-2 bg-white border border-amber-300 rounded-xl text-xs text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-amber-800 uppercase mb-0.5">Valor Adición ($):</label>
+                                <input type="number" id="custom-receta-adicion-precio" value="0" min="0" step="100" placeholder="0" class="w-full p-2 bg-white border border-amber-300 rounded-xl text-xs text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <button type="button" onclick="agregarAdicionReceta()" class="interactive-element bg-amber-600 hover:bg-amber-700 text-white font-extrabold p-2 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1 active:scale-95">
+                                <span>➕ Añadir</span>
+                            </button>
+                        </div>
                     </div>
-                    <div id="custom-receta-adiciones-lista" class="space-y-2 mt-2">
+                    <div id="custom-receta-adiciones-lista" class="space-y-2 mt-3">
                         <!-- Adiciones agregadas listadas aquí -->
                     </div>
                 </div>
             </div>
             
-            <div class="mt-5 flex gap-3 border-t border-slate-100 pt-3">
+            <div class="mt-4 flex gap-3 border-t border-slate-100 pt-3">
                 <button id="btn-confirmar-receta-estandar" onclick="confirmarRecetaEstandar()" class="interactive-element flex-1 bg-slate-100 hover:bg-slate-200 active:scale-95 transition text-slate-700 font-bold py-3 rounded-xl text-[10px] uppercase tracking-wider">
                     Receta Estándar
                 </button>
-                <button onclick="confirmarRecetaPersonalizada()" class="interactive-element flex-1 bg-amber-500 hover:bg-amber-650 active:scale-95 transition text-slate-950 font-black py-3 rounded-xl shadow-md text-[10px] uppercase tracking-wider shadow-amber-550/10">
+                <button id="btn-confirmar-receta-personalizada" onclick="confirmarRecetaPersonalizada()" class="interactive-element flex-1 bg-amber-500 hover:bg-amber-600 active:scale-95 transition text-slate-950 font-black py-3 rounded-xl shadow-md text-[10px] uppercase tracking-wider shadow-amber-500/10">
                     Guardar Cambios
                 </button>
             </div>
@@ -1909,31 +1970,38 @@
 
             let tieneBase = false;
             let tieneAdicion = false;
+            let totalAdicionesPrecio = 0;
 
             recetaPersonalizadaActual.forEach((ing, index) => {
                 const div = document.createElement('div');
-                div.className = 'flex items-center justify-between bg-slate-50 border p-2 rounded-xl';
+                div.className = 'flex items-center justify-between bg-slate-50/90 border border-slate-200 p-2.5 rounded-2xl shadow-sm';
                 
-                let extraHtml = '';
-                if (!ing.es_base) {
-                    const precioExtra = parseFloat(ing.precio_adicional || 0);
-                    extraHtml = `
-                        <div class="flex items-center gap-1 text-[10px] text-slate-500 mr-2">
-                            <span>$</span>
-                            <input type="number" step="any" placeholder="Precio" value="${precioExtra}" onchange="cambiarPrecioAdicionDirecto(${index}, this.value)" class="w-16 p-1 border text-center text-[10px] bg-white rounded-lg outline-none focus:ring-1 focus:ring-slate-500">
-                        </div>
-                    `;
+                const precioExtra = parseFloat(ing.precio_adicional || 0);
+                if (parseFloat(ing.cantidad_gastada) > 0 && precioExtra > 0) {
+                    totalAdicionesPrecio += precioExtra;
                 }
 
+                const extraHtml = `
+                    <div class="flex items-center gap-1 bg-amber-50 border border-amber-250 px-2 py-0.5 rounded-xl mr-1">
+                        <span class="text-amber-800 font-bold text-[9px] uppercase">+$</span>
+                        <input type="number" min="0" step="100" placeholder="0" value="${precioExtra > 0 ? precioExtra : ''}" 
+                               oninput="cambiarPrecioAdicionDirecto(${index}, this.value)" 
+                               class="w-16 p-0.5 border border-amber-300 text-right font-black text-amber-900 text-xs bg-white rounded-lg outline-none focus:ring-1 focus:ring-amber-500">
+                    </div>
+                `;
+
                 div.innerHTML = `
-                    <div class="font-bold text-slate-800">${ing.nombre_insumo} <span class="text-[10px] text-slate-400 font-medium">(${ing.unidad_medida})</span></div>
+                    <div class="font-bold text-slate-800 flex-1 pr-2">
+                        <span>${ing.nombre_insumo}</span> 
+                        <span class="text-[10px] text-slate-400 font-medium">(${ing.unidad_medida})</span>
+                    </div>
                     <div class="flex items-center space-x-2">
                         ${extraHtml}
-                        <div class="flex items-center space-x-1.5">
-                            <button type="button" onclick="ajustarCantIngrediente(${index}, -1)" class="w-6 h-6 flex items-center justify-center font-black bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-750 text-xs">-</button>
-                            <input type="number" step="any" onchange="cambiarCantIngredienteDirecto(${index}, this.value)" value="${ing.cantidad_gastada}" class="w-12 p-1 border text-center text-xs bg-white rounded-lg outline-none focus:ring-1 focus:ring-slate-500">
-                            <button type="button" onclick="ajustarCantIngrediente(${index}, 1)" class="w-6 h-6 flex items-center justify-center font-black bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-750 text-xs">+</button>
-                            <button type="button" onclick="eliminarIngredienteModal(${index})" class="text-red-500 hover:text-red-700 font-bold px-1.5 py-1 text-xs">✕</button>
+                        <div class="flex items-center space-x-1">
+                            <button type="button" onclick="ajustarCantIngrediente(${index}, -1)" class="w-6 h-6 flex items-center justify-center font-black bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-750 text-xs transition active:scale-90">-</button>
+                            <input type="number" step="any" onchange="cambiarCantIngredienteDirecto(${index}, this.value)" value="${ing.cantidad_gastada}" class="w-12 p-1 border text-center text-xs font-bold text-slate-800 bg-white rounded-lg outline-none focus:ring-1 focus:ring-slate-500">
+                            <button type="button" onclick="ajustarCantIngrediente(${index}, 1)" class="w-6 h-6 flex items-center justify-center font-black bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-750 text-xs transition active:scale-90">+</button>
+                            <button type="button" onclick="eliminarIngredienteModal(${index})" class="text-rose-500 hover:text-rose-700 font-bold px-1 text-sm transition" title="Quitar">✕</button>
                         </div>
                     </div>
                 `;
@@ -1948,10 +2016,15 @@
             });
 
             if (!tieneBase) {
-                listabase.innerHTML = '<div class="text-xs text-slate-400 italic p-1">Sin ingredientes base.</div>';
+                listabase.innerHTML = '<div class="text-xs text-slate-400 italic p-1.5 bg-slate-50 rounded-xl border border-dashed border-slate-200">Sin ingredientes base registrados.</div>';
             }
             if (!tieneAdicion) {
-                listaadiciones.innerHTML = '<div class="text-xs text-slate-400 italic p-1">Sin adiciones extras.</div>';
+                listaadiciones.innerHTML = '<div class="text-xs text-slate-400 italic p-1.5 bg-slate-50 rounded-xl border border-dashed border-slate-200">Sin adiciones extras agregadas aún.</div>';
+            }
+
+            const btnConfirmar = document.getElementById('btn-confirmar-receta-personalizada');
+            if (btnConfirmar) {
+                btnConfirmar.innerHTML = totalAdicionesPrecio > 0 ? `Guardar Cambios (+${dinero(totalAdicionesPrecio)})` : 'Guardar Cambios';
             }
         }
 
@@ -1961,6 +2034,18 @@
             let val = parseFloat(value || 0);
             if (val < 0) val = 0;
             ing.precio_adicional = val;
+            
+            // Actualizar total en botón de confirmación
+            let totalExtra = 0;
+            recetaPersonalizadaActual.forEach(item => {
+                if (parseFloat(item.cantidad_gastada) > 0) {
+                    totalExtra += parseFloat(item.precio_adicional || 0);
+                }
+            });
+            const btnConfirmar = document.getElementById('btn-confirmar-receta-personalizada');
+            if (btnConfirmar) {
+                btnConfirmar.innerHTML = totalExtra > 0 ? `Guardar Cambios (+${dinero(totalExtra)})` : 'Guardar Cambios';
+            }
         }
 
         function ajustarCantIngrediente(index, delta) {
@@ -2110,7 +2195,7 @@
                 const basePrice = Number(carrito[itemIndexEdicionCarrito].precio_base || 0);
                 let extraTotal = 0;
                 recetaPersonalizadaActual.forEach(ing => {
-                    if (!ing.es_base && parseFloat(ing.cantidad_gastada) > 0) {
+                    if (parseFloat(ing.cantidad_gastada) > 0) {
                         extraTotal += parseFloat(ing.precio_adicional || 0);
                     }
                 });
@@ -2142,7 +2227,7 @@
             let extraTotal = 0;
             if (recetaAEnviar && Array.isArray(recetaAEnviar)) {
                 recetaAEnviar.forEach(ing => {
-                    if (!ing.es_base && parseFloat(ing.cantidad_gastada) > 0) {
+                    if (parseFloat(ing.cantidad_gastada) > 0) {
                         extraTotal += parseFloat(ing.precio_adicional || 0);
                     }
                 });
@@ -2599,8 +2684,8 @@
 
                 const formIniciar = document.getElementById('form-iniciar-turno');
                 const btnCerrar = document.getElementById('btn-cerrar-turno');
-                if (formIniciar) formIniciar.style.display = hayTurno ? 'none' : 'inline';
-                if (btnCerrar) btnCerrar.style.display = hayTurno ? 'inline' : 'none';
+                if (formIniciar) formIniciar.style.display = hayTurno ? 'none' : 'block';
+                if (btnCerrar) btnCerrar.style.display = hayTurno ? 'block' : 'none';
                 document.getElementById('turno-total-vendido').innerText = dinero(data.total_ventas);
                 document.getElementById('turno-total-gastos').innerText = dinero(data.total_gastos);
                 const saldo = Number(data.saldo_turno || 0);
@@ -3161,7 +3246,41 @@
             }
         }
 
-        // ---------- Keyboard navigation ----------
+        // ========== MENÚ KEBAB SUPERIOR ==========
+        function toggleMenuKebab(e) {
+            if (e) e.stopPropagation();
+            const menu = document.getElementById('dropdown-kebab-menu');
+            if (!menu) return;
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                setTimeout(() => {
+                    menu.classList.add('visible');
+                    menu.classList.remove('opacity-0', 'scale-95');
+                }, 10);
+            } else {
+                cerrarMenuKebab();
+            }
+        }
+
+        function cerrarMenuKebab() {
+            const menu = document.getElementById('dropdown-kebab-menu');
+            if (!menu || menu.classList.contains('hidden')) return;
+            menu.classList.remove('visible');
+            menu.classList.add('opacity-0', 'scale-95');
+            setTimeout(() => {
+                menu.classList.add('hidden');
+            }, 150);
+        }
+
+        document.addEventListener('click', (e) => {
+            const btnKebab = document.getElementById('btn-kebab-menu');
+            const menuKebab = document.getElementById('dropdown-kebab-menu');
+            if (menuKebab && !menuKebab.contains(e.target) && (!btnKebab || !btnKebab.contains(e.target))) {
+                cerrarMenuKebab();
+            }
+        });
+
+        // ---------- Keyboard navigation & physical input ----------
         function cambiarPestañaSiguiente() {
             const ids = pestañas.map(p => p.id);
             const idx = ids.indexOf(pestañaActivaId);
@@ -3174,32 +3293,72 @@
             const prev = ids[(idx - 1 + ids.length) % ids.length];
             cambiarPestaña(prev);
         }
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                cerrarMenuKebab();
                 // close any open modal
                 const modals = ['modal-factura-pos','modal-pago-dividido','modal-cierre-turno','modal-cierre-exito','modal-personalizar-receta'];
                 modals.forEach(id => {
                     const m = document.getElementById(id);
                     if (m && !m.classList.contains('hidden')) {
-                        // hide modal (simple hide)
                         m.classList.add('opacity-0');
                         setTimeout(() => m.classList.add('hidden'), 200);
                     }
                 });
+                return;
             }
-            // Global shortcuts when focus is not on input
-            if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
-            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') cambiarPestañaAnterior();
-            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') cambiarPestañaSiguiente();
-            if (e.key === '1') cambiarMetodoPago('efectivo');
-            if (e.key === '2') cambiarMetodoPago('nequi');
-            if (e.key === '3') cambiarMetodoPago('daviplata');
-            if (e.key === '4') cambiarMetodoPago('tarjeta');
-            if (e.key === 'Enter') {
-                const active = document.activeElement;
-                if (active && active.tagName === 'BUTTON') {
-                    active.click();
+
+            const active = document.activeElement;
+            const esInputActivo = active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName);
+
+            // Si está enfocado en efectivo-recibido y presiona Enter -> cobrar
+            if (active && active.id === 'efectivo-recibido' && e.key === 'Enter') {
+                e.preventDefault();
+                cobrarPedido();
+                return;
+            }
+
+            // Si está enfocado en otro input, permitir escritura normal
+            if (esInputActivo) {
+                if (e.key === 'Enter' && active.tagName === 'INPUT' && active.type !== 'submit') {
+                    if (active.id === 'monto-efectivo' || active.id === 'monto-nequi' || active.id === 'monto-daviplata' || active.id === 'monto-tarjeta') {
+                        // modal pago dividido
+                    }
                 }
+                return;
+            }
+
+            // Atajos cuando no hay input de texto enfocado
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                cambiarPestañaAnterior();
+                return;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                cambiarPestañaSiguiente();
+                return;
+            }
+
+            // Teclado numérico / Numpad directo al input activo (efectivo recibido o similar)
+            if (/^[0-9]$/.test(e.key) || e.code.startsWith('Numpad')) {
+                const digito = e.key;
+                if (/^[0-9]$/.test(digito)) {
+                    e.preventDefault();
+                    teclearNumero(digito);
+                    return;
+                }
+            }
+
+            if (e.key === 'Backspace') {
+                e.preventDefault();
+                borrarUltimoDigito();
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                cobrarPedido();
+                return;
             }
         });
 
