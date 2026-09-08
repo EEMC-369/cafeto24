@@ -2,8 +2,15 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cafeto24 - Panel de Control</title>
+    <meta name="theme-color" content="#92400e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cafeto24">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/x-icon" href="/static/icono.ico">
+    <link rel="apple-touch-icon" href="/static/icono.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -686,30 +693,97 @@
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Icono de la Categoría (Opcional)</label>
                         <select name="icono_categoria" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-1 focus:ring-slate-500">
                             <option value="">-- Automático (Basado en nombre) --</option>
-                            <option value="☕">☕ Café / Tinto (Marrón/Rojo)</option>
-                            <option value="🥤">🥤 Gaseosas / Sodas (Azul)</option>
-                            <option value="🥛">🥛 Lácteos / Yogur / Avena (Blanco)</option>
-                            <option value="🍹">🍹 Jugos / Bebidas Tropicales (Naranja)</option>
-                            <option value="🧉">🧉 Aromaticas / Mates / Té Verde (Verde)</option>
-                            <option value="💧">💧 Agua / Hielo (Celeste)</option>
-                            <option value="🧋">🧋 Té de Burbujas / Bebidas Dulces (Marrón claro)</option>
-                            <option value="🍺">🍺 Cervezas / Licores (Amarillo)</option>
-                            <option value="🍷">🍷 Vinos (Rojo oscuro)</option>
-                            <option value="🍔">🍔 Comida / Hamburguesa / Arepa</option>
-                            <option value="🥐">🥐 Panadería / Croissant</option>
-                            <option value="🍩">🍩 Donas / Ponqués</option>
-                            <option value="🍕">🍕 Pizza / Comidas Rápidas</option>
-                            <option value="🍿">🍿 Paquetes / Snacks</option>
-                            <option value="🍫">🍫 Chocolates / Dulces</option>
-                            <option value="🍪">🍪 Galletas</option>
-                            <option value="🍰">🍰 Postres / Tortas</option>
-                            <option value="🍨">🍨 Helados / Postres Fríos</option>
-                            <option value="⚡">⚡ Energizantes</option>
-                            <option value="🚬">🚬 Cigarrillos / Tabaco</option>
-                            <option value="💊">💊 Medicamentos / Droguería</option>
-                            <option value="🧻">🧻 Aseo / Higiene</option>
-                            <option value="🚗">🚗 Parqueadero / Vehículos</option>
-                            <option value="🍎">🍎 Frutas / Verduras</option>
+                            <optgroup label="☕ Bebidas Calientes e Infusiones">
+                                <option value="☕">☕ Café / Espresso / Capuchino</option>
+                                <option value="🍵">🍵 Té Verde / Aromáticas / Infusiones</option>
+                                <option value="🥛">🥛 Lácteos / Leche / Avena</option>
+                                <option value="🧉">🧉 Mate / Té de Hierbas</option>
+                                <option value="🍶">🍶 Bebidas Calientes Especiales</option>
+                            </optgroup>
+                            <optgroup label="🥤 Bebidas Frías, Jugos y Refrescos">
+                                <option value="🥤">🥤 Gaseosas / Sodas / Refrescos</option>
+                                <option value="🍹">🍹 Jugos Naturales / Tropicales</option>
+                                <option value="🧃">🧃 Jugos en Caja / Néctar</option>
+                                <option value="🧋">🧋 Bubble Tea / Té de Perlas / Malteadas</option>
+                                <option value="🍊">🍊 Limonadas / Cítricos / Naranjadas</option>
+                                <option value="💧">💧 Agua Mineral / Hielo</option>
+                                <option value="⚡">⚡ Energizantes (Monster / Red Bull)</option>
+                            </optgroup>
+                            <optgroup label="🍺 Cervezas, Licores y Coctelería">
+                                <option value="🍺">🍺 Cervezas (Club / Poker / Corona)</option>
+                                <option value="🍷">🍷 Vinos y Copas</option>
+                                <option value="🍸">🍸 Cócteles y Tragos Preparados</option>
+                                <option value="🥃">🥃 Whisky / Ron / Aguardiente</option>
+                                <option value="🍾">🍾 Champaña / Botellas</option>
+                                <option value="🥂">🥂 Licores Especiales / Brindis</option>
+                            </optgroup>
+                            <optgroup label="🍔 Comidas Rápidas y Platos Fuertes">
+                                <option value="🍔">🍔 Hamburguesas / Sandwiches Especiales</option>
+                                <option value="🍕">🍕 Pizza / Porciones</option>
+                                <option value="🌭">🌭 Perros Calientes</option>
+                                <option value="🥪">🥪 Sandwiches / Tostadas</option>
+                                <option value="🌮">🌮 Tacos / Comida Mexicana</option>
+                                <option value="🌯">🌯 Burritos / Wraps</option>
+                                <option value="🥙">🥙 Arepas Rellenas / Pita</option>
+                                <option value="🍟">🍟 Papas Fritas / Acompañamientos</option>
+                                <option value="🍳">🍳 Desayunos / Huevos</option>
+                                <option value="🥞">🥞 Pancakes / Waffles</option>
+                                <option value="🥩">🥩 Carnes / Asados</option>
+                                <option value="🍗">🍗 Pollo Frito / Broaster</option>
+                                <option value="🍖">🍖 Costillas / Carnes</option>
+                                <option value="🥓">🥓 Tocineta / Embutidos</option>
+                                <option value="🍝">🍝 Pastas / Espaguetis</option>
+                                <option value="🍜">🍜 Sopas / Caldos / Ramen</option>
+                                <option value="🍲">🍲 Cazuelas / Guisados</option>
+                                <option value="🍛">🍛 Arroz / Platos Mixtos</option>
+                                <option value="🍱">🍱 Combos / Bandejas / Almuerzos</option>
+                                <option value="🥟">🥟 Empanadas / Pasteles</option>
+                                <option value="🍣">🍣 Sushi / Especialidades Orientales</option>
+                                <option value="🥗">🥗 Ensaladas / Opciones Saludables</option>
+                            </optgroup>
+                            <optgroup label="🥐 Panadería y Repostería">
+                                <option value="🥐">🥐 Croissants / Hojaldres</option>
+                                <option value="🥖">🥖 Pan Francés / Baguettes</option>
+                                <option value="🍞">🍞 Panadería / Pan Tajado</option>
+                                <option value="🥯">🥯 Bagels / Rosquillas</option>
+                                <option value="🥨">🥨 Pretzels</option>
+                                <option value="🧀">🧀 Quesos / Tablas</option>
+                                <option value="🍩">🍩 Donas / Berlinas</option>
+                                <option value="🍰">🍰 Tortas / Porciones de Pastel</option>
+                                <option value="🧁">🧁 Cupcakes / Muffins</option>
+                                <option value="🥧">🥧 Pays / Tartas</option>
+                                <option value="🍪">🍪 Galletas Artesanales</option>
+                            </optgroup>
+                            <optgroup label="🍫 Dulces, Postres y Helados">
+                                <option value="🍫">🍫 Chocolatinas / Chocolates</option>
+                                <option value="🍿">🍿 Crispetas / Papitas / Paquetes</option>
+                                <option value="🍨">🍨 Helados / Copas</option>
+                                <option value="🍦">🍦 Conos de Helado / Gelato</option>
+                                <option value="🍧">🍧 Raspados / Cholados / Granizados</option>
+                                <option value="🍮">🍮 Flanes / Postres Caseros</option>
+                                <option value="🍬">🍬 Dulces / Gomitas / Caramelos</option>
+                                <option value="🍭">🍭 Bombones / Paletas</option>
+                                <option value="🍯">🍯 Miel / Syrups</option>
+                                <option value="🥜">🥜 Maní / Frutos Secos</option>
+                            </optgroup>
+                            <optgroup label="🍎 Frutas y Saludables">
+                                <option value="🍎">🍎 Manzanas / Frutas</option>
+                                <option value="🍌">🍌 Bananos / Plátanos</option>
+                                <option value="🍉">🍉 Sandía / Melón</option>
+                                <option value="🍓">🍓 Fresas / Frutos Rojos</option>
+                                <option value="🍇">🍇 Uvas</option>
+                                <option value="🍍">🍍 Piña</option>
+                                <option value="🥑">🥑 Aguacate</option>
+                                <option value="🥥">🥥 Coco</option>
+                            </optgroup>
+                            <optgroup label="🏷️ Varios, Droguería y Servicios">
+                                <option value="🚬">🚬 Cigarrillos / Tabaco</option>
+                                <option value="💊">💊 Medicamentos / Droguería</option>
+                                <option value="🧻">🧻 Aseo / Servilletas / Higiene</option>
+                                <option value="🚗">🚗 Parqueadero / Transporte</option>
+                                <option value="🏷️">🏷️ Promociones / Combos</option>
+                                <option value="✨">✨ Especiales de la Casa</option>
+                            </optgroup>
                         </select>
                     </div>
                     <button type="submit" class="interactive-element w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2.5 rounded-xl text-sm transition shadow-md shadow-amber-600/10">
@@ -729,7 +803,7 @@
                         <select name="unidad_medida" class="p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none">
                             <option value="g">Gramos (g)</option>
                             <option value="ml">Mililitros (ml)</option>
-                            <option value="ud">Unidades (ud)</option>
+                            <option value="und">Unidades (und)</option>
                         </select>
                     </div>
                     <button type="submit" class="interactive-element w-full bg-slate-700 hover:bg-slate-800 text-white font-extrabold py-2.5 rounded-xl text-sm shadow-sm transition">
@@ -1018,30 +1092,97 @@
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Icono de la Categoría</label>
                     <select id="select-edit-cat-icono" name="icono_categoria" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-1 focus:ring-slate-500">
                         <option value="">-- Automático (Basado en nombre) --</option>
-                        <option value="☕">☕ Café / Tinto (Marrón/Rojo)</option>
-                        <option value="🥤">🥤 Gaseosas / Sodas (Azul)</option>
-                        <option value="🥛">🥛 Lácteos / Yogur / Avena (Blanco)</option>
-                        <option value="🍹">🍹 Jugos / Bebidas Tropicales (Naranja)</option>
-                        <option value="🧉">🧉 Aromaticas / Mates / Té Verde (Verde)</option>
-                        <option value="💧">💧 Agua / Hielo (Celeste)</option>
-                        <option value="🧋">🧋 Té de Burbujas / Bebidas Dulces (Marrón claro)</option>
-                        <option value="🍺">🍺 Cervezas / Licores (Amarillo)</option>
-                        <option value="🍷">🍷 Vinos (Rojo oscuro)</option>
-                        <option value="🍔">🍔 Comida / Hamburguesa / Arepa</option>
-                        <option value="🥐">🥐 Panadería / Croissant</option>
-                        <option value="🍩">🍩 Donas / Ponqués</option>
-                        <option value="🍕">🍕 Pizza / Comidas Rápidas</option>
-                        <option value="🍿">🍿 Paquetes / Snacks</option>
-                        <option value="🍫">🍫 Chocolates / Dulces</option>
-                        <option value="🍪">🍪 Galletas</option>
-                        <option value="🍰">🍰 Postres / Tortas</option>
-                        <option value="🍨">🍨 Helados / Postres Fríos</option>
-                        <option value="⚡">⚡ Energizantes</option>
-                        <option value="🚬">🚬 Cigarrillos / Tabaco</option>
-                        <option value="💊">💊 Medicamentos / Droguería</option>
-                        <option value="🧻">🧻 Aseo / Higiene</option>
-                        <option value="🚗">🚗 Parqueadero / Vehículos</option>
-                        <option value="🍎">🍎 Frutas / Verduras</option>
+                        <optgroup label="☕ Bebidas Calientes e Infusiones">
+                            <option value="☕">☕ Café / Espresso / Capuchino</option>
+                            <option value="🍵">🍵 Té Verde / Aromáticas / Infusiones</option>
+                            <option value="🥛">🥛 Lácteos / Leche / Avena</option>
+                            <option value="🧉">🧉 Mate / Té de Hierbas</option>
+                            <option value="🍶">🍶 Bebidas Calientes Especiales</option>
+                        </optgroup>
+                        <optgroup label="🥤 Bebidas Frías, Jugos y Refrescos">
+                            <option value="🥤">🥤 Gaseosas / Sodas / Refrescos</option>
+                            <option value="🍹">🍹 Jugos Naturales / Tropicales</option>
+                            <option value="🧃">🧃 Jugos en Caja / Néctar</option>
+                            <option value="🧋">🧋 Bubble Tea / Té de Perlas / Malteadas</option>
+                            <option value="🍊">🍊 Limonadas / Cítricos / Naranjadas</option>
+                            <option value="💧">💧 Agua Mineral / Hielo</option>
+                            <option value="⚡">⚡ Energizantes (Monster / Red Bull)</option>
+                        </optgroup>
+                        <optgroup label="🍺 Cervezas, Licores y Coctelería">
+                            <option value="🍺">🍺 Cervezas (Club / Poker / Corona)</option>
+                            <option value="🍷">🍷 Vinos y Copas</option>
+                            <option value="🍸">🍸 Cócteles y Tragos Preparados</option>
+                            <option value="🥃">🥃 Whisky / Ron / Aguardiente</option>
+                            <option value="🍾">🍾 Champaña / Botellas</option>
+                            <option value="🥂">🥂 Licores Especiales / Brindis</option>
+                        </optgroup>
+                        <optgroup label="🍔 Comidas Rápidas y Platos Fuertes">
+                            <option value="🍔">🍔 Hamburguesas / Sandwiches Especiales</option>
+                            <option value="🍕">🍕 Pizza / Porciones</option>
+                            <option value="🌭">🌭 Perros Calientes</option>
+                            <option value="🥪">🥪 Sandwiches / Tostadas</option>
+                            <option value="🌮">🌮 Tacos / Comida Mexicana</option>
+                            <option value="🌯">🌯 Burritos / Wraps</option>
+                            <option value="🥙">🥙 Arepas Rellenas / Pita</option>
+                            <option value="🍟">🍟 Papas Fritas / Acompañamientos</option>
+                            <option value="🍳">🍳 Desayunos / Huevos</option>
+                            <option value="🥞">🥞 Pancakes / Waffles</option>
+                            <option value="🥩">🥩 Carnes / Asados</option>
+                            <option value="🍗">🍗 Pollo Frito / Broaster</option>
+                            <option value="🍖">🍖 Costillas / Carnes</option>
+                            <option value="🥓">🥓 Tocineta / Embutidos</option>
+                            <option value="🍝">🍝 Pastas / Espaguetis</option>
+                            <option value="🍜">🍜 Sopas / Caldos / Ramen</option>
+                            <option value="🍲">🍲 Cazuelas / Guisados</option>
+                            <option value="🍛">🍛 Arroz / Platos Mixtos</option>
+                            <option value="🍱">🍱 Combos / Bandejas / Almuerzos</option>
+                            <option value="🥟">🥟 Empanadas / Pasteles</option>
+                            <option value="🍣">🍣 Sushi / Especialidades Orientales</option>
+                            <option value="🥗">🥗 Ensaladas / Opciones Saludables</option>
+                        </optgroup>
+                        <optgroup label="🥐 Panadería y Repostería">
+                            <option value="🥐">🥐 Croissants / Hojaldres</option>
+                            <option value="🥖">🥖 Pan Francés / Baguettes</option>
+                            <option value="🍞">🍞 Panadería / Pan Tajado</option>
+                            <option value="🥯">🥯 Bagels / Rosquillas</option>
+                            <option value="🥨">🥨 Pretzels</option>
+                            <option value="🧀">🧀 Quesos / Tablas</option>
+                            <option value="🍩">🍩 Donas / Berlinas</option>
+                            <option value="🍰">🍰 Tortas / Porciones de Pastel</option>
+                            <option value="🧁">🧁 Cupcakes / Muffins</option>
+                            <option value="🥧">🥧 Pays / Tartas</option>
+                            <option value="🍪">🍪 Galletas Artesanales</option>
+                        </optgroup>
+                        <optgroup label="🍫 Dulces, Postres y Helados">
+                            <option value="🍫">🍫 Chocolatinas / Chocolates</option>
+                            <option value="🍿">🍿 Crispetas / Papitas / Paquetes</option>
+                            <option value="🍨">🍨 Helados / Copas</option>
+                            <option value="🍦">🍦 Conos de Helado / Gelato</option>
+                            <option value="🍧">🍧 Raspados / Cholados / Granizados</option>
+                            <option value="🍮">🍮 Flanes / Postres Caseros</option>
+                            <option value="🍬">🍬 Dulces / Gomitas / Caramelos</option>
+                            <option value="🍭">🍭 Bombones / Paletas</option>
+                            <option value="🍯">🍯 Miel / Syrups</option>
+                            <option value="🥜">🥜 Maní / Frutos Secos</option>
+                        </optgroup>
+                        <optgroup label="🍎 Frutas y Saludables">
+                            <option value="🍎">🍎 Manzanas / Frutas</option>
+                            <option value="🍌">🍌 Bananos / Plátanos</option>
+                            <option value="🍉">🍉 Sandía / Melón</option>
+                            <option value="🍓">🍓 Fresas / Frutos Rojos</option>
+                            <option value="🍇">🍇 Uvas</option>
+                            <option value="🍍">🍍 Piña</option>
+                            <option value="🥑">🥑 Aguacate</option>
+                            <option value="🥥">🥥 Coco</option>
+                        </optgroup>
+                        <optgroup label="🏷️ Varios, Droguería y Servicios">
+                            <option value="🚬">🚬 Cigarrillos / Tabaco</option>
+                            <option value="💊">💊 Medicamentos / Droguería</option>
+                            <option value="🧻">🧻 Aseo / Servilletas / Higiene</option>
+                            <option value="🚗">🚗 Parqueadero / Transporte</option>
+                            <option value="🏷️">🏷️ Promociones / Combos</option>
+                            <option value="✨">✨ Especiales de la Casa</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="flex gap-2">

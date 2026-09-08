@@ -55,14 +55,33 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.20.0"
+VERSION = "3.21.0"
+
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(
     __name__,
     template_folder=os.path.join(RESOURCE_DIR, 'templates'),
     static_folder=os.path.join(RESOURCE_DIR, 'static')
 )
-app.secret_key = 'clave_secreta_para_sesiones_cafeto'
+
+def _obtener_o_generar_secret_key():
+    secret_path = os.path.join(USER_DATA_DIR, '.session_secret')
+    try:
+        if os.path.exists(secret_path):
+            with open(secret_path, 'r', encoding='utf-8') as f:
+                key = f.read().strip()
+                if len(key) >= 32:
+                    return key
+        import secrets
+        new_key = secrets.token_hex(32)
+        with open(secret_path, 'w', encoding='utf-8') as f:
+            f.write(new_key)
+        return new_key
+    except Exception:
+        return 'clave_secreta_para_sesiones_cafeto_fallback_2026'
+
+app.secret_key = _obtener_o_generar_secret_key()
 
 puerto = 8080
 host = "0.0.0.0"
@@ -99,10 +118,14 @@ import licencia_utils
 
 # Cache en memoria para evitar accesos repetitivos a disco y PowerShell en cada petición
 _licencia_valida_cache = None
+_licencia_cache_timestamp = 0
 
 def verificar_licencia_cache():
-    global _licencia_valida_cache
-    if _licencia_valida_cache is True:
+    global _licencia_valida_cache, _licencia_cache_timestamp
+    import time
+    ahora = time.time()
+    # Revalidar cada 1 hora para evitar que licencias con fecha límite sigan activas tras expirar
+    if _licencia_valida_cache is True and (ahora - _licencia_cache_timestamp < 3600):
         return True
         
     lic_path = os.path.join(USER_DATA_DIR, "licencia.key")
@@ -116,6 +139,7 @@ def verificar_licencia_cache():
         machine_id = licencia_utils.obtener_machine_id()
         es_valido, msg = licencia_utils.validar_licencia(lic_hex, machine_id)
         _licencia_valida_cache = es_valido
+        _licencia_cache_timestamp = ahora
         return es_valido
     except Exception:
         _licencia_valida_cache = False
@@ -162,11 +186,17 @@ def pantalla_licencia():
     return render_template('licencia.html', machine_id=machine_id)
 
 def conectar_db():
-    # timeout=10 evita errores de bloqueo si el administrador consulta datos
-    # mientras el cajero procesa una venta concurrentemente.
+    # timeout=15 y WAL evitan bloqueos concurrentes en Waitress multi-hilo
     db_path = os.path.join(USER_DATA_DIR, "cafeteria.db")
-    conexion = sqlite3.connect(db_path, timeout=10)
+    conexion = sqlite3.connect(db_path, timeout=15)
     conexion.row_factory = sqlite3.Row
+    try:
+        conexion.execute("PRAGMA journal_mode = WAL;")
+        conexion.execute("PRAGMA synchronous = NORMAL;")
+        conexion.execute("PRAGMA busy_timeout = 5000;")
+        conexion.execute("PRAGMA foreign_keys = ON;")
+    except Exception:
+        pass
     return conexion
 
 
@@ -363,7 +393,7 @@ def generar_archivos_cierre_turno(turno_id):
             FROM caja_movimientos
             WHERE turno_id = ?
               AND tipo_movimiento = 'entrada'
-              AND origen = 'venta'
+              AND origen IN ('venta', 'ingreso_intangible')
               AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
             GROUP BY COALESCE(metodo_pago, 'efectivo')
         """, (turno_id,)).fetchall()
@@ -970,8 +1000,8 @@ def generar_pdf_reporte_seccion_z(titulo_reporte, subtexto_id, fecha_inicio, fec
 
 @app.route('/api/informes/pdf/<seccion>')
 def api_descargar_pdf_informe_seccion(seccion):
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
+    if 'usuario' not in session or session.get('rol') != 'administrador':
+        return redirect(url_for('login', error="Acceso denegado. Solo administradores."))
 
     fecha_inicio = request.args.get('fecha_inicio', '')
     fecha_fin = request.args.get('fecha_fin', '')
@@ -1305,17 +1335,35 @@ def logout():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        usuario_ingresado = request.form['username']
-        password_ingresada = request.form['password']
+        usuario_ingresado = (request.form.get('username') or '').strip()
+        password_ingresada = request.form.get('password') or ''
         
         db = conectar_db()
         usuario = db.execute(
-            "SELECT * FROM usuarios WHERE usuario = ? AND contrasena = ?", 
-            (usuario_ingresado, password_ingresada)
+            "SELECT * FROM usuarios WHERE LOWER(usuario) = LOWER(?)", 
+            (usuario_ingresado,)
         ).fetchone()
+        
+        login_valido = False
+        if usuario:
+            hash_o_clave = usuario['contrasena'] or ''
+            # Verificar si es hash seguro de werkzeug (pbkdf2, scrypt, etc.)
+            if hash_o_clave.startswith(('pbkdf2:', 'scrypt:', 'argon2:')):
+                if check_password_hash(hash_o_clave, password_ingresada):
+                    login_valido = True
+            elif hash_o_clave == password_ingresada:
+                login_valido = True
+                # Migración transparente: actualizar inmediatamente texto plano a hash seguro
+                try:
+                    nuevo_hash = generate_password_hash(password_ingresada)
+                    db.execute("UPDATE usuarios SET contrasena = ? WHERE id = ?", (nuevo_hash, usuario['id']))
+                    db.commit()
+                except Exception:
+                    pass
+
         db.close()
         
-        if usuario:
+        if login_valido and usuario:
             session['id'] = usuario['id']
             session['usuario'] = usuario['usuario']
             session['nombre'] = usuario['nombre']
@@ -1385,29 +1433,13 @@ def api_turno_preliminar():
 
         # Saldos acumulados históricos (de toda la base de datos, fuera del turno)
         saldos_acumulados_db = db.execute("""
-            WITH movimientos AS (
-                -- Ventas normales (sin dividido) desde caja_movimientos
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago,
-                       SUM(monto) as entradas, 0 as salidas
-                FROM caja_movimientos
-                WHERE tipo_movimiento = 'entrada'
-                  AND origen = 'venta'
-                  AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
-                GROUP BY COALESCE(metodo_pago, 'efectivo')
-                UNION ALL
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(monto) as entradas, 0 as salidas
-                FROM abonos_deuda
-                GROUP BY COALESCE(metodo_pago, 'efectivo')
-                UNION ALL
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, 0 as entradas, SUM(monto) as salidas
-                FROM gastos
-                GROUP BY COALESCE(metodo_pago, 'efectivo')
-            )
-            SELECT
-                metodo_pago,
-                (SUM(entradas) - SUM(salidas)) as saldo
-            FROM movimientos
-            GROUP BY metodo_pago
+            SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago,
+                   SUM(CASE WHEN tipo_movimiento = 'entrada' THEN monto 
+                            WHEN tipo_movimiento = 'salida' THEN -monto 
+                            ELSE 0 END) as saldo
+            FROM caja_movimientos
+            WHERE COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
+            GROUP BY COALESCE(metodo_pago, 'efectivo')
         """).fetchall()
 
         metodos = ['efectivo', 'nequi', 'daviplata', 'tarjeta']
@@ -1597,6 +1629,15 @@ def api_guardar_orden_abierta():
 
     if not mesa_cliente:
         return jsonify({'success': False, 'error': 'Debes especificar el nombre de la mesa o cliente.'}), 400
+
+    for item in items:
+        try:
+            cant = int(item.get('cantidad', 1))
+            prec = float(item.get('precio', 0))
+            if cant <= 0 or prec < 0:
+                return jsonify({'success': False, 'error': f"Cantidad o precio inválido para {item.get('nombre', 'ítem')}"}), 400
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Valores numéricos inválidos en los ítems de la orden'}), 400
 
     usuario_id = session.get('id')
     turno_id = session.get('turno_id') or obtener_turno_activo(usuario_id)
@@ -1790,25 +1831,13 @@ def finalizar_turno():
         db = conectar_db()
         try:
             saldos_db = db.execute("""
-                WITH movimientos AS (
-                    SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(total) as entradas, 0 as salidas
-                    FROM ventas
-                    WHERE COALESCE(metodo_pago, 'efectivo') != 'fiado'
-                    GROUP BY COALESCE(metodo_pago, 'efectivo')
-                    UNION ALL
-                    SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(monto) as entradas, 0 as salidas
-                    FROM abonos_deuda
-                    GROUP BY COALESCE(metodo_pago, 'efectivo')
-                    UNION ALL
-                    SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, 0 as entradas, SUM(monto) as salidas
-                    FROM gastos
-                    GROUP BY COALESCE(metodo_pago, 'efectivo')
-                )
-                SELECT
-                    metodo_pago,
-                    (SUM(entradas) - SUM(salidas)) as saldo
-                FROM movimientos
-                GROUP BY metodo_pago
+                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago,
+                       SUM(CASE WHEN tipo_movimiento = 'entrada' THEN monto 
+                                WHEN tipo_movimiento = 'salida' THEN -monto 
+                                ELSE 0 END) as saldo
+                FROM caja_movimientos
+                WHERE COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
+                GROUP BY COALESCE(metodo_pago, 'efectivo')
             """).fetchall()
         finally:
             db.close()
@@ -1924,7 +1953,8 @@ def pantalla_ventas():
                            insumos_disponibles=insumos,
                            productos_disponibles=productos,
                            productos_compra_json=productos_compra_json,
-                           clientes_exclusivos_json=clientes_exclusivos_json)
+                           clientes_exclusivos_json=clientes_exclusivos_json,
+                           version_actual=VERSION)
 
 # ==========================================
 # 4. PANEL DE ADMINISTRADOR GENERAL
@@ -2040,12 +2070,12 @@ def reset_all_data():
     db = conectar_db()
     try:
         db.execute("BEGIN TRANSACTION;")
-        tablas = ['detalle_ventas', 'abonos_deuda', 'deudas_clientes', 'ventas', 'gastos', 'caja_movimientos', 'turnos']
+        tablas = ['ordenes_abiertas_items', 'ordenes_abiertas', 'detalle_ventas', 'abonos_deuda', 'deudas_clientes', 'ventas', 'gastos', 'caja_movimientos', 'turnos', 'novedades']
         for tabla in tablas:
             db.execute(f"DELETE FROM {tabla};")
 
         try:
-            db.execute("DELETE FROM sqlite_sequence WHERE name IN ('detalle_ventas', 'abonos_deuda', 'deudas_clientes', 'ventas', 'gastos', 'caja_movimientos', 'turnos');")
+            db.execute("DELETE FROM sqlite_sequence WHERE name IN ('ordenes_abiertas_items', 'ordenes_abiertas', 'detalle_ventas', 'abonos_deuda', 'deudas_clientes', 'ventas', 'gastos', 'caja_movimientos', 'turnos', 'novedades');")
         except Exception:
             pass
 
@@ -2119,14 +2149,22 @@ def editar_usuario(id):
     nombre = request.form.get('nombre')
     user = request.form.get('usuario')
     rol = request.form.get('rol')
+    nueva_clave = request.form.get('contrasena') or request.form.get('password')
     
     db = conectar_db()
-    # Ajusta los nombres de las columnas (ej: 'nombre', 'usuario', 'rol') según tu DB
-    db.execute("""
-        UPDATE usuarios 
-        SET nombre = ?, usuario = ?, rol = ? 
-        WHERE id = ?
-    """, (nombre, user, rol, id))
+    if nueva_clave and nueva_clave.strip():
+        clave_hash = generate_password_hash(nueva_clave.strip())
+        db.execute("""
+            UPDATE usuarios 
+            SET nombre = ?, usuario = ?, rol = ?, contrasena = ?
+            WHERE id = ?
+        """, (nombre, user, rol, clave_hash, id))
+    else:
+        db.execute("""
+            UPDATE usuarios 
+            SET nombre = ?, usuario = ?, rol = ? 
+            WHERE id = ?
+        """, (nombre, user, rol, id))
     
     db.commit()
     db.close()
@@ -2464,7 +2502,8 @@ def editar_perfil():
     
     db = conectar_db()
     if nueva_clave.strip():
-        db.execute("UPDATE usuarios SET nombre = ?, contrasena = ? WHERE usuario = ?", (nuevo_nombre, nueva_clave, usuario_actual))
+        db.execute("UPDATE usuarios SET nombre = ?, contrasena = ? WHERE usuario = ?", 
+                   (nuevo_nombre, generate_password_hash(nueva_clave.strip()), usuario_actual))
     else:
         db.execute("UPDATE usuarios SET nombre = ? WHERE usuario = ?", (nuevo_nombre, usuario_actual))
     db.commit()
@@ -2485,8 +2524,9 @@ def add_usuario():
     
     db = conectar_db()
     try:
+        contrasena_hash = generate_password_hash(contrasena)
         db.execute("INSERT INTO usuarios (nombre, usuario, contrasena, rol) VALUES (?, ?, ?, ?)", 
-                   (nombre, usuario, contrasena, rol))
+                   (nombre, usuario, contrasena_hash, rol))
         db.commit()
         flash("Usuario agregado correctamente", "success")
     except sqlite3.IntegrityError:
@@ -2619,9 +2659,12 @@ def actualizar_software():
     if 'usuario' not in session or session['rol'] != 'administrador':
         return redirect(url_for('login'))
         
-    url_descarga = request.form.get('url_descarga')
-    if not url_descarga:
-        flash("URL de descarga no válida.", "error")
+    url_descarga = (request.form.get('url_descarga') or '').strip()
+    if not url_descarga or not (
+        url_descarga.startswith("https://github.com/EEMC-369/cafeto24/releases/") or 
+        url_descarga.startswith("https://raw.githubusercontent.com/EEMC-369/cafeto24/")
+    ):
+        flash("URL de descarga no autorizada o no válida por seguridad.", "error")
         return redirect(url_for('panel_administrador'))
         
     import urllib.request
@@ -3224,6 +3267,8 @@ def api_receta_producto(producto_id):
 # ==========================================
 @app.route('/api/productos')
 def api_productos():
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado', 'success': False}), 401
     db = conectar_db()
     # La consulta SQL es correcta, solo aseguramos que el alias sea 'categoria_nombre'
     query = """
@@ -3654,20 +3699,41 @@ def api_corregir_metodo_pago():
                 return jsonify({'error': 'No se puede corregir por aquí una venta fiada', 'success': False}), 400
 
             db.execute("UPDATE ventas SET metodo_pago = ? WHERE id = ?", (nuevo_metodo, registro_id))
+            # Sincronizar movimiento de caja correspondiente a esta venta
+            db.execute("""
+                UPDATE caja_movimientos 
+                SET metodo_pago = ? 
+                WHERE origen = 'venta' 
+                  AND (descripcion = ? OR descripcion LIKE ?)
+            """, (nuevo_metodo, f"Venta #{registro_id}", f"Venta #{registro_id} %"))
 
         elif tipo == 'gasto':
-            registro = db.execute("SELECT id FROM gastos WHERE id = ?", (registro_id,)).fetchone()
+            registro = db.execute("SELECT id, descripcion, monto FROM gastos WHERE id = ?", (registro_id,)).fetchone()
             if not registro:
                 return jsonify({'error': 'Gasto no encontrado', 'success': False}), 404
 
             db.execute("UPDATE gastos SET metodo_pago = ? WHERE id = ?", (nuevo_metodo, registro_id))
+            # Sincronizar movimiento de caja correspondiente al gasto
+            db.execute("""
+                UPDATE caja_movimientos 
+                SET metodo_pago = ? 
+                WHERE origen = 'gasto' AND tipo_movimiento = 'salida' 
+                  AND descripcion = ? AND monto = ?
+            """, (nuevo_metodo, registro['descripcion'], registro['monto']))
 
         elif tipo == 'abono':
-            registro = db.execute("SELECT id FROM abonos_deuda WHERE id = ?", (registro_id,)).fetchone()
+            registro = db.execute("SELECT id, cliente_nombre, monto FROM abonos_deuda WHERE id = ?", (registro_id,)).fetchone()
             if not registro:
                 return jsonify({'error': 'Abono no encontrado', 'success': False}), 404
 
             db.execute("UPDATE abonos_deuda SET metodo_pago = ? WHERE id = ?", (nuevo_metodo, registro_id))
+            # Sincronizar movimiento de caja correspondiente al abono
+            db.execute("""
+                UPDATE caja_movimientos 
+                SET metodo_pago = ? 
+                WHERE origen = 'abono_fiado' AND tipo_movimiento = 'entrada' 
+                  AND descripcion LIKE ? AND monto = ?
+            """, (nuevo_metodo, f"%{registro['cliente_nombre']}%", registro['monto']))
 
         else:
             return jsonify({'error': 'Tipo de registro inválido', 'success': False}), 400
@@ -3812,17 +3878,23 @@ def add_gasto():
 
 @app.route('/admin/registrar_compra', methods=['POST'])
 def registrar_compra():
-    if 'usuario' not in session: 
-        return redirect(url_for('login'))
+    if 'usuario' not in session or session.get('rol') != 'administrador': 
+        return redirect(url_for('login', error="Acceso denegado. Solo administradores."))
     
     # Obtenemos datos del formulario
     tipo = request.form.get('tipo_gasto') # Valores: 'gasto_fijo', 'insumo' o 'producto'
-    monto = float(request.form.get('monto', 0))
+    try:
+        monto = float(request.form.get('monto', 0) or 0)
+    except (ValueError, TypeError):
+        monto = 0.0
     descripcion = request.form.get('descripcion', 'Sin descripción')
     
     # Datos para el inventario
     prod_id = request.form.get('producto_id')
-    cantidad = float(request.form.get('cantidad', 0))
+    try:
+        cantidad = float(request.form.get('cantidad', 0) or 0)
+    except (ValueError, TypeError):
+        cantidad = 0.0
     
     db = conectar_db()
     cursor = db.cursor()
@@ -3857,7 +3929,15 @@ def add_insumo():
         
     nombre = request.form.get('nombre_insumo', '').strip()
     cantidad = request.form.get('cantidad_actual', '')
-    unidad = request.form.get('unidad_medida', 'Unid')
+    unidad_raw = (request.form.get('unidad_medida') or 'und').strip().lower()
+    if unidad_raw in ['ud', 'unid', 'unidad', 'unidades', 'und']:
+        unidad = 'und'
+    elif unidad_raw in ['gr', 'gramo', 'gramos', 'g']:
+        unidad = 'g'
+    elif unidad_raw in ['mili', 'mililitro', 'mililitros', 'ml']:
+        unidad = 'ml'
+    else:
+        unidad = 'und'
     
     if nombre and cantidad:
         db = conectar_db()
@@ -3899,6 +3979,15 @@ def api_cobrar():
     
     if not carrito:
         return jsonify({'error': 'Carrito vacío', 'success': False}), 400
+    
+    for item in carrito:
+        try:
+            cant = float(item.get('cantidad', 0))
+            prec = float(item.get('precio', 0))
+            if cant <= 0 or prec < 0:
+                return jsonify({'error': f"Cantidad o precio inválido para {item.get('nombre', 'producto')}", 'success': False}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Datos numéricos inválidos en el carrito', 'success': False}), 400
     
     db = conectar_db()
     try:
@@ -4217,13 +4306,33 @@ def imprimir_factura_directa(venta_id):
                 if metodo == 'efectivo':
                     raw_data.extend(abrir_cajon)
                 
-                # Encabezado (ASCII Coffee Cup Logo + Titulo)
-                raw_data.extend(centrado + normal_size + b"  (  )\n   ) (\n .---.\n |   |'-.\n |   |  |\n  \\___/'-'\n\n")
+                # Encabezado (Logo ASCII Taza Cafeto 24 + Titulo)
+                set_cp437 = ESC + b"t\x00"
+                logo_ascii_pos = (
+                    "           █▌   ▐█   ██         \n"
+                    "          ███  ███▀  ██▀        \n"
+                    "          ▐██▄  ███▄ ▐██▄       \n"
+                    "           ████ ▀███▄ ▐██▌      \n"
+                    "              █▌    █▌ █▌       \n"
+                    "      ▄███████████████████▄     \n"
+                    "     ██████████████████████▄    \n"
+                    "     ███▀   ▄▄      ▄   ██████  \n"
+                    "     ███▌ ▐█▀▀██  ▄██   ▐██ ▀███\n"
+                    "     ███  ▐█▌ ██ ▄█ █   ██▌  ▐██\n"
+                    "     ███   ▄▄██  █████ ███   ▐██\n"
+                    "     ▐███ ▐█  ██▄   █  ███▄▄████\n"
+                    "   ▄▐█████▄         ▀▄████████▀▀\n"
+                    "  ██ ▀▐████████████████████     \n"
+                    "███     ███████████████▀▀▀████▄ \n"
+                    "███      █████████████▀   ▀█████\n"
+                    "████▄          ▀▀▀ ▀▀      █████\n"
+                    "▀█████▄▄▄▄ ▄▄▄▄▄▄▄▄▄▄▄▄████████▀\n"
+                    "   ▀██████▐██████████████████▀  \n\n"
+                )
+                raw_data.extend(centrado + set_cp437 + normal_size + logo_ascii_pos.encode('cp437', errors='replace'))
                 raw_data.extend(negrita_on + double_size + b"CAFETO 24\n" + normal_size + negrita_off)
                 raw_data.extend(b"NIT: 1013587664-8\n")
-                raw_data.extend(b"Diagonal 62 sur #22-04, Bogota\n")
-                raw_data.extend(b"Tel.: 3015020637\n")
-                raw_data.extend(b"alej_z@hotmail.com\n")
+                raw_data.extend(b"Diagonal 62 sur #22-04, Bogota D.C.\n")
                 raw_data.extend(b"--------------------------------\n") # 32 caracteres
                 
                 # Datos del ticket
@@ -4454,6 +4563,133 @@ def api_registrar_ingreso_intangible():
 
 
 # ==========================================
+# 9. API DE NOVEDADES EN VENTAS Y OPERACIÓN
+# ==========================================
+@app.route('/api/novedades', methods=['GET'])
+def api_listar_novedades():
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado', 'success': False}), 401
+
+    solo_turno = request.args.get('solo_turno', '1') == '1'
+    turno_id = session.get('turno_id') or obtener_turno_activo(session.get('id'))
+    
+    db = conectar_db()
+    try:
+        if solo_turno and turno_id:
+            rows = db.execute("""
+                SELECT id, turno_id, usuario_id, nombre_usuario, categoria, prioridad, titulo, descripcion, fecha
+                FROM novedades
+                WHERE turno_id = ?
+                ORDER BY id DESC
+            """, (turno_id,)).fetchall()
+        else:
+            rows = db.execute("""
+                SELECT id, turno_id, usuario_id, nombre_usuario, categoria, prioridad, titulo, descripcion, fecha
+                FROM novedades
+                ORDER BY id DESC
+                LIMIT 60
+            """).fetchall()
+
+        novedades = [dict(r) for r in rows]
+        return jsonify({
+            'success': True,
+            'novedades': novedades,
+            'turno_id': turno_id,
+            'total': len(novedades)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+    finally:
+        db.close()
+
+
+@app.route('/api/novedades', methods=['POST'])
+def api_crear_novedad():
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado', 'success': False}), 401
+
+    data = request.json or {}
+    titulo = (data.get('titulo') or '').strip()
+    descripcion = (data.get('descripcion') or '').strip()
+    categoria = (data.get('categoria') or 'operativa').strip().lower()
+    prioridad = (data.get('prioridad') or 'normal').strip().lower()
+
+    if not titulo:
+        return jsonify({'error': 'El título de la novedad es obligatorio', 'success': False}), 400
+    if not descripcion:
+        return jsonify({'error': 'La descripción de la novedad es obligatoria', 'success': False}), 400
+
+    categorias_validas = {'operativa', 'caja', 'insumos', 'cliente', 'incidencia'}
+    if categoria not in categorias_validas:
+        categoria = 'operativa'
+
+    prioridades_validas = {'baja', 'normal', 'alta', 'urgente'}
+    if prioridad not in prioridades_validas:
+        prioridad = 'normal'
+
+    usuario_id = session.get('id')
+    nombre_usuario = session.get('nombre') or session.get('usuario') or 'Usuario'
+    turno_id = session.get('turno_id') or obtener_turno_activo(usuario_id)
+    fecha_ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    db = conectar_db()
+    try:
+        cursor = db.execute("""
+            INSERT INTO novedades (turno_id, usuario_id, nombre_usuario, categoria, prioridad, titulo, descripcion, fecha)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (turno_id, usuario_id, nombre_usuario, categoria, prioridad, titulo, descripcion, fecha_ahora))
+        db.commit()
+        nuevo_id = cursor.lastrowid
+        return jsonify({
+            'success': True,
+            'novedad': {
+                'id': nuevo_id,
+                'turno_id': turno_id,
+                'usuario_id': usuario_id,
+                'nombre_usuario': nombre_usuario,
+                'categoria': categoria,
+                'prioridad': prioridad,
+                'titulo': titulo,
+                'descripcion': descripcion,
+                'fecha': fecha_ahora
+            }
+        })
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e), 'success': False}), 500
+    finally:
+        db.close()
+
+
+@app.route('/api/novedades/<int:id>', methods=['DELETE'])
+def api_eliminar_novedad(id):
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado', 'success': False}), 401
+
+    usuario_id = session.get('id')
+    rol = session.get('rol')
+
+    db = conectar_db()
+    try:
+        novedad = db.execute("SELECT * FROM novedades WHERE id = ?", (id,)).fetchone()
+        if not novedad:
+            return jsonify({'error': 'Novedad no encontrada', 'success': False}), 404
+
+        # Solo el autor o un administrador puede eliminarla
+        if rol != 'administrador' and novedad['usuario_id'] != usuario_id:
+            return jsonify({'error': 'No tienes permisos para eliminar esta novedad', 'success': False}), 403
+
+        db.execute("DELETE FROM novedades WHERE id = ?", (id,))
+        db.commit()
+        return jsonify({'success': True, 'mensaje': 'Novedad eliminada correctamente'})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e), 'success': False}), 500
+    finally:
+        db.close()
+
+
+# ==========================================
 # GESTOR DE MIGRACIONES Y CONTROL DE VERSIONES DE BASE DE DATOS
 # ==========================================
 def inicializar_y_migrar_db():
@@ -4532,7 +4768,7 @@ def inicializar_y_migrar_db():
     finally:
         conn.close()
         
-    VERSION_OBJETIVO = 5  # Versión actual de la base de datos del sistema
+    VERSION_OBJETIVO = 6  # Versión actual de la base de datos del sistema
     
     if version_actual >= VERSION_OBJETIVO:
         print(f"INFO: Base de datos en su versión más reciente (v{version_actual}).")
@@ -4596,7 +4832,7 @@ def inicializar_y_migrar_db():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     nombre_insumo TEXT NOT NULL,
                     cantidad_actual REAL DEFAULT 0,
-                    unidad_medida TEXT DEFAULT 'Unid'
+                    unidad_medida TEXT CHECK(unidad_medida IN ('g', 'ml', 'und')) DEFAULT 'und'
                 );
             """)
             cursor.execute("""
@@ -4852,13 +5088,37 @@ def inicializar_y_migrar_db():
             cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '5')")
             conn.commit()
 
+        # ==========================================
+        # MIGRACIÓN v6: Módulo de Novedades de Turno y Operación
+        # ==========================================
+        if version_actual < 6:
+            print("INFO: Aplicando migración v6 (Módulo de novedades de turno)...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS novedades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    turno_id INTEGER,
+                    usuario_id INTEGER NOT NULL,
+                    nombre_usuario TEXT NOT NULL,
+                    categoria TEXT NOT NULL,
+                    prioridad TEXT DEFAULT 'normal',
+                    titulo TEXT NOT NULL,
+                    descripcion TEXT NOT NULL,
+                    fecha TEXT NOT NULL,
+                    FOREIGN KEY(turno_id) REFERENCES turnos(id),
+                    FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+                );
+            """)
+            version_actual = 6
+            cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '6')")
+            conn.commit()
+
         # Asegurar que exista al menos un usuario administrador por defecto si la tabla está vacía
         cant_usuarios = cursor.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
         if cant_usuarios == 0:
             cursor.execute("""
                 INSERT INTO usuarios (nombre, usuario, contrasena, rol) 
-                VALUES ('Administrador Principal', 'admin', 'admin123', 'administrador')
-            """)
+                VALUES ('Administrador Principal', 'admin', ?, 'administrador')
+            """, (generate_password_hash('admin123'),))
             conn.commit()
             print("INFO: Creado usuario administrador por defecto (admin / admin123).")
 
@@ -4934,35 +5194,49 @@ if __name__ == '__main__':
         
         puerto, host = encontrar_puerto_libre(8080)
         
-        if es_compilado:
-            import webbrowser
-            import threading
-            import time
-            
-            def abrir_navegador():
-                time.sleep(1.5) # Esperar a que waitress inicie
-                try:
-                    url_host = "127.0.0.1" if host == "0.0.0.0" else host
-                    webbrowser.open(f"http://{url_host}:{puerto}")
-                except Exception:
-                    pass
-                    
-            threading.Thread(target=abrir_navegador, daemon=True).start()
-            
-            from waitress import serve
-            serve(
-                app,
-                host=host,
-                port=puerto,
-                threads=16
-            )
-        else:
-            # Servidor de desarrollo con debug=True y hot-reload
+        # Abrir navegador automáticamente siempre
+        import webbrowser
+        import threading
+        import time
+        
+        def abrir_navegador():
+            time.sleep(1.2) # Esperar a que el servidor inicie
+            try:
+                url_host = "127.0.0.1" if host == "0.0.0.0" else host
+                webbrowser.open(f"http://{url_host}:{puerto}")
+            except Exception:
+                pass
+                
+        threading.Thread(target=abrir_navegador, daemon=True).start()
+
+        # Determinar si se solicita explícitamente modo desarrollo con bandera --debug
+        modo_debug = "--debug" in sys.argv or os.environ.get("FLASK_DEBUG") == "1"
+
+        if modo_debug:
+            print(f"INFO: Iniciando servidor en modo desarrollo (Debug) en http://{host}:{puerto}", flush=True)
             app.run(
                 host=host,
                 port=puerto,
                 debug=True
             )
+        else:
+            try:
+                from waitress import serve
+                print(f"INFO: Servidor seguro de producción WSGI (Waitress) activo en http://{host}:{puerto}", flush=True)
+                serve(
+                    app,
+                    host=host,
+                    port=puerto,
+                    threads=16,
+                    _quiet=False
+                )
+            except ImportError:
+                print(f"WARNING: Waitress no encontrado. Iniciando servidor estándar en http://{host}:{puerto}", flush=True)
+                app.run(
+                    host=host,
+                    port=puerto,
+                    debug=False
+                )
     except Exception as e:
         import traceback
         error_msg = f"No se pudo iniciar la aplicación Cafeto24.\n\nDetalles del error:\n{e}\n\n{traceback.format_exc()}"

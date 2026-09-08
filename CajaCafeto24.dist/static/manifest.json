@@ -1,0 +1,17 @@
+{
+  "name": "Cafeto24 - Punto de Venta",
+  "short_name": "Cafeto24",
+  "description": "Sistema de Punto de Venta y Gestión Cafeto24",
+  "start_url": "/ventas",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#92400e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/icono.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

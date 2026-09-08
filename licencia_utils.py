@@ -11,7 +11,7 @@ def obtener_machine_id():
     # 1. UUID de placa madre
     # Intentar obtener UUID usando WMIC (más rápido y menos propenso a bloqueos que PowerShell)
     try:
-        out = subprocess.check_output('wmic path win32_computersystemproduct get uuid', shell=True, text=True, timeout=3)
+        out = subprocess.check_output('wmic path win32_computersystemproduct get uuid', shell=True, text=True, timeout=3, stderr=subprocess.DEVNULL)
         lines = [line.strip() for line in out.splitlines() if line.strip()]
         if len(lines) > 1:
             uuid_val = lines[1]
@@ -32,7 +32,7 @@ def obtener_machine_id():
     # 2. Serial de placa madre
     # Intentar obtener serial de placa usando WMIC
     try:
-        out = subprocess.check_output('wmic path win32_baseboard get serialnumber', shell=True, text=True, timeout=3)
+        out = subprocess.check_output('wmic path win32_baseboard get serialnumber', shell=True, text=True, timeout=3, stderr=subprocess.DEVNULL)
         lines = [line.strip() for line in out.splitlines() if line.strip()]
         if len(lines) > 1:
             serial_val = lines[1]
@@ -43,7 +43,7 @@ def obtener_machine_id():
 
     if len(parts) < 2:  # Si falta el serial de la placa en parts
         try:
-            serial_val = subprocess.check_output('powershell -NoProfile -Command "(Get-CimInstance Win32_BaseBoard).SerialNumber"', shell=True, text=True, timeout=3).strip()
+            serial_val = subprocess.check_output('powershell -NoProfile -Command "(Get-CimInstance Win32_BaseBoard).SerialNumber"', shell=True, text=True, timeout=3, stderr=subprocess.DEVNULL).strip()
             if serial_val and len(serial_val) > 2 and serial_val not in parts:
                 parts.append(serial_val)
         except Exception:
@@ -52,7 +52,7 @@ def obtener_machine_id():
     # 3. CPU ID
     # Intentar obtener CPU ID usando WMIC
     try:
-        out = subprocess.check_output('wmic path win32_processor get processorid', shell=True, text=True, timeout=3)
+        out = subprocess.check_output('wmic path win32_processor get processorid', shell=True, text=True, timeout=3, stderr=subprocess.DEVNULL)
         lines = [line.strip() for line in out.splitlines() if line.strip()]
         if len(lines) > 1:
             cpu_val = lines[1]
@@ -63,7 +63,7 @@ def obtener_machine_id():
 
     if len(parts) < 3:  # Si falta CPU ID en parts
         try:
-            cpu_val = subprocess.check_output('powershell -NoProfile -Command "(Get-CimInstance Win32_Processor).ProcessorId"', shell=True, text=True, timeout=3).strip()
+            cpu_val = subprocess.check_output('powershell -NoProfile -Command "(Get-CimInstance Win32_Processor).ProcessorId"', shell=True, text=True, timeout=3, stderr=subprocess.DEVNULL).strip()
             if cpu_val and len(cpu_val) > 2 and cpu_val not in parts:
                 parts.append(cpu_val)
         except Exception:

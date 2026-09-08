@@ -2,8 +2,15 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cafeto24 - Punto de Venta</title>
+    <meta name="theme-color" content="#92400e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cafeto24">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/x-icon" href="/static/icono.ico">
+    <link rel="apple-touch-icon" href="/static/icono.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -191,6 +198,179 @@
         .badge-tarjeta    { background:#1e3a5f; color:#93c5fd; }
         .badge-dividido   { background:#1c1917; color:#fdba74; }
         .badge-default    { background:#1e293b; color:#94a3b8; }
+
+        /* ========== DIVISOR ARRASTRABLE (SPLITTER / RESIZER) ========== */
+        .divisor-resizer-v {
+            width: 10px;
+            cursor: col-resize;
+            position: relative;
+            background: #e2e8f0;
+            border-left: 1px solid #cbd5e1;
+            border-right: 1px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+            transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            z-index: 25;
+            flex-shrink: 0;
+        }
+        .divisor-resizer-v:hover,
+        .divisor-resizer-v.arrastrando {
+            background: #f59e0b !important;
+            border-color: #d97706 !important;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+        }
+        .divisor-resizer-handle {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            pointer-events: none;
+        }
+        .divisor-resizer-handle span {
+            width: 4px;
+            height: 4px;
+            background-color: #64748b;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+        .divisor-resizer-v:hover .divisor-resizer-handle span,
+        .divisor-resizer-v.arrastrando .divisor-resizer-handle span {
+            background-color: #ffffff;
+        }
+
+        /* ========== ESTILOS RESPONSIVOS PARA CELULARES (<= 768px) ========== */
+        @media (max-width: 768px) {
+            /* Ocultar divisor de escritorio */
+            #divisor-resizer-v {
+                display: none !important;
+            }
+
+            /* Panel derecho de catálogo ocupa todo el ancho */
+            #panel-derecho-pos {
+                width: 100% !important;
+                min-width: 100% !important;
+                flex: 1 !important;
+                padding-bottom: 85px !important; /* Espacio para no tapar con la barra flotante */
+            }
+
+            /* Carrusel horizontal de categorías deslizable */
+            .panel-categorias-contenedor {
+                padding: 8px 12px !important;
+            }
+            .lista-categorias-scroll {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                gap: 8px !important;
+                padding-bottom: 4px !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            .category-button {
+                width: auto !important;
+                height: 40px !important;
+                min-width: auto !important;
+                min-height: 40px !important;
+                padding: 6px 14px !important;
+                flex-direction: row !important;
+                gap: 6px !important;
+                font-size: 11px !important;
+                border-radius: 9999px !important;
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
+            }
+            .category-icon {
+                font-size: 1.25rem !important;
+            }
+
+            /* Panel de Carrito/Venta transformado en Bottom Sheet */
+            #panel-izquierdo-pos {
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+                height: 90vh !important;
+                max-height: 90vh !important;
+                z-index: 100 !important;
+                border-top-left-radius: 24px !important;
+                border-top-right-radius: 24px !important;
+                box-shadow: 0 -10px 40px rgba(0,0,0,0.4) !important;
+                transform: translateY(105%) !important;
+                transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                border-right: none !important;
+                background: #ffffff !important;
+            }
+            #panel-izquierdo-pos.sheet-abierto {
+                transform: translateY(0%) !important;
+            }
+
+            /* Cabecera del Bottom Sheet */
+            .bottom-sheet-header {
+                display: flex !important;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 16px;
+                border-bottom: 1px solid #e2e8f0;
+                background: #f8fafc;
+                border-top-left-radius: 24px;
+                border-top-right-radius: 24px;
+                flex-shrink: 0;
+            }
+            .sheet-drag-handle {
+                width: 38px;
+                height: 4px;
+                background: #cbd5e1;
+                border-radius: 9999px;
+                margin: 0 auto 6px auto;
+            }
+
+            /* Overlay de fondo */
+            #overlay-carrito-movil {
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.65);
+                backdrop-filter: blur(4px);
+                z-index: 95;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.25s ease-out;
+            }
+            #overlay-carrito-movil.visible {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            /* Barra flotante inferior para celular */
+            #barra-carrito-movil {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 85;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 16px;
+                background: linear-gradient(135deg, #78350f, #92400e, #b45309);
+                color: #ffffff;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.25);
+                border-top: 1px solid rgba(251, 191, 36, 0.35);
+            }
+        }
+
+        /* En pantallas de escritorio (> 768px), ocultar elementos móviles */
+        @media (min-width: 769px) {
+            #barra-carrito-movil,
+            #overlay-carrito-movil,
+            .bottom-sheet-header {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
@@ -209,12 +389,17 @@
             {% endif %}
         </div>
         
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2 sm:space-x-3">
             <span class="bg-amber-900/60 text-amber-100 px-3 py-1.5 rounded-full text-xs font-semibold border border-amber-700/50 flex items-center gap-1.5 shadow-sm">
                 <span>👤</span> <span>{{ nombre }}</span> <span class="text-[10px] opacity-75 uppercase">({{ rol }})</span>
             </span>
             <span id="estado-turno-header" class="bg-slate-900 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-700 flex items-center gap-1 shadow-sm">⏱️ Turno: cargando...</span>
             
+            <!-- BOTÓN RÁPIDO DE NOVEDADES -->
+            <button id="btn-header-novedades" onclick="abrirModalNovedades()" type="button" class="bg-amber-900/80 hover:bg-amber-950 text-amber-200 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-600/50 flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer" title="Novedades de Turno y Sistema">
+                <span>📝</span> <span class="hidden sm:inline">Novedades</span> <span id="badge-novedades-count" class="hidden bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">0</span>
+            </button>
+
             <!-- BOTÓN DE MENÚ DE TRES PUNTITOS (KEBAB) -->
             <div class="relative">
                 <button id="btn-kebab-menu" onclick="toggleMenuKebab(event)" type="button" class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-900/90 hover:bg-amber-950 text-white font-black text-xl shadow border border-amber-600/50 transition active:scale-95 cursor-pointer" title="Menú de Acciones">
@@ -241,6 +426,11 @@
                     <!-- MOVIMIENTOS -->
                     <button id="btn-toggle-movimientos" type="button" onclick="cerrarMenuKebab(); togglePanelMovimientos();" class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-sky-300 hover:bg-sky-950/70 flex items-center gap-2.5 transition">
                         <span class="text-base">📊</span> Ver Movimientos del Turno
+                    </button>
+
+                    <!-- NOVEDADES -->
+                    <button id="btn-kebab-novedades" type="button" onclick="cerrarMenuKebab(); abrirModalNovedades();" class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-300 hover:bg-amber-950/70 flex items-center gap-2.5 transition">
+                        <span class="text-base">📝</span> Novedades del Turno / Sistema
                     </button>
                     
                     {% if rol == 'administrador' %}
@@ -272,10 +462,26 @@
         </button>
     </div>
 
-    <main class="flex-1 flex overflow-hidden">
+    <main id="contenedor-principal-pos" class="flex-1 flex overflow-hidden relative select-none">
         
-        <!-- COLUMNA IZQUIERDA: CARRITO, COBRO Y CAJA (38% DE ANCHO) -->
-        <section class="w-[38%] bg-white/75 backdrop-blur-md border-r border-gray-200 flex flex-col h-full overflow-hidden">
+        <!-- COLUMNA IZQUIERDA: CARRITO, COBRO Y CAJA (ANCHO REDIMENSIONABLE / BOTTOM SHEET MÓVIL) -->
+        <section id="panel-izquierdo-pos" class="bg-white/75 backdrop-blur-md flex flex-col h-full overflow-hidden" style="width: 38%; min-width: 260px; max-width: 75%;">
+            
+            <!-- CABECERA EXCLUSIVA PARA MÓVIL (DRAG HANDLE Y BOTÓN CERRAR) -->
+            <div class="bottom-sheet-header">
+                <div class="flex-1">
+                    <div class="sheet-drag-handle"></div>
+                    <div class="flex items-center justify-between pr-2">
+                        <h3 class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span>🛒</span> <span>Orden / Cobro</span>
+                        </h3>
+                        <span id="label-mesa-movil" class="text-[10px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-full border border-amber-300">Venta Rápida</span>
+                    </div>
+                </div>
+                <button type="button" onclick="cerrarCarritoMovil()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-sm active:scale-90 transition shadow-sm" title="Cerrar orden">
+                    ✕
+                </button>
+            </div>
             
             <!-- ENCABEZADO DE PESTAÑAS DEL PANEL IZQUIERDO -->
             <div class="bg-slate-100 p-2 flex border-b border-gray-200 select-none flex-shrink-0">
@@ -649,16 +855,25 @@
             </div>
         </section>
 
-        <!-- COLUMNA DERECHA: CATEGORÍAS (SUPERIOR HORIZONTAL), BÚSQUEDA Y CUADRÍCULA DE PRODUCTOS (62% DE ANCHO) -->
-        <section class="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
+        <!-- DIVISOR ARRASTRABLE VERTICAL (SPLITTER / RESIZER) -->
+        <div id="divisor-resizer-v" class="divisor-resizer-v" title="↔️ Arrastra hacia los lados para variar el tamaño de los apartados (Doble clic para restablecer)">
+            <div class="divisor-resizer-handle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: CATEGORÍAS (SUPERIOR HORIZONTAL), BÚSQUEDA Y CUADRÍCULA DE PRODUCTOS -->
+        <section id="panel-derecho-pos" class="flex-1 flex flex-col h-full overflow-hidden bg-transparent min-w-[300px]">
             
             <!-- PANEL DE CATEGORÍAS EN CUADRÍCULA CON COLORES DISTINTIVOS (ESTILO ODOO POS) -->
-            <div class="bg-white/70 backdrop-blur-md p-4 border-b border-gray-250 flex-shrink-0 select-none">
+            <div class="panel-categorias-contenedor bg-white/70 backdrop-blur-md p-4 border-b border-gray-250 flex-shrink-0 select-none">
                 <div class="flex items-center space-x-1.5 text-gray-500 font-bold text-[10px] uppercase tracking-wider mb-2">
                     <span>📂</span>
                     <span>Categorías de Productos</span>
                 </div>
-                <div class="flex flex-wrap gap-2 justify-start">
+                <div class="lista-categorias-scroll flex flex-wrap gap-2 justify-start">
                     {% for cat in categorias %}
                         {% set cat_lower = cat.nombre_categoria | lower %}
                         {% set fallbacks = ['🥐', '🍩', '🥯', '🥪', '🍕', '🌭', '🌮', '🥨', '🍪', '🍨', '🧁', '🍎', '🍉', '🍓', '🥑', '🥞', '🧇', '🧀', '🍖', '🍗', '🍟', '🍣', '🍱', '🥟', '🥡'] %}
@@ -813,6 +1028,27 @@
             </div>
         </section>
     </main>
+
+    <!-- OVERLAY OSCURO DE FONDO PARA CELULARES -->
+    <div id="overlay-carrito-movil" onclick="cerrarCarritoMovil()"></div>
+
+    <!-- BARRA FLOTANTE FIJA INFERIOR PARA CELULARES (STICKY BOTTOM BAR) -->
+    <div id="barra-carrito-movil" onclick="abrirCarritoMovil()" class="cursor-pointer active:brightness-95 transition select-none">
+        <div class="flex items-center space-x-3">
+            <div class="relative bg-amber-950/80 w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-amber-500/40">
+                🛒
+                <span id="badge-cant-carrito-movil" class="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-950 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">0</span>
+            </div>
+            <div>
+                <p class="text-[10px] text-amber-200 uppercase font-bold tracking-wider leading-tight">Total Orden</p>
+                <p id="total-carrito-movil" class="text-lg font-black text-white leading-tight">$0</p>
+            </div>
+        </div>
+        <button id="btn-abrir-carrito-movil" type="button" class="bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2.5 rounded-xl font-black text-xs shadow-lg flex items-center space-x-1 transition active:scale-95">
+            <span>Ver Pedido</span>
+            <span>➔</span>
+        </button>
+    </div>
 
     <!-- MODAL DE CIERRE DE TURNO (ARQUEO DE CAJA) -->
     <div id="modal-cierre-turno" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
@@ -1127,6 +1363,190 @@
         </div>
     </div>
 
+    <!-- MODAL DE NOVEDADES (TURNO Y SISTEMA) -->
+    <div id="modal-novedades" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-3xl w-full mx-4 overflow-hidden border border-slate-100 flex flex-col max-h-[90vh] transform scale-95 transition-transform duration-300">
+            <!-- Header con Pestañas -->
+            <div class="bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 text-white px-6 pt-4 pb-0 shadow-md">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center space-x-2.5">
+                        <span class="text-2xl">📝</span>
+                        <div>
+                            <h3 class="font-bold text-base tracking-wide">Centro de Novedades</h3>
+                            <p class="text-[11px] text-amber-200/90 font-medium">Bitácora de notas de turno y novedades del sistema</p>
+                        </div>
+                    </div>
+                    <button onclick="cerrarModalNovedades()" type="button" class="text-white/80 hover:text-white transition font-black text-2xl leading-none cursor-pointer">&times;</button>
+                </div>
+                <!-- Pestañas Switcher -->
+                <div class="flex gap-2 border-b border-amber-600/40">
+                    <button id="tab-btn-bitacora" onclick="cambiarTabNovedades('bitacora')" type="button" class="px-4 py-2 text-xs font-bold transition border-b-2 border-amber-300 text-white flex items-center gap-1.5 cursor-pointer">
+                        <span>📋</span> <span>Bitácora del Turno</span> <span id="tab-novedades-count" class="bg-amber-500/40 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full font-mono">0</span>
+                    </button>
+                    <button id="tab-btn-sistema" onclick="cambiarTabNovedades('sistema')" type="button" class="px-4 py-2 text-xs font-bold transition border-b-2 border-transparent text-amber-200/70 hover:text-white flex items-center gap-1.5 cursor-pointer">
+                        <span>🚀</span> <span>Novedades del Sistema</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenedor de Contenidos -->
+            <div class="p-5 overflow-y-auto space-y-4 flex-1 bg-slate-50/50">
+                
+                <!-- SECCIÓN 1: BITÁCORA DEL TURNO -->
+                <div id="seccion-novedades-bitacora" class="space-y-4">
+                    <!-- Barra de Acciones y Filtros -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+                        <div class="flex items-center gap-1.5 overflow-x-auto text-[11px] pb-1 sm:pb-0">
+                            <span class="text-slate-400 font-bold uppercase text-[10px] mr-1">Filtro:</span>
+                            <button onclick="filtrarNovedadesCategoria('todas')" type="button" class="filtro-novedad-btn px-2.5 py-1 rounded-xl font-bold bg-amber-800 text-white transition text-xs shadow-xs cursor-pointer" data-categoria="todas">Todas</button>
+                            <button onclick="filtrarNovedadesCategoria('operativa')" type="button" class="filtro-novedad-btn px-2.5 py-1 rounded-xl font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-xs cursor-pointer" data-categoria="operativa">📢 Operativa</button>
+                            <button onclick="filtrarNovedadesCategoria('caja')" type="button" class="filtro-novedad-btn px-2.5 py-1 rounded-xl font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-xs cursor-pointer" data-categoria="caja">💵 Caja</button>
+                            <button onclick="filtrarNovedadesCategoria('insumos')" type="button" class="filtro-novedad-btn px-2.5 py-1 rounded-xl font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-xs cursor-pointer" data-categoria="insumos">☕ Insumos</button>
+                            <button onclick="filtrarNovedadesCategoria('cliente')" type="button" class="filtro-novedad-btn px-2.5 py-1 rounded-xl font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-xs cursor-pointer" data-categoria="cliente">👤 Cliente</button>
+                            <button onclick="filtrarNovedadesCategoria('incidencia')" type="button" class="filtro-novedad-btn px-2.5 py-1 rounded-xl font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition text-xs cursor-pointer" data-categoria="incidencia">⚠️ Incidencia</button>
+                        </div>
+                        
+                        <button onclick="toggleFormNuevaNovedad()" type="button" class="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer">
+                            <span id="btn-toggle-form-icon">➕</span> <span id="btn-toggle-form-text">Registrar Novedad</span>
+                        </button>
+                    </div>
+
+                    <!-- Formulario Desplegable para Nueva Novedad -->
+                    <div id="form-nueva-novedad-card" class="hidden bg-white p-4 rounded-2xl border-2 border-amber-500/40 shadow-md space-y-3 transition-all">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                                <span>✍️</span> Nueva Nota / Incidencia del Turno
+                            </h4>
+                            <button onclick="toggleFormNuevaNovedad(false)" type="button" class="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer">Cancelar</button>
+                        </div>
+                        <form id="form-registro-novedad" onsubmit="guardarNuevaNovedad(event)" class="space-y-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Categoría</label>
+                                    <select id="novedad-categoria" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500">
+                                        <option value="operativa">📢 Operativa / General</option>
+                                        <option value="caja">💵 Caja y Efectivo</option>
+                                        <option value="insumos">☕ Insumos y Cocina</option>
+                                        <option value="cliente">👤 Clientes / Fiados</option>
+                                        <option value="incidencia">⚠️ Incidencia / Mantenimiento</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Prioridad</label>
+                                    <select id="novedad-prioridad" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500">
+                                        <option value="baja">🟢 Baja / Informativa</option>
+                                        <option value="normal" selected>🟡 Normal</option>
+                                        <option value="alta">🟠 Alta</option>
+                                        <option value="urgente">🔴 Urgente</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Título o Asunto</label>
+                                <input type="text" id="novedad-titulo" required maxlength="120" placeholder="Ej. Cambio de billetes para la tarde, Falla en datáfono..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Detalles de lo sucedido</label>
+                                <textarea id="novedad-descripcion" required rows="3" placeholder="Escribe aquí los detalles o acuerdos tomados..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-amber-500 resize-none"></textarea>
+                            </div>
+                            <div class="flex justify-end gap-2 pt-1">
+                                <button type="button" onclick="toggleFormNuevaNovedad(false)" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition cursor-pointer">Descartar</button>
+                                <button type="submit" id="btn-guardar-novedad" class="px-5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
+                                    <span>💾</span> Guardar Novedad
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Lista de Novedades Registradas -->
+                    <div id="lista-novedades-contenedor" class="space-y-2.5">
+                        <div class="text-center py-8 text-slate-400 text-xs">
+                            <span class="text-3xl block mb-2">⏳</span>
+                            Cargando novedades del turno...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 2: NOVEDADES DEL SISTEMA / VERSIÓN -->
+                <div id="seccion-novedades-sistema" class="hidden space-y-4">
+                    <!-- Banner de Versión -->
+                    <div class="bg-gradient-to-r from-slate-900 to-amber-950 text-white p-5 rounded-3xl border border-amber-700/40 shadow-md relative overflow-hidden">
+                        <div class="relative z-10">
+                            <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full inline-block mb-2">Versión {{ version_actual if version_actual else '3.21.0' }}</span>
+                            <h4 class="text-lg font-black text-amber-100">Cafeto24 Punto de Venta & Gestión</h4>
+                            <p class="text-xs text-slate-300 mt-1 max-w-xl">Descubre las nuevas características diseñadas para agilizar las ventas en caja y el control operativo.</p>
+                        </div>
+                    </div>
+
+                    <!-- Tarjetas de Mejoras -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1.5">
+                            <div class="flex items-center gap-2 text-amber-800 font-bold text-sm">
+                                <span>✨</span> <span>Recetas con Adiciones Valorizadas</span>
+                            </div>
+                            <p class="text-slate-600 text-[11px] leading-relaxed">Al personalizar productos preparados, añade ingredientes extra con un costo adicional que se suma automáticamente al precio del producto.</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1.5">
+                            <div class="flex items-center gap-2 text-amber-800 font-bold text-sm">
+                                <span>⌨️</span> <span>Soporte Completo de Teclado</span>
+                            </div>
+                            <p class="text-slate-600 text-[11px] leading-relaxed">Agiliza la atención: presiona <strong class="text-slate-800">F2</strong> para ir directo a cobrar, <strong class="text-slate-800">F4</strong> para abrir el cajón monedero, flechas para navegar pestañas y <strong class="text-slate-800">Esc</strong> para cerrar cualquier ventana modal.</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1.5">
+                            <div class="flex items-center gap-2 text-amber-800 font-bold text-sm">
+                                <span>🎨</span> <span>Categorías e Iconos Ampliados</span>
+                            </div>
+                            <p class="text-slate-600 text-[11px] leading-relaxed">Botones de categorías más amplios para pantallas táctiles y un catálogo enriquecido con decenas de iconos para bebidas frías, calientes, postres y comidas.</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1.5">
+                            <div class="flex items-center gap-2 text-amber-800 font-bold text-sm">
+                                <span>🔒</span> <span>Seguridad & Rendimiento WAL</span>
+                            </div>
+                            <p class="text-slate-600 text-[11px] leading-relaxed">Sesiones criptográficas seguras, contraseñas hasheadas y concurrencia SQLite WAL para cobros e informes simultáneos sin bloqueos.</p>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Atajos de Teclado -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
+                        <h5 class="font-bold text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <span>⌨️</span> Atajos Rápidos de Teclado
+                        </h5>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                            <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center justify-between">
+                                <span class="font-bold text-slate-700">Cobrar</span>
+                                <kbd class="bg-white px-2 py-0.5 rounded border border-slate-300 font-mono font-bold text-[10px] text-amber-800">F2</kbd>
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center justify-between">
+                                <span class="font-bold text-slate-700">Abrir Cajón</span>
+                                <kbd class="bg-white px-2 py-0.5 rounded border border-slate-300 font-mono font-bold text-[10px] text-amber-800">F4</kbd>
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center justify-between">
+                                <span class="font-bold text-slate-700">Cerrar Modal</span>
+                                <kbd class="bg-white px-2 py-0.5 rounded border border-slate-300 font-mono font-bold text-[10px] text-amber-800">Esc</kbd>
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center justify-between">
+                                <span class="font-bold text-slate-700">Confirmar</span>
+                                <kbd class="bg-white px-2 py-0.5 rounded border border-slate-300 font-mono font-bold text-[10px] text-amber-800">Enter</kbd>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-slate-100 px-6 py-3 border-t border-slate-200 flex justify-between items-center text-xs">
+                <span id="novedades-footer-info" class="text-slate-500 font-medium">Turno activo</span>
+                <button onclick="cerrarModalNovedades()" type="button" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-1.5 rounded-xl transition active:scale-95 cursor-pointer">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script id="categorias-json" type="application/json">{{ categorias_json|tojson }}</script>
     <script id="productos-compra-json" type="application/json">{{ productos_compra_json|tojson }}</script>
     <script id="clientes-exclusivos-json" type="application/json">{{ clientes_exclusivos_json|tojson }}</script>
@@ -1206,6 +1626,12 @@
             const nuevaTab = getPestañaActiva();
             carrito = [...(nuevaTab.items || [])];
             ordenAbiertaEditandoId = nuevaTab.db_id;
+
+            // Actualizar etiqueta de mesa en cabecera móvil
+            const lblMesaMovil = document.getElementById('label-mesa-movil');
+            if (lblMesaMovil && nuevaTab) {
+                lblMesaMovil.textContent = nuevaTab.nombre;
+            }
 
             actualizarInterfazCarrito();
             renderBarraPestañas();
@@ -1890,7 +2316,7 @@
                     return {
                         insumo_id: ing.insumo_id,
                         nombre_insumo: insinfo ? insinfo.nombre_insumo : 'Insumo',
-                        unidad_medida: insinfo ? insinfo.unidad_medida : 'Unid',
+                        unidad_medida: insinfo ? insinfo.unidad_medida : 'und',
                         cantidad_gastada: ing.cantidad_gastada,
                         es_base: true
                     };
@@ -1948,7 +2374,7 @@
                             return {
                                 insumo_id: ing.insumo_id,
                                 nombre_insumo: insinfo ? insinfo.nombre_insumo : 'Insumo',
-                                unidad_medida: insinfo ? insinfo.unidad_medida : 'Unid',
+                                unidad_medida: insinfo ? insinfo.unidad_medida : 'und',
                                 cantidad_gastada: ing.cantidad_gastada,
                                 es_base: true
                             };
@@ -2321,6 +2747,24 @@
             totalVentaActual = total;
             document.getElementById('total-pago').innerText = `$${total.toLocaleString('es-CO', {maximumFractionDigits: 0})}`;
             calcularCambio();
+
+            // Sincronizar barra flotante inferior en celulares
+            try {
+                const cantTotalItems = carrito.reduce((acc, item) => acc + (Number(item.cantidad) || 0), 0);
+                const badgeMovil = document.getElementById('badge-cant-carrito-movil');
+                const totalMovil = document.getElementById('total-carrito-movil');
+                if (badgeMovil) badgeMovil.textContent = cantTotalItems;
+                if (totalMovil) totalMovil.textContent = `$${total.toLocaleString('es-CO', {maximumFractionDigits: 0})}`;
+                
+                const btnBarraMovil = document.getElementById('btn-abrir-carrito-movil');
+                if (btnBarraMovil) {
+                    if (cantTotalItems > 0) {
+                        btnBarraMovil.classList.add('animate-pulse');
+                    } else {
+                        btnBarraMovil.classList.remove('animate-pulse');
+                    }
+                }
+            } catch(e) {}
         }
 
         function teclearNumero(digito) {
@@ -2820,6 +3264,7 @@
                     setEntradaNumericaActiva('efectivo-recibido');
                     document.getElementById('carrito-vacio').style.display = 'block';
                     actualizarInterfazCarrito();
+                    cerrarCarritoMovil();
                     await cargarProductosDesdeDB();
                     await cargarResumenTurno();
                     await cargarDeudasPendientes();
@@ -3065,7 +3510,7 @@
             { concepto: 'Fotocopia / Impresión', monto: 500 }
         ];
 
-        const ES_ADMIN = {{ 'true' if rol == 'administrador' else 'false' }};
+        const ES_ADMIN = "{{ rol }}" === 'administrador';
 
         function cargarPlantillasIntangibles() {
             const cont = document.getElementById('contenedor-plantillas-intangibles');
@@ -3298,7 +3743,7 @@
             if (e.key === 'Escape') {
                 cerrarMenuKebab();
                 // close any open modal
-                const modals = ['modal-factura-pos','modal-pago-dividido','modal-cierre-turno','modal-cierre-exito','modal-personalizar-receta'];
+                const modals = ['modal-factura-pos','modal-pago-dividido','modal-cierre-turno','modal-cierre-exito','modal-personalizar-receta','modal-novedades'];
                 modals.forEach(id => {
                     const m = document.getElementById(id);
                     if (m && !m.classList.contains('hidden')) {
@@ -3566,6 +4011,364 @@
             } catch(e) {
                 body.innerHTML = '<p style="text-align:center;color:#f87171;font-size:11px;margin-top:20px">Error al cargar movimientos.</p>';
             }
+        }
+
+        // ==========================================
+        // ↔️ CONTROL DE REDIMENSIONAMIENTO DE PANELES (SPLITTER / RESIZER)
+        // ==========================================
+        function inicializarDivisorPaneles() {
+            const contenedor = document.getElementById('contenedor-principal-pos');
+            const panelIzq = document.getElementById('panel-izquierdo-pos');
+            const resizer = document.getElementById('divisor-resizer-v');
+            
+            if (!contenedor || !panelIzq || !resizer) return;
+
+            let arrastrando = false;
+            const ANCHO_DEFECTO_PORCENTAJE = 38; // 38% por defecto
+
+            // Restaurar ancho guardado de localStorage si existe
+            try {
+                const anchoGuardado = localStorage.getItem('cafeto24_ancho_panel_izq');
+                if (anchoGuardado) {
+                    const numAncho = parseFloat(anchoGuardado);
+                    if (!isNaN(numAncho) && numAncho >= 20 && numAncho <= 75) {
+                        panelIzq.style.width = numAncho.toFixed(2) + '%';
+                    }
+                }
+            } catch(e) {}
+
+            function iniciarArrastre(e) {
+                arrastrando = true;
+                resizer.classList.add('arrastrando');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                document.body.style.webkitUserSelect = 'none';
+                if (e.preventDefault && e.cancelable) e.preventDefault();
+            }
+
+            function ejecutarArrastre(e) {
+                if (!arrastrando) return;
+                
+                const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+                if (clientX === undefined) return;
+
+                const rectContenedor = contenedor.getBoundingClientRect();
+                const posicionRelativa = clientX - rectContenedor.left;
+                let nuevoPorcentaje = (posicionRelativa / rectContenedor.width) * 100;
+                
+                // Límites de seguridad para no desbordar ni colapsar la vista
+                if (nuevoPorcentaje < 20) nuevoPorcentaje = 20;
+                if (nuevoPorcentaje > 75) nuevoPorcentaje = 75;
+                
+                panelIzq.style.width = nuevoPorcentaje.toFixed(2) + '%';
+            }
+
+            function terminarArrastre() {
+                if (!arrastrando) return;
+                arrastrando = false;
+                resizer.classList.remove('arrastrando');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                document.body.style.webkitUserSelect = '';
+                
+                try {
+                    const anchoActual = parseFloat(panelIzq.style.width);
+                    if (!isNaN(anchoActual)) {
+                        localStorage.setItem('cafeto24_ancho_panel_izq', anchoActual.toFixed(2));
+                    }
+                } catch(e) {}
+            }
+
+            // Doble clic sobre el divisor para restablecer al 38% original
+            resizer.addEventListener('dblclick', () => {
+                panelIzq.style.width = ANCHO_DEFECTO_PORCENTAJE + '%';
+                try {
+                    localStorage.setItem('cafeto24_ancho_panel_izq', ANCHO_DEFECTO_PORCENTAJE);
+                } catch(e) {}
+            });
+
+            // Eventos de ratón
+            resizer.addEventListener('mousedown', iniciarArrastre);
+            window.addEventListener('mousemove', ejecutarArrastre);
+            window.addEventListener('mouseup', terminarArrastre);
+
+            // Eventos táctiles para pantallas touch / tablets
+            resizer.addEventListener('touchstart', iniciarArrastre, { passive: false });
+            window.addEventListener('touchmove', ejecutarArrastre, { passive: false });
+            window.addEventListener('touchend', terminarArrastre);
+            window.addEventListener('touchcancel', terminarArrastre);
+        }
+
+        // Iniciar redimensionador al cargar
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', inicializarDivisorPaneles);
+        } else {
+            inicializarDivisorPaneles();
+        }
+
+        // ==========================================
+        // 📱 CONTROL DE BOTTOM SHEET PARA CELULARES
+        // ==========================================
+        function abrirCarritoMovil() {
+            const panel = document.getElementById('panel-izquierdo-pos');
+            const overlay = document.getElementById('overlay-carrito-movil');
+            if (panel) panel.classList.add('sheet-abierto');
+            if (overlay) overlay.classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cerrarCarritoMovil() {
+            const panel = document.getElementById('panel-izquierdo-pos');
+            const overlay = document.getElementById('overlay-carrito-movil');
+            if (panel) panel.classList.remove('sheet-abierto');
+            if (overlay) overlay.classList.remove('visible');
+            document.body.style.overflow = '';
+        }
+
+        // ==========================================
+        // 📝 MÓDULO DE NOVEDADES (TURNO Y SISTEMA)
+        // ==========================================
+        let listaNovedadesCache = [];
+        let filtroNovedadActivo = 'todas';
+        let tabNovedadActiva = 'bitacora';
+
+        function abrirModalNovedades(tabInicial = 'bitacora') {
+            const modal = document.getElementById('modal-novedades');
+            if (!modal) return;
+            cambiarTabNovedades(tabInicial);
+            cargarNovedades();
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                const inner = modal.querySelector('div');
+                if (inner) inner.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function cerrarModalNovedades() {
+            const modal = document.getElementById('modal-novedades');
+            if (!modal || modal.classList.contains('hidden')) return;
+            modal.classList.add('opacity-0');
+            const inner = modal.querySelector('div');
+            if (inner) inner.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        function cambiarTabNovedades(tab) {
+            tabNovedadActiva = tab;
+            const btnBitacora = document.getElementById('tab-btn-bitacora');
+            const btnSistema = document.getElementById('tab-btn-sistema');
+            const secBitacora = document.getElementById('seccion-novedades-bitacora');
+            const secSistema = document.getElementById('seccion-novedades-sistema');
+
+            if (tab === 'bitacora') {
+                if (btnBitacora) {
+                    btnBitacora.classList.add('border-amber-300', 'text-white');
+                    btnBitacora.classList.remove('border-transparent', 'text-amber-200/70');
+                }
+                if (btnSistema) {
+                    btnSistema.classList.add('border-transparent', 'text-amber-200/70');
+                    btnSistema.classList.remove('border-amber-300', 'text-white');
+                }
+                if (secBitacora) secBitacora.classList.remove('hidden');
+                if (secSistema) secSistema.classList.add('hidden');
+            } else {
+                if (btnSistema) {
+                    btnSistema.classList.add('border-amber-300', 'text-white');
+                    btnSistema.classList.remove('border-transparent', 'text-amber-200/70');
+                }
+                if (btnBitacora) {
+                    btnBitacora.classList.add('border-transparent', 'text-amber-200/70');
+                    btnBitacora.classList.remove('border-amber-300', 'text-white');
+                }
+                if (secSistema) secSistema.classList.remove('hidden');
+                if (secBitacora) secBitacora.classList.add('hidden');
+            }
+        }
+
+        function toggleFormNuevaNovedad(forzar) {
+            const formCard = document.getElementById('form-nueva-novedad-card');
+            const icon = document.getElementById('btn-toggle-form-icon');
+            const text = document.getElementById('btn-toggle-form-text');
+            if (!formCard) return;
+
+            const mostrar = forzar !== undefined ? forzar : formCard.classList.contains('hidden');
+            if (mostrar) {
+                formCard.classList.remove('hidden');
+                if (icon) icon.textContent = '✖';
+                if (text) text.textContent = 'Ocultar Formulario';
+                const inputTitulo = document.getElementById('novedad-titulo');
+                if (inputTitulo) inputTitulo.focus();
+            } else {
+                formCard.classList.add('hidden');
+                if (icon) icon.textContent = '➕';
+                if (text) text.textContent = 'Registrar Novedad';
+            }
+        }
+
+        function filtrarNovedadesCategoria(cat) {
+            filtroNovedadActivo = cat;
+            document.querySelectorAll('.filtro-novedad-btn').forEach(btn => {
+                if (btn.getAttribute('data-categoria') === cat) {
+                    btn.classList.add('bg-amber-800', 'text-white', 'font-bold');
+                    btn.classList.remove('bg-slate-100', 'text-slate-700', 'font-semibold');
+                } else {
+                    btn.classList.remove('bg-amber-800', 'text-white', 'font-bold');
+                    btn.classList.add('bg-slate-100', 'text-slate-700', 'font-semibold');
+                }
+            });
+            renderizarListaNovedades();
+        }
+
+        async function cargarNovedades() {
+            try {
+                const res = await fetch('/api/novedades?solo_turno=1');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.success) {
+                    listaNovedadesCache = data.novedades || [];
+                    actualizarBadgeNovedades(listaNovedadesCache.length);
+                    renderizarListaNovedades();
+                }
+            } catch (e) {
+                console.error('Error al cargar novedades:', e);
+            }
+        }
+
+        function actualizarBadgeNovedades(total) {
+            const badge = document.getElementById('badge-novedades-count');
+            const tabCount = document.getElementById('tab-novedades-count');
+            if (tabCount) tabCount.textContent = total;
+            if (badge) {
+                badge.textContent = total;
+                if (total > 0) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
+        function renderizarListaNovedades() {
+            const contenedor = document.getElementById('lista-novedades-contenedor');
+            if (!contenedor) return;
+
+            let filtradas = listaNovedadesCache;
+            if (filtroNovedadActivo !== 'todas') {
+                filtradas = listaNovedadesCache.filter(n => (n.categoria || '').toLowerCase() === filtroNovedadActivo);
+            }
+
+            if (filtradas.length === 0) {
+                contenedor.innerHTML = `
+                    <div class="bg-white rounded-2xl border border-slate-200/80 p-8 text-center text-slate-400 space-y-2">
+                        <span class="text-4xl block">✨</span>
+                        <p class="font-bold text-xs text-slate-600">No hay novedades registradas en este turno</p>
+                        <p class="text-[11px]">Cualquier nota, acuerdo o incidencia que registres aquí quedará guardada.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const categoriaBadges = {
+                'operativa': { bg: 'bg-blue-100 text-blue-800 border-blue-200', label: '📢 Operativa' },
+                'caja': { bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', label: '💵 Caja' },
+                'insumos': { bg: 'bg-amber-100 text-amber-800 border-amber-200', label: '☕ Insumos' },
+                'cliente': { bg: 'bg-purple-100 text-purple-800 border-purple-200', label: '👤 Cliente' },
+                'incidencia': { bg: 'bg-rose-100 text-rose-800 border-rose-200', label: '⚠️ Incidencia' }
+            };
+
+            const prioridadBadges = {
+                'baja': { bg: 'bg-slate-100 text-slate-700 border-slate-200', label: '🟢 Baja' },
+                'normal': { bg: 'bg-amber-50 text-amber-800 border-amber-200', label: '🟡 Normal' },
+                'alta': { bg: 'bg-orange-100 text-orange-800 border-orange-200', label: '🟠 Alta' },
+                'urgente': { bg: 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse', label: '🔴 Urgente' }
+            };
+
+            contenedor.innerHTML = filtradas.map(n => {
+                const catInfo = categoriaBadges[n.categoria] || { bg: 'bg-slate-100 text-slate-700 border-slate-200', label: n.categoria };
+                const priInfo = prioridadBadges[n.prioridad] || { bg: 'bg-slate-100 text-slate-700 border-slate-200', label: n.prioridad };
+
+                return `
+                    <div class="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs hover:shadow transition space-y-2">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs px-2 py-0.5 rounded-md font-bold border ${catInfo.bg}">${catInfo.label}</span>
+                                <span class="text-xs px-2 py-0.5 rounded-md font-bold border ${priInfo.bg}">${priInfo.label}</span>
+                                <h4 class="font-bold text-xs text-slate-800">${n.titulo || 'Sin título'}</h4>
+                            </div>
+                            <div class="flex items-center gap-3 text-[11px] text-slate-400">
+                                <span>👤 <strong class="text-slate-600">${n.nombre_usuario || 'Usuario'}</strong></span>
+                                <span>⏱️ ${n.fecha ? n.fecha.substring(11, 16) : ''}</span>
+                                <button onclick="eliminarNovedad(${n.id})" type="button" class="text-slate-300 hover:text-rose-600 transition font-bold cursor-pointer" title="Eliminar novedad">&times;</button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-600 whitespace-pre-line leading-relaxed">${n.descripcion || ''}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function guardarNuevaNovedad(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-guardar-novedad');
+            const titulo = document.getElementById('novedad-titulo').value.trim();
+            const descripcion = document.getElementById('novedad-descripcion').value.trim();
+            const categoria = document.getElementById('novedad-categoria').value;
+            const prioridad = document.getElementById('novedad-prioridad').value;
+
+            if (!titulo || !descripcion) return;
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>⏳</span> Guardando...';
+            }
+
+            try {
+                const res = await fetch('/api/novedades', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ titulo, descripcion, categoria, prioridad })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('form-registro-novedad').reset();
+                    toggleFormNuevaNovedad(false);
+                    await cargarNovedades();
+                } else {
+                    alert('Error al registrar novedad: ' + (data.error || 'Error desconocido'));
+                }
+            } catch (err) {
+                alert('Fallo de conexión al guardar la novedad');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>💾</span> Guardar Novedad';
+                }
+            }
+        }
+
+        async function eliminarNovedad(id) {
+            if (!confirm('¿Deseas eliminar esta novedad?')) return;
+            try {
+                const res = await fetch(`/api/novedades/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    await cargarNovedades();
+                } else {
+                    alert('No se pudo eliminar: ' + (data.error || 'Error desconocido'));
+                }
+            } catch (err) {
+                alert('Error al conectar con el servidor');
+            }
+        }
+
+        // Cargar novedades al iniciar
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', cargarNovedades);
+        } else {
+            cargarNovedades();
         }
     </script>
 

@@ -2,8 +2,15 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cafeto24 - Panel de Control</title>
+    <meta name="theme-color" content="#92400e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cafeto24">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/x-icon" href="/static/icono.ico">
+    <link rel="apple-touch-icon" href="/static/icono.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -796,7 +803,7 @@
                         <select name="unidad_medida" class="p-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none">
                             <option value="g">Gramos (g)</option>
                             <option value="ml">Mililitros (ml)</option>
-                            <option value="ud">Unidades (ud)</option>
+                            <option value="und">Unidades (und)</option>
                         </select>
                     </div>
                     <button type="submit" class="interactive-element w-full bg-slate-700 hover:bg-slate-800 text-white font-extrabold py-2.5 rounded-xl text-sm shadow-sm transition">

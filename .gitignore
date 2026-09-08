@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Local secrets and runtime
+.session_secret
+.runtimes/
+.snapshots/
+logs/
+evidence/
+.evidence/
+.learning/
+
+# Temporary and backup files
+cafeteria_backup_*.db
+*.bak
+*.pre_audit
+*.pre_novedades
+prueba.txt
+eemc_probe*.py
+recuperacion_estado_roto/
+scratch/
+
+# Build caches
+CajaCafeto24.build/
