@@ -5112,15 +5112,18 @@ def inicializar_y_migrar_db():
             cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '6')")
             conn.commit()
 
-        # Asegurar que exista al menos un usuario administrador por defecto si la tabla está vacía
-        cant_usuarios = cursor.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
-        if cant_usuarios == 0:
+        # Asegurar que siempre exista el usuario administrador 'admin'
+        admin_row = cursor.execute("SELECT id, rol FROM usuarios WHERE LOWER(usuario) = 'admin'").fetchone()
+        if not admin_row:
             cursor.execute("""
                 INSERT INTO usuarios (nombre, usuario, contrasena, rol) 
                 VALUES ('Administrador Principal', 'admin', ?, 'administrador')
             """, (generate_password_hash('admin123'),))
             conn.commit()
             print("INFO: Creado usuario administrador por defecto (admin / admin123).")
+        elif admin_row[1] != 'administrador':
+            cursor.execute("UPDATE usuarios SET rol = 'administrador' WHERE id = ?", (admin_row[0],))
+            conn.commit()
 
         print(f"INFO: Migracion exitosa. Base de datos actualizada a la version {version_actual}.")
 
