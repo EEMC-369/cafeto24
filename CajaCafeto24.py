@@ -3971,6 +3971,15 @@ def api_cobrar():
     pagos_divididos = data.get('pagos', [])  # Lista de {metodo, monto} para pago dividido
     referencia_pago = data.get('referencia_pago', '')
     cliente_fiado = (data.get('cliente_fiado', '') or '').strip()
+    requiere_fe = 1 if data.get('requiere_factura_electronica') in (True, 1, '1', 'true', 'True') else 0
+    fe_tipo_documento = (data.get('fe_tipo_documento') or '').strip()
+    fe_numero_documento = (data.get('fe_numero_documento') or '').strip()
+    fe_nombre = (data.get('fe_nombre') or '').strip()
+    fe_direccion = (data.get('fe_direccion') or '').strip()
+    fe_telefono = (data.get('fe_telefono') or '').strip()
+    fe_correo = (data.get('fe_correo') or '').strip()
+    if requiere_fe == 1 and (not fe_numero_documento or not fe_nombre):
+        return jsonify({'error': 'Para factura electrónica se requiere documento y nombre', 'success': False}), 400
     vendedor_id = session.get('id')
     turno_id = session.get('turno_id') or obtener_turno_activo(vendedor_id)
     metodos_validos = {'efectivo', 'nequi', 'daviplata', 'tarjeta', 'fiado', 'dividido'}
@@ -4030,8 +4039,10 @@ def api_cobrar():
 
         # Insertar venta
         cursor_venta = db.execute("""
-            INSERT INTO ventas (vendedor_id, turno_id, metodo_pago, total, efectivo_recibido, cambio, referencia_pago, cliente_fiado, estado_cobro, tipo_venta, fecha)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'producto', datetime('now', 'localtime'))
+            INSERT INTO ventas (vendedor_id, turno_id, metodo_pago, total, efectivo_recibido, cambio, referencia_pago, cliente_fiado, estado_cobro, tipo_venta, fecha,
+                requiere_factura_electronica, fe_tipo_documento, fe_numero_documento, fe_nombre, fe_direccion, fe_telefono, fe_correo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'producto', datetime('now', 'localtime'),
+                ?, ?, ?, ?, ?, ?, ?)
         """, (
             vendedor_id,
             turno_id,
@@ -4041,7 +4052,14 @@ def api_cobrar():
             cambio_val,
             referencia_pago,
             (cliente_fiado if metodo_pago == 'fiado' else None),
-            ('pendiente' if metodo_pago == 'fiado' else 'pagado')
+            ('pendiente' if metodo_pago == 'fiado' else 'pagado'),
+            requiere_fe,
+            (fe_tipo_documento if requiere_fe == 1 else None),
+            (fe_numero_documento if requiere_fe == 1 else None),
+            (fe_nombre if requiere_fe == 1 else None),
+            (fe_direccion if requiere_fe == 1 else None),
+            (fe_telefono if requiere_fe == 1 else None),
+            (fe_correo if requiere_fe == 1 else None),
         ))
         
         venta_id = cursor_venta.lastrowid
@@ -4244,6 +4262,62 @@ def obtener_comentario_receta_personalizada(db, producto_id, receta_pers_json):
     return None
 
 
+def _logo_raster_escpos(ruta_imagen, ancho_px=384):
+    """
+    Convierte una imagen (PNG/JPG) a comandos ESC/POS raster (GS v 0).
+    - ancho_px: ancho objetivo en puntos de la impresora. 384 para papel de 58mm,
+      576 para 80mm. Debe ser multiplo de 8.
+    Devuelve un bytearray listo para enviar a la impresora, o None si falla.
+    """
+    try:
+        from PIL import Image
+    except Exception:
+        return None
+    try:
+        img = Image.open(ruta_imagen)
+    except Exception:
+        return None
+
+    # Aplanar transparencia sobre fondo blanco
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        fondo = Image.new("RGB", img.size, (255, 255, 255))
+        img = img.convert("RGBA")
+        fondo.paste(img, mask=img.split()[-1])
+        img = fondo
+
+    # Normalizar ancho (multiplo de 8) y escalar manteniendo proporcion
+    ancho_px = max(8, (ancho_px // 8) * 8)
+    if img.width != ancho_px:
+        nueva_altura = max(1, int(img.height * (ancho_px / float(img.width))))
+        img = img.resize((ancho_px, nueva_altura), Image.LANCZOS)
+
+    # A blanco y negro (1 bit). En modo "1", 0 = negro.
+    img = img.convert("L").point(lambda p: 0 if p < 128 else 255, mode="1")
+
+    ancho_bytes = img.width // 8
+    alto = img.height
+    pixeles = img.load()
+
+    datos = bytearray()
+    for y in range(alto):
+        for xb in range(ancho_bytes):
+            byte = 0
+            for bit in range(8):
+                x = xb * 8 + bit
+                # En modo "1" un pixel negro vale 0 -> debe marcarse en el raster
+                if pixeles[x, y] == 0:
+                    byte |= (0x80 >> bit)
+            datos.append(byte)
+
+    # GS v 0 m xL xH yL yH <data>
+    xL = ancho_bytes & 0xFF
+    xH = (ancho_bytes >> 8) & 0xFF
+    yL = alto & 0xFF
+    yH = (alto >> 8) & 0xFF
+    cabecera = b"\x1d\x76\x30\x00" + bytes([xL, xH, yL, yH])
+    return bytearray(cabecera) + datos
+
+
 def imprimir_factura_directa(venta_id):
     db = conectar_db()
     try:
@@ -4306,30 +4380,16 @@ def imprimir_factura_directa(venta_id):
                 if metodo == 'efectivo':
                     raw_data.extend(abrir_cajon)
                 
-                # Encabezado (Logo ASCII Taza Cafeto 24 + Titulo)
-                set_cp437 = ESC + b"t\x00"
-                logo_ascii_pos = (
-                    "           █▌   ▐█   ██         \n"
-                    "          ███  ███▀  ██▀        \n"
-                    "          ▐██▄  ███▄ ▐██▄       \n"
-                    "           ████ ▀███▄ ▐██▌      \n"
-                    "              █▌    █▌ █▌       \n"
-                    "      ▄███████████████████▄     \n"
-                    "     ██████████████████████▄    \n"
-                    "     ███▀   ▄▄      ▄   ██████  \n"
-                    "     ███▌ ▐█▀▀██  ▄██   ▐██ ▀███\n"
-                    "     ███  ▐█▌ ██ ▄█ █   ██▌  ▐██\n"
-                    "     ███   ▄▄██  █████ ███   ▐██\n"
-                    "     ▐███ ▐█  ██▄   █  ███▄▄████\n"
-                    "   ▄▐█████▄         ▀▄████████▀▀\n"
-                    "  ██ ▀▐████████████████████     \n"
-                    "███     ███████████████▀▀▀████▄ \n"
-                    "███      █████████████▀   ▀█████\n"
-                    "████▄          ▀▀▀ ▀▀      █████\n"
-                    "▀█████▄▄▄▄ ▄▄▄▄▄▄▄▄▄▄▄▄████████▀\n"
-                    "   ▀██████▐██████████████████▀  \n\n"
-                )
-                raw_data.extend(centrado + set_cp437 + normal_size + logo_ascii_pos.encode('cp437', errors='replace'))
+                # Encabezado: Logo como imagen raster (GS v 0), no como texto ASCII.
+                # El logo es pixel art, por lo que debe enviarse como grafico para
+                # que salga nitido. 384 px = ancho util de papel termico de 58mm.
+                ruta_logo = os.path.join(RESOURCE_DIR, 'static', 'logo_factura.png')
+                # 120 px = 15 mm (impresora termica a 8 puntos/mm) -> logo de ~1.5x1.5 cm
+                logo_raster = _logo_raster_escpos(ruta_logo, ancho_px=120)
+                raw_data.extend(centrado)
+                if logo_raster:
+                    raw_data.extend(logo_raster)
+                    raw_data.extend(b"\n")
                 raw_data.extend(negrita_on + double_size + b"CAFETO 24\n" + normal_size + negrita_off)
                 raw_data.extend(b"NIT: 1013587664-8\n")
                 raw_data.extend(b"Diagonal 62 sur #22-04, Bogota D.C.\n")
@@ -4394,6 +4454,27 @@ def imprimir_factura_directa(venta_id):
                     raw_data.extend(f"Cambio:        {cambio_str:>11}\n".encode('latin1', errors='replace'))
                 
                 raw_data.extend(b"--------------------------------\n")
+
+                # Datos de factura electronica (si aplica)
+                venta_keys = venta.keys()
+                if ('requiere_factura_electronica' in venta_keys) and (venta['requiere_factura_electronica'] == 1):
+                    raw_data.extend(izquierda)
+                    raw_data.extend(b"--------------------------------\n")
+                    raw_data.extend(b"DATOS FACTURA ELECTRONICA\n")
+                    fe_tipo = (venta['fe_tipo_documento'] or '').strip()
+                    fe_num = (venta['fe_numero_documento'] or '').strip()
+                    if fe_num:
+                        raw_data.extend(f"Documento: {fe_tipo} {fe_num}".strip().encode('latin1', errors='replace') + b"\n")
+                    if (venta['fe_nombre'] or '').strip():
+                        raw_data.extend(f"Nombre: {venta['fe_nombre']}\n".encode('latin1', errors='replace'))
+                    if (venta['fe_direccion'] or '').strip():
+                        raw_data.extend(f"Direccion: {venta['fe_direccion']}\n".encode('latin1', errors='replace'))
+                    if (venta['fe_telefono'] or '').strip():
+                        raw_data.extend(f"Tel: {venta['fe_telefono']}\n".encode('latin1', errors='replace'))
+                    if (venta['fe_correo'] or '').strip():
+                        raw_data.extend(f"Correo: {venta['fe_correo']}\n".encode('latin1', errors='replace'))
+                    raw_data.extend(b"--------------------------------\n")
+
                 raw_data.extend(centrado + b"Gracias por su compra\n")
                 raw_data.extend(b"Tecnologia Cafeto 24\n\n\n\n\n")
                 raw_data.extend(cortar)
@@ -5110,6 +5191,28 @@ def inicializar_y_migrar_db():
             """)
             version_actual = 6
             cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '6')")
+            conn.commit()
+
+        # ==========================================
+        # MIGRACIÓN v7: Datos de factura electrónica (sin integración DIAN)
+        # ==========================================
+        if version_actual < 7:
+            print("INFO: Aplicando migración v7 (Datos de factura electrónica en ventas)...")
+            columnas_ventas_v7 = [info['name'] for info in cursor.execute("PRAGMA table_info(ventas);").fetchall()]
+            columnas_fe = [
+                ('requiere_factura_electronica', 'INTEGER DEFAULT 0'),
+                ('fe_tipo_documento', 'TEXT'),
+                ('fe_numero_documento', 'TEXT'),
+                ('fe_nombre', 'TEXT'),
+                ('fe_direccion', 'TEXT'),
+                ('fe_telefono', 'TEXT'),
+                ('fe_correo', 'TEXT'),
+            ]
+            for col_name, col_def in columnas_fe:
+                if col_name not in columnas_ventas_v7:
+                    cursor.execute(f"ALTER TABLE ventas ADD COLUMN {col_name} {col_def};")
+            version_actual = 7
+            cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '7')")
             conn.commit()
 
         # Asegurar que siempre exista el usuario administrador 'admin'

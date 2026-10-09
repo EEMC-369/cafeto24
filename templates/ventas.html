@@ -566,6 +566,53 @@
                             <input type="checkbox" id="imprimir-factura" class="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500">
                             <span>Imprimir factura solo cuando se necesite</span>
                         </label>
+
+                        <!-- MODO DE FACTURA: normal vs electronica -->
+                        <div class="bg-slate-50 border rounded-xl px-2.5 py-2 shadow-sm space-y-2">
+                            <div class="flex gap-2 text-[11px] font-bold text-gray-600">
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="modo-factura" value="normal" checked
+                                           onchange="toggleFacturaElectronica()" class="h-3.5 w-3.5 text-green-600 focus:ring-green-500">
+                                    <span>🧾 Factura normal</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="modo-factura" value="electronica"
+                                           onchange="toggleFacturaElectronica()" class="h-3.5 w-3.5 text-green-600 focus:ring-green-500">
+                                    <span>📧 Factura electrónica</span>
+                                </label>
+                            </div>
+                            <div id="panel-factura-electronica" class="hidden space-y-1.5 border-t border-slate-200 pt-2">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-400 uppercase">Tipo Documento</label>
+                                        <select id="fe-tipo-documento" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
+                                            <option value="CC">CC</option>
+                                            <option value="NIT">NIT</option>
+                                            <option value="CE">CE</option>
+                                            <option value="Pasaporte">Pasaporte</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-400 uppercase">N° Documento</label>
+                                        <input type="text" id="fe-numero-documento" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
+                                    </div>
+                                </div>
+                                <label class="block text-[9px] font-bold text-gray-400 uppercase">Nombre / Razón social</label>
+                                <input type="text" id="fe-nombre" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
+                                <label class="block text-[9px] font-bold text-gray-400 uppercase">Dirección</label>
+                                <input type="text" id="fe-direccion" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-400 uppercase">Teléfono</label>
+                                        <input type="text" id="fe-telefono" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-400 uppercase">Correo</label>
+                                        <input type="text" id="fe-correo" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -2818,6 +2865,7 @@
                 document.getElementById('referencia-pago').value = '';
                 document.getElementById('cliente-fiado').value = '';
                 document.getElementById('referencia-fiado').value = '';
+                limpiarFacturaElectronica();
                 setEntradaNumericaActiva('efectivo-recibido');
                 document.getElementById('carrito-vacio').style.display = 'block';
                 cambiarMetodoPago('efectivo');
@@ -3196,6 +3244,48 @@
             }
         }
 
+        function toggleFacturaElectronica() {
+            const esElectronica = document.querySelector('input[name="modo-factura"]:checked')?.value === 'electronica';
+            const panel = document.getElementById('panel-factura-electronica');
+            if (panel) panel.classList.toggle('hidden', !esElectronica);
+        }
+
+        // Devuelve {ok, data} con los campos FE para el body del fetch; valida si es electronica.
+        function obtenerDatosFacturaElectronica() {
+            const esElectronica = document.querySelector('input[name="modo-factura"]:checked')?.value === 'electronica';
+            if (!esElectronica) {
+                return { ok: true, data: { requiere_factura_electronica: 0 } };
+            }
+            const numero = (document.getElementById('fe-numero-documento').value || '').trim();
+            const nombre = (document.getElementById('fe-nombre').value || '').trim();
+            if (!numero || !nombre) {
+                alert('⚠️ Para factura electrónica debes ingresar número de documento y nombre.');
+                return { ok: false, data: null };
+            }
+            return {
+                ok: true,
+                data: {
+                    requiere_factura_electronica: 1,
+                    fe_tipo_documento: document.getElementById('fe-tipo-documento').value,
+                    fe_numero_documento: numero,
+                    fe_nombre: nombre,
+                    fe_direccion: (document.getElementById('fe-direccion').value || '').trim(),
+                    fe_telefono: (document.getElementById('fe-telefono').value || '').trim(),
+                    fe_correo: (document.getElementById('fe-correo').value || '').trim(),
+                }
+            };
+        }
+
+        function limpiarFacturaElectronica() {
+            const radioNormal = document.querySelector('input[name="modo-factura"][value="normal"]');
+            if (radioNormal) radioNormal.checked = true;
+            ['fe-numero-documento','fe-nombre','fe-direccion','fe-telefono','fe-correo'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            const tipo = document.getElementById('fe-tipo-documento'); if (tipo) tipo.value = 'CC';
+            toggleFacturaElectronica();
+        }
+
         async function cobrarPedido() {
             if(carrito.length === 0) return alert("El carrito está vacío.");
             
@@ -3212,6 +3302,9 @@
             if (metodoPagoActual === 'fiado' && !clienteFiado) {
                 return alert('⚠️ Debes seleccionar un cliente exclusivo para registrar venta fiada.');
             }
+
+            const fe = obtenerDatosFacturaElectronica();
+            if (!fe.ok) return;
             
             try {
                 const respuesta = await fetch('/api/cobrar', {
@@ -3225,7 +3318,8 @@
                             ? referenciaFiado
                             : document.getElementById('referencia-pago').value.trim(),
                         cliente_fiado: clienteFiado,
-                        orden_abierta_id: ordenAbiertaEditandoId
+                        orden_abierta_id: ordenAbiertaEditandoId,
+                        ...fe.data
                     })
                 });
                 const resultado = await respuesta.json();
@@ -3261,6 +3355,7 @@
                     document.getElementById('cliente-fiado').value = '';
                     document.getElementById('referencia-fiado').value = '';
                     document.getElementById('imprimir-factura').checked = false;
+                    limpiarFacturaElectronica();
                     setEntradaNumericaActiva('efectivo-recibido');
                     document.getElementById('carrito-vacio').style.display = 'block';
                     actualizarInterfazCarrito();
@@ -3885,6 +3980,8 @@
             if (montoD > 0) pagos.push({ metodo: 'daviplata', monto: montoD });
             if (montoT > 0) pagos.push({ metodo: 'tarjeta', monto: montoT });
             const imprimirFactura = document.getElementById('imprimir-factura')?.checked;
+            const fe = obtenerDatosFacturaElectronica();
+            if (!fe.ok) return;
             try {
                 const respuesta = await fetch('/api/cobrar', {
                     method: 'POST',
@@ -3896,7 +3993,8 @@
                         referencia_pago: document.getElementById('referencia-pago').value.trim(),
                         cliente_fiado: document.getElementById('cliente-fiado').value.trim(),
                         orden_abierta_id: ordenAbiertaEditandoId,
-                        imprimir_factura: imprimirFactura
+                        imprimir_factura: imprimirFactura,
+                        ...fe.data
                     })
                 });
                 const result = await respuesta.json();
@@ -3921,6 +4019,7 @@
                     document.getElementById('cliente-fiado').value = '';
                     document.getElementById('referencia-fiado') && (document.getElementById('referencia-fiado').value = '');
                     document.getElementById('imprimir-factura').checked = false;
+                    limpiarFacturaElectronica();
                     setEntradaNumericaActiva('efectivo-recibido');
                     document.getElementById('carrito-vacio').style.display = 'block';
                     actualizarInterfazCarrito();
