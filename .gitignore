@@ -25,3 +25,12 @@ scratch/
 
 # Build caches
 CajaCafeto24.build/
+
+# Nuitka standalone build output
+CajaCafeto24.dist/
+
+# Workflow agent artifacts
+.agents/
+
+# Installer output (se publica en GitHub Releases, no en el repo)
+Cafeto24_Setup.exe
