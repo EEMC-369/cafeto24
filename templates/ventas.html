@@ -1243,6 +1243,73 @@
                     </div>
                 </div>
 
+                <!-- Destinos de Efectivo a Alcancías (opcionales) -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Destinar Efectivo a Alcancías (opcional)</h4>
+
+                    <!-- Destino Ahorro -->
+                    <div class="bg-indigo-50/60 border border-indigo-200/70 rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xl">🏦</span>
+                            <div>
+                                <span class="font-bold text-xs text-slate-800 block">Destinar a Ahorro ($)</span>
+                                <span class="text-[11px] text-slate-500">Se descuenta del efectivo esperado del turno.</span>
+                            </div>
+                        </div>
+                        <div class="relative w-36">
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs">$</span>
+                            <input type="number" id="cierre-destino-ahorro" min="0" step="any" oninput="recalcularBaseFinalCierre()" class="w-full bg-white border border-slate-300 rounded-xl pl-6 pr-2 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- Destino Yessi -->
+                    <div class="bg-indigo-50/60 border border-indigo-200/70 rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xl">💜</span>
+                            <div>
+                                <span class="font-bold text-xs text-slate-800 block">Destinar a Yessi ($)</span>
+                                <span class="text-[11px] text-slate-500">Se descuenta del efectivo esperado del turno.</span>
+                            </div>
+                        </div>
+                        <div class="relative w-36">
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs">$</span>
+                            <input type="number" id="cierre-destino-yessi" min="0" step="any" oninput="recalcularBaseFinalCierre()" class="w-full bg-white border border-slate-300 rounded-xl pl-6 pr-2 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- Resumen de Base (solo lectura) -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 grid grid-cols-3 gap-3 text-center">
+                        <div>
+                            <span class="font-bold block text-[10px] uppercase text-slate-400">Base inicial</span>
+                            <span id="cierre-base-inicial" class="text-slate-800 font-bold text-sm">$0</span>
+                        </div>
+                        <div>
+                            <span class="font-bold block text-[10px] uppercase text-slate-400">Efectivo esperado</span>
+                            <span id="cierre-efectivo-esperado-info" class="text-slate-800 font-bold text-sm">$0</span>
+                        </div>
+                        <div>
+                            <span class="font-bold block text-[10px] uppercase text-slate-400">Base final tras destinar</span>
+                            <span id="cierre-base-final" class="text-emerald-700 font-black text-sm">$0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Indicadores de Fiado del Turno (informativos) -->
+                <div class="space-y-2">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Fiado del Turno (informativo)</h4>
+                    <div class="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 grid grid-cols-2 gap-3 text-center">
+                        <div>
+                            <span class="font-bold block text-[10px] uppercase text-amber-500">Ventas fiadas en el turno</span>
+                            <span id="cierre-ventas-fiadas" class="text-amber-800 font-bold text-sm">$0</span>
+                        </div>
+                        <div>
+                            <span class="font-bold block text-[10px] uppercase text-amber-500">Abonos recibidos en el turno</span>
+                            <span id="cierre-abonos-turno" class="text-amber-800 font-bold text-sm">$0</span>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">Estos valores son informativos y <strong>no afectan</strong> el efectivo esperado: el fiado no entra en caja, y el abono ya suma al efectivo si se cobró en efectivo.</p>
+                </div>
+
                 <!-- Observaciones -->
                 <div class="space-y-1">
                     <label for="cierre-observaciones" class="font-bold block text-[10px] uppercase text-slate-500">Observaciones / Notas del Cierre</label>
@@ -3467,6 +3534,31 @@
         }
 
         let saldosEsperadosCierre = { efectivo: 0, nequi: 0, daviplata: 0, tarjeta: 0 };
+        let baseInicialCierre = 0;
+
+        function recalcularBaseFinalCierre() {
+            const parseNum = id => {
+                const val = document.getElementById(id)?.value;
+                const n = (val !== '' && val !== null) ? Number(val) : 0;
+                return (isNaN(n) || n < 0) ? 0 : n;
+            };
+            const esperado = Number(saldosEsperadosCierre.efectivo || 0);
+            const ahorro = parseNum('cierre-destino-ahorro');
+            const yessi = parseNum('cierre-destino-yessi');
+            const baseFinal = esperado - ahorro - yessi;
+
+            const baseIniEl = document.getElementById('cierre-base-inicial');
+            if (baseIniEl) baseIniEl.innerText = dinero(baseInicialCierre || 0);
+            const espEl = document.getElementById('cierre-efectivo-esperado-info');
+            if (espEl) espEl.innerText = dinero(esperado);
+            const baseFinalEl = document.getElementById('cierre-base-final');
+            if (baseFinalEl) {
+                baseFinalEl.innerText = dinero(baseFinal);
+                baseFinalEl.className = baseFinal < 0
+                    ? 'text-rose-600 font-black text-sm'
+                    : 'text-emerald-700 font-black text-sm';
+            }
+        }
 
         function abrirModalCierreTurno() {
             const modal = document.getElementById('modal-cierre-turno');
@@ -3476,6 +3568,18 @@
                 const inputReal = document.getElementById(`cierre-real-${m}`);
                 if (inputReal) inputReal.value = '';
                 calcularArqueoMetodo(m);
+            });
+
+            ['cierre-destino-ahorro', 'cierre-destino-yessi'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            baseInicialCierre = 0;
+            saldosEsperadosCierre = { efectivo: 0, nequi: 0, daviplata: 0, tarjeta: 0 };
+            recalcularBaseFinalCierre();
+            ['cierre-ventas-fiadas', 'cierre-abonos-turno'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = dinero(0);
             });
 
             document.getElementById('cierre-observaciones').value = '';
@@ -3504,13 +3608,21 @@
                     }
 
                     saldosEsperadosCierre = data.saldos_acumulados || { efectivo: 0, nequi: 0, daviplata: 0, tarjeta: 0 };
-                    
+                    baseInicialCierre = Number(data.base_inicial || 0);
+
                     ['efectivo', 'nequi', 'daviplata', 'tarjeta'].forEach(m => {
                         const espEl = document.getElementById(`cierre-esp-${m}`);
                         if (espEl) espEl.innerText = dinero(saldosEsperadosCierre[m] || 0);
                         calcularArqueoMetodo(m);
                     });
-                    
+
+                    const ventasFiadasEl = document.getElementById('cierre-ventas-fiadas');
+                    if (ventasFiadasEl) ventasFiadasEl.innerText = dinero(Number(data.ventas_fiadas_turno || 0));
+                    const abonosEl = document.getElementById('cierre-abonos-turno');
+                    if (abonosEl) abonosEl.innerText = dinero(Number(data.abonos_turno || 0));
+
+                    recalcularBaseFinalCierre();
+
                     btnConfirmar.disabled = false;
                     btnConfirmar.innerHTML = '<span>Finalizar Turno ⏹</span>';
                 })
@@ -3570,11 +3682,28 @@
                 return (val !== '' && val !== null) ? Number(val) : null;
             };
 
+            // Destinos a alcancías (opcionales, vacío => 0 en backend)
+            const destinoAhorro = parseInput('cierre-destino-ahorro') || 0;
+            const destinoYessi = parseInput('cierre-destino-yessi') || 0;
+
+            // Validación cliente ligera; el servidor es autoritativo.
+            if (destinoAhorro < 0 || destinoYessi < 0) {
+                alert('⚠️ Los montos a destinar a Ahorro y Yessi no pueden ser negativos.');
+                return;
+            }
+            const esperadoEfectivo = Number(saldosEsperadosCierre.efectivo || 0);
+            if (destinoAhorro + destinoYessi > esperadoEfectivo) {
+                alert('⚠️ Lo destinado a Ahorro y Yessi no puede superar el efectivo esperado del turno.');
+                return;
+            }
+
             const payload = {
                 efectivo_real: parseInput('cierre-real-efectivo'),
                 nequi_real: parseInput('cierre-real-nequi'),
                 daviplata_real: parseInput('cierre-real-daviplata'),
                 tarjeta_real: parseInput('cierre-real-tarjeta'),
+                destinado_ahorro: destinoAhorro,
+                destinado_yessi: destinoYessi,
                 observaciones: document.getElementById('cierre-observaciones').value
             };
 

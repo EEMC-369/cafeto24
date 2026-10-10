@@ -612,6 +612,7 @@
                 <button onclick="cambiarPestaña('tab-perfil')" id="btn-tab-perfil" class="flex-1 py-2.5 rounded-xl hover:bg-purple-100 text-slate-700 transition whitespace-nowrap active:scale-95">⚙️ Perfil</button>
                 <button onclick="cambiarPestaña('tab-datos')" id="btn-tab-datos" class="flex-1 py-2.5 rounded-xl hover:bg-slate-200 text-slate-700 transition whitespace-nowrap active:scale-95">💾 Datos</button>
                 <button onclick="cambiarPestaña('tab-auditoria')" id="btn-tab-auditoria" class="flex-1 py-2.5 rounded-xl hover:bg-rose-100 text-slate-700 transition whitespace-nowrap active:scale-95">🔎 Auditoría</button>
+                <button onclick="cambiarPestaña('tab-caja')" id="btn-tab-caja" class="flex-1 py-2.5 rounded-xl hover:bg-indigo-100 text-slate-700 transition whitespace-nowrap active:scale-95">💰 Caja</button>
             </div>
             
             <div id="tab-productos" class="ContenedorTab bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85">
@@ -982,6 +983,65 @@
                     <p class="text-xs text-slate-400 italic">Pulsa "Ejecutar auditoría" para generar el reporte.</p>
                 </div>
             </div>
+
+            <div id="tab-caja" class="ContenedorTab hidden bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85 space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-800 mb-1 flex items-center gap-1.5">
+                            <span>💰</span> Caja: Alcancías y Base Inicial
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium">Control de las bóvedas de efectivo (Ahorro y Yessi), sus retiros e historial, y la base inicial de caja. Solo administrador.</p>
+                    </div>
+                    <button onclick="cargarAlcancias(); cargarBaseInicialCaja();" class="interactive-element bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-sm transition shadow-md shadow-indigo-600/10 whitespace-nowrap">
+                        🔄 Actualizar
+                    </button>
+                </div>
+
+                <!-- Tarjetas de alcancías -->
+                <div id="caja-alcancias-contenedor" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <p class="text-xs text-slate-400 italic">Cargando alcancías...</p>
+                </div>
+
+                <!-- Historial de la alcancía seleccionada -->
+                <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <h4 class="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span>📜</span> Historial de movimientos
+                        </h4>
+                        <span id="caja-historial-titulo" class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200"></span>
+                    </div>
+                    <div id="caja-historial-contenedor">
+                        <p class="text-xs text-slate-400 italic">Selecciona "Ver historial" en una alcancía para ver sus movimientos.</p>
+                    </div>
+                </div>
+
+                <!-- Fijar base inicial -->
+                <div class="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 space-y-3">
+                    <h4 class="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+                        <span>🧾</span> Base inicial de caja
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div class="bg-white border border-amber-200/70 rounded-xl p-3">
+                            <span class="font-bold block text-[10px] uppercase text-amber-500">Base configurada</span>
+                            <span id="caja-base-configurada" class="text-slate-800 font-bold text-sm">$0</span>
+                        </div>
+                        <div class="bg-white border border-amber-200/70 rounded-xl p-3">
+                            <span class="font-bold block text-[10px] uppercase text-amber-500">Último cierre (base final)</span>
+                            <span id="caja-ultimo-base-final" class="text-slate-800 font-bold text-sm">—</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+                        <div class="flex-1">
+                            <label for="caja-base-inicial-input" class="block text-[10px] font-bold text-amber-600 uppercase mb-1">Nueva base inicial ($)</label>
+                            <input type="number" id="caja-base-inicial-input" min="0" step="any" placeholder="0" class="w-full p-2.5 border border-amber-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-amber-500">
+                        </div>
+                        <button onclick="guardarBaseInicialCaja()" class="interactive-element bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 px-4 rounded-xl text-sm transition shadow-md shadow-amber-500/10 whitespace-nowrap">
+                            💾 Guardar base
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">La base inicial solo aplica al <strong>primer turno sin arrastre</strong>. Si ya hay un turno cerrado con base final, esa base final se arrastra al siguiente turno automáticamente.</p>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -1320,7 +1380,8 @@
             'tab-personal': { active: 'bg-indigo-600 text-white shadow-sm font-black', inactive: 'hover:bg-indigo-100 text-slate-700' },
             'tab-perfil': { active: 'bg-purple-600 text-white shadow-sm font-black', inactive: 'hover:bg-purple-100 text-slate-700' },
             'tab-datos': { active: 'bg-slate-700 text-white shadow-sm font-black', inactive: 'hover:bg-slate-200 text-slate-700' },
-            'tab-auditoria': { active: 'bg-rose-600 text-white shadow-sm font-black', inactive: 'hover:bg-rose-100 text-slate-700' }
+            'tab-auditoria': { active: 'bg-rose-600 text-white shadow-sm font-black', inactive: 'hover:bg-rose-100 text-slate-700' },
+            'tab-caja': { active: 'bg-indigo-600 text-white shadow-sm font-black', inactive: 'hover:bg-indigo-100 text-slate-700' }
         };
 
         function cambiarPestaña(tabId) {
@@ -1340,6 +1401,10 @@
             if(btnActivo) {
                 const conf = configTabs[tabId] || { active: 'bg-white text-slate-900 shadow-sm', inactive: 'hover:bg-white/50' };
                 btnActivo.className = `flex-1 py-2.5 rounded-xl transition duration-150 whitespace-nowrap active:scale-95 ${conf.active}`;
+            }
+            if (tabId === 'tab-caja' && typeof cargarAlcancias === 'function') {
+                cargarAlcancias();
+                cargarBaseInicialCaja();
             }
         }
 
@@ -1813,6 +1878,179 @@
             alert('Se iniciará la descarga en segundo plano. Cafeto24 se cerrará automáticamente en unos segundos, aplicará los cambios e iniciará la nueva versión. Por favor espera.');
         }
 
+        /* ================== CAJA: ALCANCÍAS Y BASE INICIAL (ADMIN) ================== */
+        function dineroCaja(valor) {
+            return `$${Number(valor || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`;
+        }
+
+        function escaparHtmlCaja(valor) {
+            if (valor === null || valor === undefined) return '';
+            return String(valor)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function cargarAlcancias() {
+            const cont = document.getElementById('caja-alcancias-contenedor');
+            if (!cont) return;
+            cont.innerHTML = '<p class="text-xs text-slate-400 italic">Cargando alcancías...</p>';
+            fetch('/api/alcancias')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) throw new Error(data.error || 'Error al obtener las alcancías');
+                    const alcancias = data.alcancias || [];
+                    if (!alcancias.length) {
+                        cont.innerHTML = '<p class="text-xs text-slate-400 italic">No hay alcancías configuradas.</p>';
+                        return;
+                    }
+                    cont.innerHTML = alcancias.map(a => {
+                        const id = a.id;
+                        const nombre = escaparHtmlCaja(a.nombre);
+                        return `
+                        <div class="bg-indigo-50/60 border border-indigo-200/70 rounded-2xl p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-extrabold text-slate-800 flex items-center gap-1.5"><span>🏦</span> ${nombre}</h4>
+                                <span class="text-base font-black text-indigo-700">${dineroCaja(a.saldo)}</span>
+                            </div>
+                            <div class="space-y-2">
+                                <input type="number" id="retiro-monto-${id}" min="0" step="any" placeholder="Monto a retirar ($)" class="w-full p-2 border border-indigo-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+                                <input type="text" id="retiro-desc-${id}" placeholder="Descripción (opcional)" class="w-full p-2 border border-indigo-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+                                <div class="flex gap-2">
+                                    <button onclick="retirarDeAlcancia(${id}, '${nombre}')" class="interactive-element flex-1 bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2 rounded-xl text-xs transition active:scale-95">➖ Retirar</button>
+                                    <button onclick="cargarMovimientosAlcancia(${id}, '${nombre}')" class="interactive-element flex-1 bg-slate-700 hover:bg-slate-800 text-white font-extrabold py-2 rounded-xl text-xs transition active:scale-95">📜 Ver historial</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                })
+                .catch(err => {
+                    cont.innerHTML = `<p class="text-xs text-rose-600 font-bold">Error al cargar las alcancías: ${escaparHtmlCaja(err.message || err)}</p>`;
+                });
+        }
+
+        function retirarDeAlcancia(alcanciaId, nombre) {
+            const montoEl = document.getElementById(`retiro-monto-${alcanciaId}`);
+            const descEl = document.getElementById(`retiro-desc-${alcanciaId}`);
+            const monto = Number(montoEl?.value);
+            if (!montoEl || montoEl.value === '' || isNaN(monto) || monto <= 0) {
+                alert('⚠️ Ingresa un monto válido mayor a 0 para retirar.');
+                return;
+            }
+            if (!confirm(`¿Confirmas retirar ${dineroCaja(monto)} de la alcancía "${nombre}"?`)) return;
+
+            fetch('/admin/alcancias/retirar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    alcancia_id: alcanciaId,
+                    monto: monto,
+                    descripcion: (descEl?.value || '').trim()
+                })
+            })
+            .then(async r => {
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok || !data.success) throw new Error(data.error || 'Error al registrar el retiro.');
+                return data;
+            })
+            .then(() => {
+                cargarAlcancias();
+                cargarMovimientosAlcancia(alcanciaId, nombre);
+            })
+            .catch(err => alert(`⚠️ ${err.message || err}`));
+        }
+
+        function cargarMovimientosAlcancia(alcanciaId, nombre) {
+            const cont = document.getElementById('caja-historial-contenedor');
+            const titulo = document.getElementById('caja-historial-titulo');
+            if (!cont) return;
+            if (titulo) titulo.innerText = nombre || '';
+            cont.innerHTML = '<p class="text-xs text-slate-400 italic">Cargando movimientos...</p>';
+            fetch(`/api/alcancias/${alcanciaId}/movimientos`)
+                .then(async r => {
+                    const data = await r.json().catch(() => ({}));
+                    if (!r.ok || !data.success) throw new Error(data.error || 'Error al obtener los movimientos');
+                    return data;
+                })
+                .then(data => {
+                    const movimientos = data.movimientos || [];
+                    if (titulo && data.alcancia) titulo.innerText = data.alcancia.nombre;
+                    if (!movimientos.length) {
+                        cont.innerHTML = '<p class="text-xs text-slate-400 italic">Esta alcancía aún no tiene movimientos.</p>';
+                        return;
+                    }
+                    const thClases = 'bg-slate-100 text-slate-600 font-bold uppercase px-3 py-2 text-[10px] tracking-wider';
+                    const tdClases = 'px-3 py-2 border-t border-slate-100 text-slate-700';
+                    let html = '<div class="overflow-x-auto"><table class="w-full text-xs text-left border border-slate-200 rounded-xl overflow-hidden"><thead><tr>'
+                        + `<th class="${thClases}">Tipo</th><th class="${thClases}">Monto</th><th class="${thClases}">Fecha</th><th class="${thClases}">Turno</th><th class="${thClases}">Usuario</th><th class="${thClases}">Descripción</th>`
+                        + '</tr></thead><tbody>';
+                    movimientos.forEach(m => {
+                        const esAporte = m.tipo === 'aporte';
+                        const tipoBadge = esAporte
+                            ? '<span class="font-bold text-emerald-700">+ Aporte</span>'
+                            : '<span class="font-bold text-rose-700">− Retiro</span>';
+                        const montoTxt = (esAporte ? '+' : '−') + dineroCaja(m.monto);
+                        const montoColor = esAporte ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold';
+                        html += '<tr>'
+                            + `<td class="${tdClases}">${tipoBadge}</td>`
+                            + `<td class="${tdClases} ${montoColor}">${montoTxt}</td>`
+                            + `<td class="${tdClases}">${escaparHtmlCaja(m.fecha)}</td>`
+                            + `<td class="${tdClases}">${m.turno_id !== null && m.turno_id !== undefined ? '#' + escaparHtmlCaja(m.turno_id) : '—'}</td>`
+                            + `<td class="${tdClases}">${escaparHtmlCaja(m.usuario) || '—'}</td>`
+                            + `<td class="${tdClases}">${escaparHtmlCaja(m.descripcion) || '—'}</td>`
+                            + '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    cont.innerHTML = html;
+                })
+                .catch(err => {
+                    cont.innerHTML = `<p class="text-xs text-rose-600 font-bold">Error al cargar los movimientos: ${escaparHtmlCaja(err.message || err)}</p>`;
+                });
+        }
+
+        function cargarBaseInicialCaja() {
+            fetch('/api/caja/base_inicial')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) throw new Error(data.error || 'Error al obtener la base inicial');
+                    const configuradaEl = document.getElementById('caja-base-configurada');
+                    if (configuradaEl) configuradaEl.innerText = dineroCaja(data.base_configurada);
+                    const ultimoEl = document.getElementById('caja-ultimo-base-final');
+                    if (ultimoEl) {
+                        ultimoEl.innerText = (data.ultimo_base_final !== null && data.ultimo_base_final !== undefined)
+                            ? dineroCaja(data.ultimo_base_final)
+                            : '—';
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+
+        function guardarBaseInicialCaja() {
+            const input = document.getElementById('caja-base-inicial-input');
+            const monto = Number(input?.value);
+            if (!input || input.value === '' || isNaN(monto) || monto < 0) {
+                alert('⚠️ Ingresa un monto válido (0 o mayor) para la base inicial.');
+                return;
+            }
+            fetch('/admin/caja/base_inicial', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ monto: monto })
+            })
+            .then(async r => {
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok || !data.success) throw new Error(data.error || 'Error al guardar la base inicial.');
+                return data;
+            })
+            .then(() => {
+                input.value = '';
+                cargarBaseInicialCaja();
+                alert('✅ Base inicial guardada correctamente.');
+            })
+            .catch(err => alert(`⚠️ ${err.message || err}`));
+        }
+
         /* ================== GUÍA DE USO INTERACTIVA (ADMIN) ================== */
         // Cada entrada: { clave, titulo, descripcion (HTML), sel (selector CSS), pestaña? ('tab-...') }
         const ENTRADAS_GUIA_ADMIN = [
@@ -1854,6 +2092,8 @@
               descripcion: '<ol><li>Revisa la versión instalada.</li><li>Pulsa "🔍 Buscar Actualizaciones".</li><li>Si hay versión nueva, pulsa para descargarla e instalarla.</li></ol><p class="mt-2"><strong>Resultado:</strong> el sistema queda en la última versión disponible.</p>' },
             { clave: 'auditoria', titulo: '🔎 Auditoría de inventario', sel: '[onclick="ejecutarAuditoria()"]', pestaña: 'tab-auditoria',
               descripcion: '<ol><li>Pulsa "▶️ Ejecutar auditoría".</li><li>Revisa los duplicados y los productos repartidos entre "Sin Categoría" y su categoría real.</li><li>Si quieres, pulsa "📊 Exportar a Excel".</li></ol><p class="mt-2"><strong>Resultado:</strong> ves las novedades del inventario; la auditoría no modifica datos.</p>' },
+            { clave: 'caja', titulo: '💰 Caja: alcancías y base', sel: '#tab-caja', pestaña: 'tab-caja',
+              descripcion: '<ol><li>Revisa el saldo de cada alcancía (Ahorro y Yessi).</li><li>Para retirar, escribe el monto y una descripción, y pulsa "Retirar".</li><li>Pulsa "Ver historial" para ver aportes y retiros de una alcancía.</li><li>En "Base inicial de caja", fija la base del primer turno sin arrastre.</li></ol><p class="mt-2"><strong>Resultado:</strong> controlas las bóvedas de efectivo y la base de inicio de la caja.</p><p class="mt-1"><strong>Ojo:</strong> los retiros solo los puede hacer el administrador y no pueden superar el saldo disponible.</p>' },
         ];
 
         function _construirListaGuiaAdmin() {
