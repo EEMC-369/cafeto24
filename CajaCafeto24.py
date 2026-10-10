@@ -245,10 +245,28 @@ def abrir_turno(usuario):
         if turno_existente:
             return turno_existente['id']
 
+        # Base inicial del turno nuevo (D8): arrastra el base_final del último turno
+        # cerrado del negocio; si no hay, usa la base configurada en db_metadata; o 0.
+        base_inicial = 0.0
+        ultimo_cerrado = db.execute("""
+            SELECT base_final
+            FROM turnos
+            WHERE estado = 'cerrado' AND base_final IS NOT NULL
+            ORDER BY fecha_cierre DESC, id DESC
+            LIMIT 1
+        """).fetchone()
+        if ultimo_cerrado is not None and ultimo_cerrado['base_final'] is not None:
+            base_inicial = float(ultimo_cerrado['base_final'] or 0)
+        else:
+            meta = db.execute(
+                "SELECT value FROM db_metadata WHERE key = 'base_caja_inicial'"
+            ).fetchone()
+            base_inicial = float(meta['value']) if (meta and meta['value']) else 0.0
+
         cursor = db.execute("""
-            INSERT INTO turnos (usuario_id, nombre_usuario, rol, fecha_apertura, estado)
-            VALUES (?, ?, ?, DATETIME('now', 'localtime'), 'abierto')
-        """, (usuario['id'], usuario['nombre'], usuario['rol']))
+            INSERT INTO turnos (usuario_id, nombre_usuario, rol, fecha_apertura, estado, base_inicial)
+            VALUES (?, ?, ?, DATETIME('now', 'localtime'), 'abierto', ?)
+        """, (usuario['id'], usuario['nombre'], usuario['rol'], base_inicial))
         db.commit()
         return cursor.lastrowid
     finally:
@@ -316,6 +334,56 @@ def registrar_movimiento_caja(db, turno_id, usuario_id, tipo_movimiento, origen,
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, DATETIME('now', 'localtime'))
     """, (turno_id, usuario_id, tipo_movimiento, origen, descripcion, metodo_pago, monto))
+
+
+def arqueo_saldos_turno(db, turno_id):
+    """Arqueo POR TURNO (D1). Fuente única = caja_movimientos filtrado por turno_id.
+
+    Devuelve un dict por método con el saldo del turno (entradas - salidas):
+      {'efectivo': x, 'nequi': y, 'daviplata': z, 'tarjeta': w}
+    El efectivo (flujo_efectivo_turno) usa COALESCE(metodo_pago,'efectivo')='efectivo'.
+    NO incluye tipo_movimiento='deuda'/metodo='fiado' (solo entrada/salida) y NO suma
+    gastos ni abonos aparte (ya viven en caja_movimientos). No conoce base ni destinos.
+    """
+    saldos = {'efectivo': 0.0, 'nequi': 0.0, 'daviplata': 0.0, 'tarjeta': 0.0}
+    filas = db.execute("""
+        SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago,
+               COALESCE(SUM(CASE WHEN tipo_movimiento = 'entrada' THEN monto
+                                 WHEN tipo_movimiento = 'salida' THEN -monto
+                                 ELSE 0 END), 0) as saldo
+        FROM caja_movimientos
+        WHERE turno_id = ?
+          AND tipo_movimiento IN ('entrada', 'salida')
+          AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
+        GROUP BY COALESCE(metodo_pago, 'efectivo')
+    """, (turno_id,)).fetchall()
+    for fila in filas:
+        metodo = str(fila['metodo_pago']).lower()
+        if metodo in saldos:
+            saldos[metodo] = float(fila['saldo'] or 0)
+    return saldos
+
+
+def indicadores_fiado_turno(db, turno_id):
+    """Indicadores de fiado POR TURNO (D9), informativos (no entran en el arqueo).
+
+    - ventas_fiadas_turno: total de ventas con metodo_pago='fiado' del turno.
+    - abonos_turno: total de abonos de deuda cobrados en el turno (todos los métodos).
+    """
+    ventas_fiadas = db.execute("""
+        SELECT COALESCE(SUM(total), 0) as total
+        FROM ventas
+        WHERE turno_id = ? AND COALESCE(metodo_pago, 'efectivo') = 'fiado'
+    """, (turno_id,)).fetchone()
+    abonos = db.execute("""
+        SELECT COALESCE(SUM(monto), 0) as total
+        FROM caja_movimientos
+        WHERE turno_id = ? AND origen = 'abono_fiado'
+    """, (turno_id,)).fetchone()
+    return (
+        float(ventas_fiadas['total'] or 0),
+        float(abonos['total'] or 0),
+    )
 
 
 def _obtener_directorio_reportes_cierre():
@@ -1409,7 +1477,7 @@ def api_turno_preliminar():
     db = conectar_db()
     try:
         turno = db.execute("""
-            SELECT id, nombre_usuario, rol, fecha_apertura
+            SELECT id, nombre_usuario, rol, fecha_apertura, COALESCE(base_inicial, 0) as base_inicial
             FROM turnos
             WHERE id = ?
         """, (turno_id,)).fetchone()
@@ -1432,24 +1500,13 @@ def api_turno_preliminar():
             WHERE turno_id = ?
         """, (turno_id,)).fetchone()
 
-        # Saldos acumulados históricos (de toda la base de datos, fuera del turno)
-        saldos_acumulados_db = db.execute("""
-            SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago,
-                   SUM(CASE WHEN tipo_movimiento = 'entrada' THEN monto 
-                            WHEN tipo_movimiento = 'salida' THEN -monto 
-                            ELSE 0 END) as saldo
-            FROM caja_movimientos
-            WHERE COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
-            GROUP BY COALESCE(metodo_pago, 'efectivo')
-        """).fetchall()
+        # Saldos POR TURNO (D1): fuente única = caja_movimientos filtrado por turno_id.
+        saldos_acumulados = arqueo_saldos_turno(db, turno_id)
 
-        metodos = ['efectivo', 'nequi', 'daviplata', 'tarjeta']
-        saldos_acumulados = {m: 0.0 for m in metodos}
-        for fila in saldos_acumulados_db:
-            metodo = str(fila['metodo_pago']).lower()
-            saldos_acumulados[metodo] = float(fila['saldo'] or 0)
+        base_inicial = float(turno['base_inicial'] or 0)
+        efectivo_esperado = base_inicial + saldos_acumulados['efectivo']
 
-        efectivo_esperado = saldos_acumulados['efectivo']
+        ventas_fiadas_turno, abonos_turno = indicadores_fiado_turno(db, turno_id)
 
         return jsonify({
             'success': True,
@@ -1463,7 +1520,10 @@ def api_turno_preliminar():
             'turno_gastos': float(gastos_turno['total_gastos'] or 0),
             'cantidad_ventas': int(resumen_turno['cantidad_ventas'] or 0),
             'saldos_acumulados': saldos_acumulados,
-            'efectivo_esperado': efectivo_esperado
+            'efectivo_esperado': efectivo_esperado,
+            'base_inicial': base_inicial,
+            'ventas_fiadas_turno': ventas_fiadas_turno,
+            'abonos_turno': abonos_turno
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1822,53 +1882,108 @@ def finalizar_turno():
             daviplata_real = parse_float(data.get('daviplata_real'))
             tarjeta_real = parse_float(data.get('tarjeta_real'))
             observaciones = data.get('observaciones')
+            destinado_ahorro = parse_float(data.get('destinado_ahorro')) or 0.0
+            destinado_yessi = parse_float(data.get('destinado_yessi')) or 0.0
         else:
             efectivo_real = parse_float(request.form.get('efectivo_real'))
             nequi_real = parse_float(request.form.get('nequi_real'))
             daviplata_real = parse_float(request.form.get('daviplata_real'))
             tarjeta_real = parse_float(request.form.get('tarjeta_real'))
             observaciones = request.form.get('observaciones')
+            destinado_ahorro = parse_float(request.form.get('destinado_ahorro')) or 0.0
+            destinado_yessi = parse_float(request.form.get('destinado_yessi')) or 0.0
+
+        # Validaciones de dinero en servidor (H4): nunca 500 por None.
+        if destinado_ahorro < 0 or destinado_yessi < 0:
+            if request.is_json:
+                return jsonify({'success': False, 'error': 'Los montos a destinar no pueden ser negativos.'}), 400
+            flash('Los montos a destinar no pueden ser negativos.', 'error')
+            return redirect(request.referrer or url_for('pantalla_ventas'))
 
         db = conectar_db()
         try:
-            saldos_db = db.execute("""
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago,
-                       SUM(CASE WHEN tipo_movimiento = 'entrada' THEN monto 
-                                WHEN tipo_movimiento = 'salida' THEN -monto 
-                                ELSE 0 END) as saldo
-                FROM caja_movimientos
-                WHERE COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
-                GROUP BY COALESCE(metodo_pago, 'efectivo')
-            """).fetchall()
+            # Arqueo POR TURNO (D1): fuente única = caja_movimientos filtrado por turno_id.
+            saldos_esperados = arqueo_saldos_turno(db, turno_id)
+
+            turno_fila = db.execute(
+                "SELECT COALESCE(base_inicial, 0) as base_inicial FROM turnos WHERE id = ?",
+                (turno_id,)
+            ).fetchone()
+            base_inicial = float(turno_fila['base_inicial'] or 0) if turno_fila else 0.0
+
+            flujo_efectivo_turno = saldos_esperados['efectivo']
+            # efectivo_esperado = base + flujo - destinos (D1, D2, D9)
+            efectivo_esperado = base_inicial + flujo_efectivo_turno - destinado_ahorro - destinado_yessi
+
+            # Tope: los destinos no pueden dejar la base de efectivo negativa.
+            if (destinado_ahorro + destinado_yessi) > (base_inicial + flujo_efectivo_turno):
+                db.close()
+                if request.is_json:
+                    return jsonify({'success': False, 'error': 'Los montos a destinar superan el efectivo disponible del turno.'}), 400
+                flash('Los montos a destinar superan el efectivo disponible del turno.', 'error')
+                return redirect(request.referrer or url_for('pantalla_ventas'))
+
+            nequi_esperado = saldos_esperados['nequi']
+            daviplata_esperado = saldos_esperados['daviplata']
+            tarjeta_esperado = saldos_esperados['tarjeta']
+
+            diferencia_efectivo = (efectivo_real - efectivo_esperado) if efectivo_real is not None else None
+            diferencia_nequi = (nequi_real - nequi_esperado) if nequi_real is not None else None
+            diferencia_daviplata = (daviplata_real - daviplata_esperado) if daviplata_real is not None else None
+            diferencia_tarjeta = (tarjeta_real - tarjeta_esperado) if tarjeta_real is not None else None
+
+            base_final = efectivo_esperado  # Se arrastra lo esperado, no lo contado (D3).
+
+            # Indicadores de fiado del turno (D9), informativos (no entran en ningún UPDATE).
+            ventas_fiadas_turno, abonos_turno = indicadores_fiado_turno(db, turno_id)
+
+            # Transacción atómica única (BEGIN IMMEDIATE): cierre + aportes a alcancías.
+            try:
+                db.execute("BEGIN IMMEDIATE")
+                db.execute("""
+                    UPDATE turnos
+                    SET estado = 'cerrado',
+                        fecha_cierre = COALESCE(fecha_cierre, DATETIME('now', 'localtime')),
+                        efectivo_esperado = ?, efectivo_real = ?, diferencia = ?,
+                        nequi_esperado = ?, nequi_real = ?, diferencia_nequi = ?,
+                        daviplata_esperado = ?, daviplata_real = ?, diferencia_daviplata = ?,
+                        tarjeta_esperado = ?, tarjeta_real = ?, diferencia_tarjeta = ?,
+                        observaciones = ?,
+                        base_final = ?, destinado_ahorro = ?, destinado_yessi = ?
+                    WHERE id = ? AND estado = 'abierto'
+                """, (
+                    efectivo_esperado, efectivo_real, diferencia_efectivo,
+                    nequi_esperado, nequi_real, diferencia_nequi,
+                    daviplata_esperado, daviplata_real, diferencia_daviplata,
+                    tarjeta_esperado, tarjeta_real, diferencia_tarjeta,
+                    observaciones,
+                    base_final, destinado_ahorro, destinado_yessi,
+                    turno_id
+                ))
+
+                for nombre_alcancia, monto_destino in (('Ahorro', destinado_ahorro), ('Yessi', destinado_yessi)):
+                    if monto_destino and monto_destino > 0:
+                        alc = db.execute(
+                            "SELECT id FROM alcancias WHERE nombre = ?", (nombre_alcancia,)
+                        ).fetchone()
+                        if not alc:
+                            raise RuntimeError(f"Alcancía '{nombre_alcancia}' no existe en la base de datos.")
+                        db.execute("""
+                            INSERT INTO alcancia_movimientos
+                                (alcancia_id, tipo, monto, turno_id, usuario_id, descripcion)
+                            VALUES (?, 'aporte', ?, ?, ?, ?)
+                        """, (
+                            alc['id'], monto_destino, turno_id, session.get('id'),
+                            f'Aporte en cierre de turno #{turno_id}'
+                        ))
+
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
         finally:
             db.close()
 
-        saldos_esperados = {'efectivo': 0.0, 'nequi': 0.0, 'daviplata': 0.0, 'tarjeta': 0.0}
-        for fila in saldos_db:
-            metodo = str(fila['metodo_pago']).lower()
-            if metodo in saldos_esperados:
-                saldos_esperados[metodo] = float(fila['saldo'] or 0)
-
-        efectivo_esperado = saldos_esperados['efectivo']
-        nequi_esperado = saldos_esperados['nequi']
-        daviplata_esperado = saldos_esperados['daviplata']
-        tarjeta_esperado = saldos_esperados['tarjeta']
-
-        diferencia_efectivo = (efectivo_real - efectivo_esperado) if efectivo_real is not None else None
-        diferencia_nequi = (nequi_real - nequi_esperado) if nequi_real is not None else None
-        diferencia_daviplata = (daviplata_real - daviplata_esperado) if daviplata_real is not None else None
-        diferencia_tarjeta = (tarjeta_real - tarjeta_esperado) if tarjeta_real is not None else None
-
-        cerrar_turno(
-            turno_id=turno_id,
-            usuario_id=session.get('id'),
-            efectivo_esperado=efectivo_esperado, efectivo_real=efectivo_real, diferencia=diferencia_efectivo,
-            nequi_esperado=nequi_esperado, nequi_real=nequi_real, diferencia_nequi=diferencia_nequi,
-            daviplata_esperado=daviplata_esperado, daviplata_real=daviplata_real, diferencia_daviplata=diferencia_daviplata,
-            tarjeta_esperado=tarjeta_esperado, tarjeta_real=tarjeta_real, diferencia_tarjeta=diferencia_tarjeta,
-            observaciones=observaciones
-        )
-        
         pdf_filename = None
         json_filename = None
         try:
@@ -1895,7 +2010,13 @@ def finalizar_turno():
                 'json_url': f'/reportes_cierre/{json_filename}' if json_filename else None,
                 'efectivo_esperado': efectivo_esperado,
                 'efectivo_real': efectivo_real,
-                'diferencia': diferencia_efectivo
+                'diferencia': diferencia_efectivo,
+                'base_inicial': base_inicial,
+                'base_final': base_final,
+                'destinado_ahorro': destinado_ahorro,
+                'destinado_yessi': destinado_yessi,
+                'ventas_fiadas_turno': ventas_fiadas_turno,
+                'abonos_turno': abonos_turno
             })
 
         flash('✅ Turno cerrado correctamente.', 'success')
@@ -3351,53 +3472,47 @@ def api_resumen_turno_actual():
     turno_id = session.get('turno_id') or obtener_turno_activo(usuario_id)
     db = conectar_db()
     try:
-        saldos_cuentas_actuales = db.execute("""
-            WITH movimientos AS (
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(monto) as entradas, 0 as salidas
+        # Saldos por método POR TURNO (D1, H1): fuente única = caja_movimientos del turno.
+        if turno_id:
+            saldos_cuentas_actuales = db.execute("""
+                SELECT
+                    COALESCE(metodo_pago, 'efectivo') as metodo_pago,
+                    COALESCE(SUM(CASE WHEN tipo_movimiento = 'entrada' THEN monto ELSE 0 END), 0) as entradas,
+                    COALESCE(SUM(CASE WHEN tipo_movimiento = 'salida' THEN monto ELSE 0 END), 0) as salidas,
+                    COALESCE(SUM(CASE WHEN tipo_movimiento = 'entrada' THEN monto
+                                      WHEN tipo_movimiento = 'salida' THEN -monto
+                                      ELSE 0 END), 0) as saldo
                 FROM caja_movimientos
-                WHERE tipo_movimiento = 'entrada' AND origen = 'venta' AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
+                WHERE turno_id = ?
+                  AND tipo_movimiento IN ('entrada', 'salida')
+                  AND COALESCE(metodo_pago, 'efectivo') NOT IN ('fiado', 'dividido')
                 GROUP BY COALESCE(metodo_pago, 'efectivo')
-                UNION ALL
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, SUM(monto) as entradas, 0 as salidas
-                FROM abonos_deuda
-                GROUP BY COALESCE(metodo_pago, 'efectivo')
-                UNION ALL
-                SELECT COALESCE(metodo_pago, 'efectivo') as metodo_pago, 0 as entradas, SUM(monto) as salidas
-                FROM gastos
-                GROUP BY COALESCE(metodo_pago, 'efectivo')
-            )
-            SELECT
-                metodo_pago,
-                SUM(entradas) as entradas,
-                SUM(salidas) as salidas,
-                (SUM(entradas) - SUM(salidas)) as saldo
-            FROM movimientos
-            GROUP BY metodo_pago
-            ORDER BY metodo_pago ASC
-        """).fetchall()
+                ORDER BY COALESCE(metodo_pago, 'efectivo') ASC
+            """, (turno_id,)).fetchall()
+        else:
+            saldos_cuentas_actuales = []
 
-        caja_efectivo_actual = db.execute("""
-            SELECT
-                COALESCE((
-                    SELECT SUM(monto)
-                    FROM caja_movimientos
-                    WHERE tipo_movimiento = 'entrada' AND COALESCE(metodo_pago, 'efectivo') = 'efectivo'
-                ), 0)
-                +
-                COALESCE((
-                    SELECT SUM(monto)
-                    FROM abonos_deuda
-                    WHERE COALESCE(metodo_pago, 'efectivo') = 'efectivo'
-                ), 0)
-                -
-                COALESCE((
-                    SELECT SUM(monto)
-                    FROM gastos
-                    WHERE COALESCE(metodo_pago, 'efectivo') = 'efectivo'
-                ), 0) AS caja_efectivo
-        """).fetchone()
+        # Efectivo del turno (D1): entradas - salidas de efectivo del turno + base_inicial.
+        # NO restar alcancías aquí (D7).
+        if turno_id:
+            caja_efectivo_actual = db.execute("""
+                SELECT
+                    COALESCE((
+                        SELECT SUM(CASE WHEN tipo_movimiento = 'entrada' THEN monto
+                                        WHEN tipo_movimiento = 'salida' THEN -monto
+                                        ELSE 0 END)
+                        FROM caja_movimientos
+                        WHERE turno_id = ? AND COALESCE(metodo_pago, 'efectivo') = 'efectivo'
+                    ), 0)
+                    +
+                    COALESCE((
+                        SELECT base_inicial FROM turnos WHERE id = ?
+                    ), 0) AS caja_efectivo
+            """, (turno_id, turno_id)).fetchone()
+        else:
+            caja_efectivo_actual = None
 
-
+        # Deuda de fiado: se mantiene GLOBAL (cartera, no flujo del turno) (D9).
         deuda_fiado_actual = db.execute("""
             SELECT COALESCE(SUM(saldo_pendiente), 0) as total_deuda
             FROM deudas_clientes
@@ -3413,12 +3528,16 @@ def api_resumen_turno_actual():
                 'total_gastos': 0,
                 'saldo_turno': 0,
                 'movimientos': 0,
-                'caja_efectivo_actual': float((caja_efectivo_actual['caja_efectivo'] if caja_efectivo_actual else 0) or 0),
+                'caja_efectivo_actual': 0,
                 'deuda_fiado_actual': float((deuda_fiado_actual['total_deuda'] if deuda_fiado_actual else 0) or 0),
-                'saldos_cuentas_actuales': [dict(x) for x in saldos_cuentas_actuales],
+                'saldos_cuentas_actuales': [],
+                'ventas_fiadas_turno': 0,
+                'abonos_turno': 0,
                 'ventas_por_metodo': [],
                 'productos_vendidos': []
             })
+
+        ventas_fiadas_turno, abonos_turno = indicadores_fiado_turno(db, turno_id)
 
         resumen_ventas = db.execute("""
             SELECT
@@ -3484,6 +3603,8 @@ def api_resumen_turno_actual():
             'caja_efectivo_actual': float((caja_efectivo_actual['caja_efectivo'] if caja_efectivo_actual else 0) or 0),
             'deuda_fiado_actual': float((deuda_fiado_actual['total_deuda'] if deuda_fiado_actual else 0) or 0),
             'saldos_cuentas_actuales': [dict(x) for x in saldos_cuentas_actuales],
+            'ventas_fiadas_turno': ventas_fiadas_turno,
+            'abonos_turno': abonos_turno,
             'ventas_por_metodo': [dict(x) for x in ventas_por_metodo],
             'productos_vendidos': [dict(x) for x in productos_vendidos]
         })
@@ -5157,7 +5278,7 @@ def inicializar_y_migrar_db():
     finally:
         conn.close()
         
-    VERSION_OBJETIVO = 8  # Versión actual de la base de datos del sistema
+    VERSION_OBJETIVO = 9  # Versión actual de la base de datos del sistema
     
     if version_actual >= VERSION_OBJETIVO:
         print(f"INFO: Base de datos en su versión más reciente (v{version_actual}).")
@@ -5540,6 +5661,48 @@ def inicializar_y_migrar_db():
             """)
             version_actual = 8
             cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '8')")
+            conn.commit()
+
+        # ==========================================
+        # MIGRACIÓN v9: Arqueo por turno + alcancías (Ahorro/Yessi) + base inicial
+        # ==========================================
+        if version_actual < 9:
+            print("INFO: Aplicando migración v9 (arqueo por turno, alcancías y base inicial)...")
+            cols_turnos_v9 = [info['name'] for info in cursor.execute("PRAGMA table_info(turnos);").fetchall()]
+            for col_name, col_def in [
+                ('base_inicial', 'REAL DEFAULT 0'),
+                ('base_final', 'REAL'),
+                ('destinado_ahorro', 'REAL DEFAULT 0'),
+                ('destinado_yessi', 'REAL DEFAULT 0'),
+            ]:
+                if col_name not in cols_turnos_v9:
+                    cursor.execute(f"ALTER TABLE turnos ADD COLUMN {col_name} {col_def};")
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS alcancias (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL UNIQUE
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS alcancia_movimientos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    alcancia_id INTEGER NOT NULL,
+                    tipo TEXT NOT NULL,
+                    monto REAL NOT NULL,
+                    turno_id INTEGER,
+                    usuario_id INTEGER,
+                    descripcion TEXT,
+                    fecha TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime')),
+                    FOREIGN KEY(alcancia_id) REFERENCES alcancias(id),
+                    FOREIGN KEY(turno_id) REFERENCES turnos(id),
+                    FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+                )
+            """)
+            cursor.execute("INSERT OR IGNORE INTO alcancias (nombre) VALUES ('Ahorro'), ('Yessi')")
+
+            version_actual = 9
+            cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '9')")
             conn.commit()
 
         # Asegurar que siempre exista el usuario administrador 'admin'
