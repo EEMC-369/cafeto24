@@ -18,8 +18,9 @@ echo ===================================================
 echo   Copiando recursos adicionales a CajaCafeto24.dist
 echo ===================================================
 :: Nuitka crea la carpeta CajaCafeto24.dist. Necesitamos copiar templates y static dentro.
-xcopy /E /I /Y templates CajaCafeto24.dist\templates
-xcopy /E /I /Y static CajaCafeto24.dist\static
+:: Excluir respaldos de editor (*.bak, *.pre_novedades, *.pre_audit) via /EXCLUDE (F-09)
+xcopy /E /I /Y /EXCLUDE:templates_exclude.txt templates CajaCafeto24.dist\templates
+xcopy /E /I /Y /EXCLUDE:templates_exclude.txt static CajaCafeto24.dist\static
 
 echo ===================================================
 echo   Compilacion finalizada exitosamente en CajaCafeto24.dist

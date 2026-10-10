@@ -3457,14 +3457,14 @@ def api_resumen_turno_actual():
 
         productos_vendidos = db.execute("""
             SELECT
-                p.nombre as producto,
+                COALESCE(p.nombre, dv.nombre_producto, 'Producto eliminado') as producto,
                 COALESCE(SUM(dv.cantidad), 0) as cantidad,
                 COALESCE(SUM(dv.cantidad * dv.precio_unitario), 0) as total
             FROM detalle_ventas dv
             JOIN ventas v ON v.id = dv.venta_id
-            JOIN productos p ON p.id = dv.producto_id
+            LEFT JOIN productos p ON p.id = dv.producto_id
             WHERE v.turno_id = ? AND v.vendedor_id = ?
-            GROUP BY p.id, p.nombre
+            GROUP BY dv.producto_id, COALESCE(p.nombre, dv.nombre_producto, 'Producto eliminado')
             ORDER BY cantidad DESC, total DESC
             LIMIT 12
         """, (turno_id, usuario_id)).fetchall()
@@ -4010,6 +4010,11 @@ def add_gasto():
         if monto <= 0:
             flash("El monto debe ser mayor a 0", "error")
             return redirect(url_for(destino))
+
+        # F-02: bloquear el registro de gastos si no hay un turno de caja abierto
+        if not turno_id:
+            flash("Debes abrir un turno antes de registrar un gasto. Abre tu turno de caja e inténtalo de nuevo.", "error")
+            return redirect(url_for(destino))
         
         db = conectar_db()
         cursor = db.cursor()
@@ -4224,6 +4229,9 @@ def api_cobrar():
         return jsonify({'error': 'Para factura electrónica se requiere documento y nombre', 'success': False}), 400
     vendedor_id = session.get('id')
     turno_id = session.get('turno_id') or obtener_turno_activo(vendedor_id)
+    # F-02: bloquear el cobro si no hay un turno de caja abierto (evita ventas con turno_id NULL)
+    if not turno_id:
+        return jsonify({'error': 'Debes abrir un turno antes de cobrar. Abre tu turno de caja e inténtalo de nuevo.', 'success': False}), 400
     metodos_validos = {'efectivo', 'nequi', 'daviplata', 'tarjeta', 'fiado', 'dividido'}
     if metodo_pago not in metodos_validos:
         metodo_pago = 'efectivo'
@@ -4267,6 +4275,9 @@ def api_cobrar():
         elif metodo_pago == 'dividido':
             # Para pago dividido, efectivo_recibido es la suma de todos los montos
             total_pagado_dividido = sum(float(p.get('monto', 0)) for p in pagos_divididos)
+            # F-03: validar en servidor que la suma de los pagos cubra el total (tolerancia 0.5 por floats)
+            if total_pagado_dividido + 0.5 < total_venta:
+                return jsonify({'error': 'La suma de los pagos es menor al total de la venta.', 'success': False}), 400
             efectivo_recibido_val = total_pagado_dividido
             cambio_val = max(0.0, total_pagado_dividido - total_venta)
         elif metodo_pago != 'efectivo':
@@ -4277,6 +4288,9 @@ def api_cobrar():
                 efectivo_recibido_val = float(efectivo_recibido)
             except (ValueError, TypeError):
                 efectivo_recibido_val = total_venta
+            # F-03: validar en servidor que el efectivo recibido cubra el total (tolerancia 0.5 por floats)
+            if efectivo_recibido_val + 0.5 < total_venta:
+                return jsonify({'error': 'El efectivo recibido es menor al total de la venta.', 'success': False}), 400
             cambio_val = max(0.0, efectivo_recibido_val - total_venta)
 
         # Insertar venta
@@ -4395,9 +4409,9 @@ def api_cobrar():
                 receta_pers_json = json.dumps(item['receta_personalizada'])
 
             db.execute("""
-                INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario, receta_personalizada)
-                VALUES (?, ?, ?, ?, ?)
-            """, (venta_id, item['id'], item['cantidad'], item['precio'], receta_pers_json))
+                INSERT INTO detalle_ventas (venta_id, producto_id, nombre_producto, cantidad, precio_unitario, receta_personalizada)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (venta_id, item['id'], item.get('nombre'), item['cantidad'], item['precio'], receta_pers_json))
             
             # Actualizar stock (solo si no es preparado)
             if item.get('es_preparado') != 1:
@@ -4626,9 +4640,9 @@ def imprimir_factura_directa(venta_id):
         # 2. Obtener los detalles de la venta
         detalles = db.execute("""
             SELECT dv.cantidad, dv.precio_unitario, (dv.cantidad * dv.precio_unitario) as subtotal, 
-                   p.nombre as producto_nombre, dv.producto_id, dv.receta_personalizada
+                   COALESCE(p.nombre, dv.nombre_producto, 'Producto eliminado') as producto_nombre, dv.producto_id, dv.receta_personalizada
             FROM detalle_ventas dv
-            JOIN productos p ON dv.producto_id = p.id
+            LEFT JOIN productos p ON dv.producto_id = p.id
             WHERE dv.venta_id = ?
         """, (venta_id,)).fetchall()
         
@@ -4827,16 +4841,16 @@ def ver_factura_venta(venta_id):
 
         detalles_raw = db.execute("""
             SELECT
-                p.nombre as producto_nombre,
+                COALESCE(p.nombre, dv.nombre_producto, 'Producto eliminado') as producto_nombre,
                 dv.cantidad,
                 dv.precio_unitario,
                 (dv.cantidad * dv.precio_unitario) as subtotal,
                 dv.producto_id,
                 dv.receta_personalizada
             FROM detalle_ventas dv
-            JOIN productos p ON p.id = dv.producto_id
+            LEFT JOIN productos p ON p.id = dv.producto_id
             WHERE dv.venta_id = ?
-            ORDER BY p.nombre ASC
+            ORDER BY producto_nombre ASC
         """, (venta_id,)).fetchall()
 
         detalles = []
@@ -4883,6 +4897,10 @@ def api_registrar_ingreso_intangible():
     metodos_validos = {'efectivo', 'nequi', 'daviplata', 'tarjeta'}
     if metodo_pago not in metodos_validos:
         metodo_pago = 'efectivo'
+
+    # F-02: bloquear el registro de ingresos si no hay un turno de caja abierto
+    if not turno_id:
+        return jsonify({'error': 'Debes abrir un turno antes de registrar un ingreso. Abre tu turno de caja e inténtalo de nuevo.', 'success': False}), 400
 
     db = conectar_db()
     try:
@@ -5139,7 +5157,7 @@ def inicializar_y_migrar_db():
     finally:
         conn.close()
         
-    VERSION_OBJETIVO = 7  # Versión actual de la base de datos del sistema
+    VERSION_OBJETIVO = 8  # Versión actual de la base de datos del sistema
     
     if version_actual >= VERSION_OBJETIVO:
         print(f"INFO: Base de datos en su versión más reciente (v{version_actual}).")
@@ -5503,6 +5521,25 @@ def inicializar_y_migrar_db():
                     cursor.execute(f"ALTER TABLE ventas ADD COLUMN {col_name} {col_def};")
             version_actual = 7
             cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '7')")
+            conn.commit()
+
+        # ==========================================
+        # MIGRACIÓN v8: Nombre de producto persistido en detalle de ventas
+        # ==========================================
+        if version_actual < 8:
+            print("INFO: Aplicando migración v8 (nombre_producto en detalle_ventas)...")
+            columnas_detalle_v8 = [info['name'] for info in cursor.execute("PRAGMA table_info(detalle_ventas);").fetchall()]
+            if 'nombre_producto' not in columnas_detalle_v8:
+                cursor.execute("ALTER TABLE detalle_ventas ADD COLUMN nombre_producto TEXT;")
+            # Rellenar filas existentes cuyo producto aún existe
+            cursor.execute("""
+                UPDATE detalle_ventas
+                SET nombre_producto = (SELECT p.nombre FROM productos p WHERE p.id = detalle_ventas.producto_id)
+                WHERE nombre_producto IS NULL
+                  AND producto_id IN (SELECT id FROM productos)
+            """)
+            version_actual = 8
+            cursor.execute("INSERT OR REPLACE INTO db_metadata (key, value) VALUES ('version', '8')")
             conn.commit()
 
         # Asegurar que siempre exista el usuario administrador 'admin'

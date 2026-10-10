@@ -34,8 +34,8 @@ Name: "{commonappdata}\Cafeto24"
 Source: "CajaCafeto24.dist\CajaCafeto24.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "CajaCafeto24.dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Copiar carpetas de recursos directamente desde la raíz del código fuente para garantizar que siempre estén presentes
-Source: "templates\*"; DestDir: "{app}\templates"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "static\*"; DestDir: "{app}\static"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "templates\*"; DestDir: "{app}\templates"; Excludes: "*.bak,*.pre_novedades,*.pre_audit"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "static\*"; DestDir: "{app}\static"; Excludes: "*.bak,*.pre_novedades,*.pre_audit"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Cafeto24"; Filename: "{app}\CajaCafeto24.exe"; IconFilename: "{app}\static\icono.ico"

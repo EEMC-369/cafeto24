@@ -1,0 +1,3 @@
+.bak
+.pre_novedades
+.pre_audit
