@@ -1267,7 +1267,7 @@
     </div>
 
     <!-- PANEL LATERAL DE GUÍA DE USO (NO overlay de pantalla completa) -->
-    <div id="guia-uso-admin"
+    <div id="guia-uso-admin" tabindex="-1"
          class="fixed top-0 right-0 h-full w-[92vw] max-w-[400px] z-[60] translate-x-full
                 transition-transform duration-300 flex flex-col
                 bg-white/90 backdrop-blur-md shadow-2xl border-l border-amber-300"
@@ -1782,8 +1782,8 @@
               descripcion: '<p>Abre un modal con dos opciones: "Mover productos a Sin Categoría" o, en la zona peligrosa, "Eliminar categoría y sus N productos" (debes escribir el nombre o la palabra BORRAR para habilitarlo).</p>' },
             { clave: 'crear-producto', titulo: '➕ Registrar producto', sel: '#formCrearProducto', pestaña: 'tab-productos',
               descripcion: '<p>Crea un producto del menú: nombre, código de barras, categoría, packs (precio por paca y por unidad/medio) y receta de insumos si aplica.</p>' },
-            { clave: 'receta-producto', titulo: '🧪 Receta de materia prima', sel: '#seccion-receta-dinamica', pestaña: 'tab-productos',
-              descripcion: '<p>Marca "¿Lleva receta de materia prima?" para definir los ingredientes del producto. Puedes permitir personalizar la receta al vender.</p>' },
+            { clave: 'receta-producto', titulo: '🧪 Receta de materia prima', sel: '#create-es-preparado', pestaña: 'tab-productos',
+              descripcion: '<p>Marca "¿Lleva receta de materia prima?" y se desplegará la sección para definir los ingredientes del producto. Allí también puedes permitir personalizar la receta al vender.</p>' },
             { clave: 'crear-categoria', titulo: '📁 Registrar categoría', sel: 'form[action="/admin/add_categoria"]', pestaña: 'tab-categorias',
               descripcion: '<p>Crea una nueva categoría indicando su nombre y, opcionalmente, un ícono.</p>' },
             { clave: 'crear-insumo', titulo: '🌾 Registrar insumo', sel: 'form[action="/admin/add_insumo"]', pestaña: 'tab-insumos',
@@ -1827,6 +1827,7 @@
             if (!panel) return;
             panel.classList.remove('translate-x-full');
             panel.setAttribute('aria-hidden', 'false');
+            try { panel.focus(); } catch (e) {}
         }
 
         function cerrarGuiaUsoAdmin() {

@@ -1616,7 +1616,7 @@
     </div>
 
     <!-- PANEL LATERAL DE GUÍA DE USO (NO overlay de pantalla completa) -->
-    <div id="guia-uso-ventas"
+    <div id="guia-uso-ventas" tabindex="-1"
          class="fixed top-0 right-0 h-full w-[92vw] max-w-[400px] z-[60] translate-x-full
                 transition-transform duration-300 flex flex-col
                 bg-white/90 backdrop-blur-md shadow-2xl border-l border-amber-300"
@@ -4109,10 +4109,10 @@
               descripcion: '<p>Elige cómo paga el cliente: 💵 Efectivo, 📱 Nequi, 📲 Daviplata, 💳 Tarjeta o 🧾 Fiado. Según el método aparecen campos distintos abajo.</p>' },
             { clave: 'pago-efectivo', titulo: '💵 Efectivo y cambio', sel: '#panel-efectivo', pestañaIzq: 'tab-ventas-cobro',
               descripcion: '<p>Escribe en "Paga Con ($)" el dinero recibido y el sistema calcula el Cambio automáticamente. Con Enter se cobra.</p>' },
-            { clave: 'pago-digital', titulo: '📱 Nequi / Daviplata / Tarjeta', sel: '#panel-digital', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Estos métodos se registran como pago exacto de inmediato. Puedes anotar una referencia de auditoría (opcional).</p>' },
-            { clave: 'pago-fiado', titulo: '🧾 Fiado (exclusivo)', sel: '#panel-fiado', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Elige el cliente exclusivo autorizado (obligatorio). La venta descuenta inventario y queda registrada como deuda pendiente.</p>' },
+            { clave: 'pago-digital', titulo: '📱 Nequi / Daviplata / Tarjeta', sel: '[data-guia="metodos-pago"]', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Elige 📱 Nequi, 📲 Daviplata o 💳 Tarjeta y abajo aparecerá el panel para anotar una referencia de auditoría (opcional). Estos métodos se registran como pago exacto de inmediato.</p>' },
+            { clave: 'pago-fiado', titulo: '🧾 Fiado (exclusivo)', sel: '[data-guia="metodos-pago"]', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Elige 🧾 Fiado (Exclusivo) y abajo aparecerá el panel para seleccionar el cliente exclusivo autorizado (obligatorio). La venta descuenta inventario y queda registrada como deuda pendiente.</p>' },
             { clave: 'cobrar', titulo: '💰 Cobrar', sel: '[onclick="cobrarPedido()"]', pestañaIzq: 'tab-ventas-cobro',
               descripcion: '<p>Finaliza la venta con el método elegido. Si está marcada la casilla de impresión, imprime la factura.</p>' },
             { clave: 'pago-dividido', titulo: '🟦 Pago dividido', sel: '[onclick="abrirModalPagoDividido()"]', pestañaIzq: 'tab-ventas-cobro',
@@ -4121,9 +4121,9 @@
               descripcion: '<p>Marca esta casilla solo cuando necesites imprimir la factura. Si la dejas sin marcar, la venta no se imprime.</p>' },
             { clave: 'modo-factura', titulo: '📧 Factura normal / electrónica', sel: '[data-guia="modo-factura"]', pestañaIzq: 'tab-ventas-cobro',
               descripcion: '<p>"🧾 Factura normal" no pide datos del cliente. "📧 Factura electrónica" despliega los campos para registrarlos.</p>' },
-            { clave: 'factura-electronica', titulo: '📄 Datos de factura electrónica', sel: '#panel-factura-electronica', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Completa Tipo de Documento (CC/NIT/CE/Pasaporte), N° de Documento, Nombre o Razón social, Dirección, Teléfono y Correo del cliente.</p>' },
-            { clave: 'caja-turno', titulo: '💼 Caja y turno', sel: '#btn-tab-caja-turno', pestañaIzq: 'tab-caja-turno',
+            { clave: 'factura-electronica', titulo: '📄 Datos de factura electrónica', sel: '[data-guia="modo-factura"]', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Marca "📧 Factura electrónica" y abajo se desplegarán los campos: Tipo de Documento (CC/NIT/CE/Pasaporte), N° de Documento, Nombre o Razón social, Dirección, Teléfono y Correo del cliente.</p>' },
+            { clave: 'caja-turno', titulo: '💼 Caja y turno', sel: '#tab-caja-turno', pestañaIzq: 'tab-caja-turno',
               descripcion: '<p>En esta pestaña ves el resumen de tu turno: vendido, gastos, saldo, ventas por método y el dinero esperado en caja.</p>' },
             { clave: 'registrar-gasto', titulo: '📉 Registrar gasto / entrada', sel: '#form_gasto_ventas', pestañaIzq: 'tab-caja-turno',
               descripcion: '<p>Registra un gasto general, la compra de un insumo o de un producto para inventario, indicando el método de pago.</p>' },
@@ -4131,14 +4131,14 @@
               descripcion: '<p>Abre las novedades del turno y del sistema. También están disponibles dentro del menú ⋮.</p>' },
             { clave: 'kebab', titulo: '⋮ Menú de acciones', sel: '#btn-kebab-menu',
               descripcion: '<p>Despliega acciones de caja: iniciar/terminar turno, abrir cajón, ver movimientos, novedades y cerrar sesión (y Panel Administrador si eres administrador).</p>' },
-            { clave: 'iniciar-turno', titulo: '▶️ Iniciar turno', sel: '#form-iniciar-turno',
-              descripcion: '<p>Inicia tu turno de caja. Esta opción está dentro del menú ⋮; ábrelo con el botón de tres puntos para verla.</p>' },
-            { clave: 'cerrar-turno', titulo: '⏹️ Terminar turno', sel: '#btn-cerrar-turno',
-              descripcion: '<p>Cierra tu turno y realiza el arqueo de caja. Está dentro del menú ⋮ (ábrelo con el botón de tres puntos).</p>' },
-            { clave: 'abrir-cajon', titulo: '🔑 Abrir cajón monedero', sel: '#btn-abrir-cajon-manual',
-              descripcion: '<p>Abre el cajón de dinero de forma manual. Está dentro del menú ⋮ (ábrelo con el botón de tres puntos).</p>' },
-            { clave: 'panel-admin', titulo: '⚙️ Panel Administrador', sel: 'a[href="/admin"]',
-              descripcion: '<p>Acceso directo al panel de administración. Solo aparece para usuarios administradores, dentro del menú ⋮.</p>' },
+            { clave: 'iniciar-turno', titulo: '▶️ Iniciar turno', sel: '#form-iniciar-turno', abrirKebab: true, selFallback: '#dropdown-kebab-menu',
+              descripcion: '<p>Inicia tu turno de caja. Esta opción está dentro del menú ⋮ (la guía lo abre para mostrártela). Solo aparece cuando no tienes un turno activo.</p>' },
+            { clave: 'cerrar-turno', titulo: '⏹️ Terminar turno', sel: '#btn-cerrar-turno', abrirKebab: true, selFallback: '#dropdown-kebab-menu',
+              descripcion: '<p>Cierra tu turno y realiza el arqueo de caja. Está dentro del menú ⋮ (la guía lo abre para mostrártela). Solo aparece cuando tienes un turno activo.</p>' },
+            { clave: 'abrir-cajon', titulo: '🔑 Abrir cajón monedero', sel: '#btn-abrir-cajon-manual', abrirKebab: true,
+              descripcion: '<p>Abre el cajón de dinero de forma manual. Está dentro del menú ⋮ (la guía lo abre para mostrártela).</p>' },
+            { clave: 'panel-admin', titulo: '⚙️ Panel Administrador', sel: 'a[href="/admin"]', abrirKebab: true,
+              descripcion: '<p>Acceso directo al panel de administración. Solo aparece para usuarios administradores, dentro del menú ⋮ (la guía lo abre para mostrártela).</p>' },
         ];
 
         let _guiaVentasElResaltado = null;
@@ -4162,6 +4162,7 @@
             if (!panel) return;
             panel.classList.remove('translate-x-full');
             panel.setAttribute('aria-hidden', 'false');
+            try { panel.focus(); } catch (e) {}
         }
 
         function cerrarGuiaUso() {
@@ -4182,13 +4183,28 @@
             if (entry.pestañaIzq && typeof cambiarPestañaIzquierda === 'function') {
                 try { cambiarPestañaIzquierda(entry.pestañaIzq); } catch (e) {}
             }
-            setTimeout(() => resaltarControlGuia(entry.sel), 60);
+            // Si la entrada vive dentro del menú ⋮, abrir el desplegable (solo togglea
+            // clases de visibilidad; no dispara ninguna acción de caja/negocio).
+            if (entry.abrirKebab) {
+                const menu = document.getElementById('dropdown-kebab-menu');
+                if (menu && menu.classList.contains('hidden')) {
+                    menu.classList.remove('hidden');
+                    menu.classList.remove('opacity-0', 'scale-95');
+                    menu.classList.add('visible');
+                }
+            }
+            setTimeout(() => resaltarControlGuia(entry.sel, entry.selFallback), 60);
         }
 
-        function resaltarControlGuia(selector) {
+        function resaltarControlGuia(selector, selectorFallback) {
             limpiarResaltadoGuia();
             let el = null;
             try { el = document.querySelector(selector); } catch (e) { el = null; }
+            // Si el control puntual está oculto (p. ej. opción de turno con display:none),
+            // resaltar el contenedor de fallback que sí es visible.
+            if ((!el || el.offsetParent === null) && selectorFallback) {
+                try { el = document.querySelector(selectorFallback); } catch (e) { el = null; }
+            }
             if (!el) return;
             el.classList.add('guia-resaltado');
             _guiaVentasElResaltado = el;
