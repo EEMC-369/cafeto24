@@ -4246,9 +4246,13 @@ def add_gasto():
 
 @app.route('/admin/registrar_compra', methods=['POST'])
 def registrar_compra():
-    if 'usuario' not in session or session.get('rol') != 'administrador': 
-        return redirect(url_for('login', error="Acceso denegado. Solo administradores."))
-    
+    # D5: cualquier usuario con sesión puede registrar compras (igual que add_gasto);
+    # el admin no siempre está presente y los vendedores deben poder registrarlas.
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+
+    destino = 'panel_administrador' if session.get('rol') == 'administrador' else 'pantalla_ventas'
+
     # Obtenemos datos del formulario
     tipo = request.form.get('tipo_gasto') # Valores: 'gasto_fijo', 'insumo' o 'producto'
     try:
@@ -4256,23 +4260,48 @@ def registrar_compra():
     except (ValueError, TypeError):
         monto = 0.0
     descripcion = request.form.get('descripcion', 'Sin descripción')
-    
+    metodo_pago = (request.form.get('metodo_pago', 'efectivo') or 'efectivo').strip().lower()
+    metodos_validos = {'efectivo', 'nequi', 'daviplata', 'tarjeta'}
+    if metodo_pago not in metodos_validos:
+        metodo_pago = 'efectivo'
+
     # Datos para el inventario
     prod_id = request.form.get('producto_id')
     try:
         cantidad = float(request.form.get('cantidad', 0) or 0)
     except (ValueError, TypeError):
         cantidad = 0.0
-    
+
+    # D5/H2b: turno abierto obligatorio; nunca registrar con turno_id NULL
+    vendedor_id = session.get('id')
+    turno_id = session.get('turno_id') or obtener_turno_activo(vendedor_id)
+    if not turno_id:
+        flash("Debes abrir un turno antes de registrar un gasto/compra. Abre tu turno de caja e inténtalo de nuevo.", "error")
+        return redirect(url_for(destino))
+
     db = conectar_db()
     cursor = db.cursor()
     
     try:
-        # 1. Registrar egreso en la tabla de gastos
-        cursor.execute("INSERT INTO gastos (descripcion, monto, fecha) VALUES (?, ?, DATETIME('now'))", 
-                       (descripcion, monto))
-        
-        # 2. Lógica inteligente para actualizar stock según el tipo
+        # 1. Registrar egreso en la tabla de gastos (alineado con add_gasto: turno + método + localtime)
+        cursor.execute("""
+            INSERT INTO gastos (vendedor_id, turno_id, descripcion, monto, metodo_pago, fecha)
+            VALUES (?, ?, ?, ?, ?, DATETIME('now', 'localtime'))
+        """, (vendedor_id, turno_id, descripcion, monto, metodo_pago))
+
+        # 2. Registrar la salida de caja en la MISMA transacción (fuente única del arqueo)
+        registrar_movimiento_caja(
+            db,
+            turno_id,
+            vendedor_id,
+            'salida',
+            'gasto',
+            descripcion,
+            metodo_pago,
+            monto
+        )
+
+        # 3. Lógica inteligente para actualizar stock según el tipo
         if (tipo == 'insumo' or tipo == 'producto') and prod_id and cantidad > 0:
             tabla = 'insumos' if tipo == 'insumo' else 'productos'
             columna = 'cantidad_actual' if tipo == 'insumo' else 'cantidad_stock'
@@ -4288,7 +4317,231 @@ def registrar_compra():
     finally:
         db.close()
     
-    return redirect(url_for('pantalla_ventas'))
+    return redirect(url_for(destino))
+
+
+# ==========================================================================
+# Rutas de alcancías y base inicial (solo admin, JSON, atómicas) — F-01 D7/D8
+# Consumidas por fetch desde admin.html. Guard JSON: 401 sin sesión, 403 si no es admin.
+# ==========================================================================
+
+@app.route('/api/alcancias', methods=['GET'])
+def api_alcancias():
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    if session.get('rol') != 'administrador':
+        return jsonify({'success': False, 'error': 'Acceso denegado'}), 403
+
+    db = conectar_db()
+    try:
+        filas = db.execute("""
+            SELECT a.id AS id,
+                   a.nombre AS nombre,
+                   COALESCE(SUM(CASE WHEN m.tipo = 'aporte' THEN m.monto
+                                     WHEN m.tipo = 'retiro' THEN -m.monto
+                                     ELSE 0 END), 0) AS saldo
+            FROM alcancias a
+            LEFT JOIN alcancia_movimientos m ON m.alcancia_id = a.id
+            GROUP BY a.id, a.nombre
+            ORDER BY a.id
+        """).fetchall()
+        alcancias = [
+            {'id': fila['id'], 'nombre': fila['nombre'], 'saldo': float(fila['saldo'] or 0)}
+            for fila in filas
+        ]
+        return jsonify({'success': True, 'alcancias': alcancias})
+    except Exception as e:
+        print(f"Error al listar alcancías: {e}")
+        return jsonify({'success': False, 'error': 'Error al obtener las alcancías'}), 500
+    finally:
+        db.close()
+
+
+@app.route('/api/alcancias/<int:alcancia_id>/movimientos', methods=['GET'])
+def api_alcancia_movimientos(alcancia_id):
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    if session.get('rol') != 'administrador':
+        return jsonify({'success': False, 'error': 'Acceso denegado'}), 403
+
+    db = conectar_db()
+    try:
+        alcancia = db.execute(
+            "SELECT id, nombre FROM alcancias WHERE id = ?", (alcancia_id,)
+        ).fetchone()
+        if not alcancia:
+            return jsonify({'success': False, 'error': 'Alcancía no encontrada'}), 404
+
+        filas = db.execute("""
+            SELECT m.tipo AS tipo,
+                   m.monto AS monto,
+                   m.turno_id AS turno_id,
+                   m.usuario_id AS usuario_id,
+                   u.nombre AS usuario,
+                   m.descripcion AS descripcion,
+                   m.fecha AS fecha
+            FROM alcancia_movimientos m
+            LEFT JOIN usuarios u ON u.id = m.usuario_id
+            WHERE m.alcancia_id = ?
+            ORDER BY m.fecha DESC, m.id DESC
+        """, (alcancia_id,)).fetchall()
+        movimientos = [
+            {
+                'tipo': fila['tipo'],
+                'monto': float(fila['monto'] or 0),
+                'turno_id': fila['turno_id'],
+                'usuario': fila['usuario'],
+                'descripcion': fila['descripcion'],
+                'fecha': fila['fecha'],
+            }
+            for fila in filas
+        ]
+        return jsonify({
+            'success': True,
+            'alcancia': {'id': alcancia['id'], 'nombre': alcancia['nombre']},
+            'movimientos': movimientos,
+        })
+    except Exception as e:
+        print(f"Error al obtener movimientos de alcancía: {e}")
+        return jsonify({'success': False, 'error': 'Error al obtener los movimientos'}), 500
+    finally:
+        db.close()
+
+
+@app.route('/admin/alcancias/retirar', methods=['POST'])
+def admin_alcancias_retirar():
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    if session.get('rol') != 'administrador':
+        return jsonify({'success': False, 'error': 'Acceso denegado'}), 403
+
+    datos = request.get_json(silent=True) or request.form
+    try:
+        alcancia_id = int(datos.get('alcancia_id'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Alcancía inválida'}), 400
+    try:
+        monto = float(datos.get('monto', 0) or 0)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'El monto debe ser un número válido'}), 400
+    descripcion = (datos.get('descripcion') or '').strip() or 'Retiro de alcancía'
+
+    if monto <= 0:
+        return jsonify({'success': False, 'error': 'El monto debe ser mayor a 0'}), 400
+
+    db = conectar_db()
+    try:
+        # BEGIN IMMEDIATE toma el lock de escritura al leer: saldo recalculado dentro de la tx
+        db.execute('BEGIN IMMEDIATE')
+
+        alcancia = db.execute(
+            "SELECT id, nombre FROM alcancias WHERE id = ?", (alcancia_id,)
+        ).fetchone()
+        if not alcancia:
+            db.rollback()
+            return jsonify({'success': False, 'error': 'Alcancía no encontrada'}), 404
+
+        fila_saldo = db.execute("""
+            SELECT COALESCE(SUM(CASE WHEN tipo = 'aporte' THEN monto
+                                     WHEN tipo = 'retiro' THEN -monto
+                                     ELSE 0 END), 0) AS saldo
+            FROM alcancia_movimientos
+            WHERE alcancia_id = ?
+        """, (alcancia_id,)).fetchone()
+        saldo = float(fila_saldo['saldo'] or 0)
+
+        if monto > saldo:
+            db.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'No puedes retirar más que el saldo disponible (${saldo:,.0f})'
+            }), 400
+
+        db.execute("""
+            INSERT INTO alcancia_movimientos (alcancia_id, tipo, monto, turno_id, usuario_id, descripcion, fecha)
+            VALUES (?, 'retiro', ?, NULL, ?, ?, DATETIME('now', 'localtime'))
+        """, (alcancia_id, monto, session.get('id'), descripcion))
+
+        db.commit()
+        return jsonify({
+            'success': True,
+            'saldo': saldo - monto,
+            'mensaje': f'Retiro de ${monto:,.0f} registrado en {alcancia["nombre"]}'
+        })
+    except Exception as e:
+        db.rollback()
+        print(f"Error al retirar de alcancía: {e}")
+        return jsonify({'success': False, 'error': 'Error al registrar el retiro'}), 500
+    finally:
+        db.close()
+
+
+@app.route('/admin/caja/base_inicial', methods=['POST'])
+def admin_caja_base_inicial():
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    if session.get('rol') != 'administrador':
+        return jsonify({'success': False, 'error': 'Acceso denegado'}), 403
+
+    datos = request.get_json(silent=True) or request.form
+    try:
+        monto = float(datos.get('monto', 0) or 0)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'El monto debe ser un número válido'}), 400
+
+    if monto < 0:
+        return jsonify({'success': False, 'error': 'El monto no puede ser negativo'}), 400
+
+    db = conectar_db()
+    try:
+        db.execute("""
+            INSERT OR REPLACE INTO db_metadata (key, value)
+            VALUES ('base_caja_inicial', ?)
+        """, (str(monto),))
+        db.commit()
+        return jsonify({'success': True, 'base_caja_inicial': monto})
+    except Exception as e:
+        db.rollback()
+        print(f"Error al fijar base inicial: {e}")
+        return jsonify({'success': False, 'error': 'Error al guardar la base inicial'}), 500
+    finally:
+        db.close()
+
+
+@app.route('/api/caja/base_inicial', methods=['GET'])
+def api_caja_base_inicial():
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    if session.get('rol') != 'administrador':
+        return jsonify({'success': False, 'error': 'Acceso denegado'}), 403
+
+    db = conectar_db()
+    try:
+        meta = db.execute(
+            "SELECT value FROM db_metadata WHERE key = 'base_caja_inicial'"
+        ).fetchone()
+        base_configurada = float(meta['value']) if (meta and meta['value']) else 0.0
+
+        ultimo = db.execute("""
+            SELECT base_final
+            FROM turnos
+            WHERE estado = 'cerrado' AND base_final IS NOT NULL
+            ORDER BY fecha_cierre DESC, id DESC
+            LIMIT 1
+        """).fetchone()
+        ultimo_base_final = float(ultimo['base_final']) if (ultimo and ultimo['base_final'] is not None) else None
+
+        return jsonify({
+            'success': True,
+            'base_configurada': base_configurada,
+            'ultimo_base_final': ultimo_base_final,
+        })
+    except Exception as e:
+        print(f"Error al leer base inicial: {e}")
+        return jsonify({'success': False, 'error': 'Error al obtener la base inicial'}), 500
+    finally:
+        db.close()
+
 
 @app.route('/admin/add_insumo', methods=['POST'])
 def add_insumo():
