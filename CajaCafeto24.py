@@ -13,7 +13,8 @@ from flask import (
     session,
     jsonify,
     flash,
-    send_from_directory
+    send_from_directory,
+    send_file
 )
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -3788,6 +3789,204 @@ def api_corregir_metodo_pago():
         return jsonify({'error': str(e), 'success': False}), 500
     finally:
         db.close()
+
+# ==========================================
+# 🔎 AUDITORÍA DE INVENTARIO (SOLO LECTURA)
+# ==========================================
+def _normalizar_nombre_auditoria(nombre):
+    # Misma normalizacion que el importador (L2893): strip + lower + sin acentos
+    texto = (nombre or '').strip().lower()
+    return texto.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
+
+
+def _calcular_auditoria_inventario():
+    # Agregacion de solo lectura compartida por la ruta JSON y la de exportacion.
+    db = conectar_db()
+    try:
+        productos = db.execute("""
+            SELECT p.id AS id,
+                   p.nombre AS nombre,
+                   p.cantidad_stock AS cantidad_stock,
+                   p.categoria_id AS categoria_id,
+                   c.nombre_categoria AS nombre_categoria,
+                   (SELECT COUNT(*) FROM detalle_ventas dv WHERE dv.producto_id = p.id) AS num_ventas
+            FROM productos p
+            LEFT JOIN categorias c ON p.categoria_id = c.id
+        """).fetchall()
+
+        # Resumen por categoria (incluye 'Sin Categoria' explicita)
+        resumen_rows = db.execute("""
+            SELECT c.nombre_categoria AS nombre_categoria,
+                   COUNT(p.id) AS num_productos
+            FROM categorias c
+            LEFT JOIN productos p ON p.categoria_id = c.id
+            GROUP BY c.id, c.nombre_categoria
+            ORDER BY num_productos DESC, c.nombre_categoria ASC
+        """).fetchall()
+        resumen_categorias = [
+            {'nombre_categoria': r['nombre_categoria'], 'num_productos': r['num_productos']}
+            for r in resumen_rows
+        ]
+
+        total_productos = len(productos)
+
+        # Productos sin categoria efectiva: categoria_id NULL o categoria 'Sin Categoria'
+        productos_sin_categoria = []
+        # Agrupar por nombre normalizado para detectar duplicados y cruces
+        grupos = {}
+        stock_invalido = []
+        for p in productos:
+            nombre_cat = p['nombre_categoria']
+            es_sin_categoria = (p['categoria_id'] is None) or (
+                nombre_cat is not None and nombre_cat.strip().lower().startswith('sin categor')
+            )
+            if es_sin_categoria:
+                productos_sin_categoria.append({
+                    'id': p['id'],
+                    'nombre': p['nombre'],
+                    'categoria': nombre_cat if nombre_cat is not None else 'Sin Categoría',
+                    'cantidad_stock': p['cantidad_stock'],
+                })
+
+            # (4) stock negativo o no convertible a numero
+            raw_stock = p['cantidad_stock']
+            stock_num = None
+            try:
+                stock_num = float(raw_stock)
+            except (TypeError, ValueError):
+                stock_num = None
+            if stock_num is None or stock_num < 0:
+                stock_invalido.append({
+                    'id': p['id'],
+                    'nombre': p['nombre'],
+                    'categoria': nombre_cat if nombre_cat is not None else 'Sin Categoría',
+                    'cantidad_stock': raw_stock,
+                })
+
+            clave = _normalizar_nombre_auditoria(p['nombre'])
+            grupos.setdefault(clave, []).append({
+                'id': p['id'],
+                'nombre': p['nombre'],
+                'categoria': nombre_cat if nombre_cat is not None else 'Sin Categoría',
+                'categoria_id': p['categoria_id'],
+                'cantidad_stock': p['cantidad_stock'],
+                'tiene_ventas': (p['num_ventas'] or 0) > 0,
+                'es_sin_categoria': es_sin_categoria,
+            })
+
+        # (1) grupos de nombre normalizado con mas de un producto
+        duplicados = []
+        for clave, items in grupos.items():
+            if len(items) > 1:
+                duplicados.append({
+                    'nombre_normalizado': clave,
+                    'cantidad': len(items),
+                    'productos': items,
+                })
+        duplicados.sort(key=lambda g: (-g['cantidad'], g['nombre_normalizado']))
+
+        # (2) nombres normalizados presentes a la vez en 'Sin Categoria' y en otra categoria
+        cruce_sin_categoria = []
+        for clave, items in grupos.items():
+            en_sin = [it for it in items if it['es_sin_categoria']]
+            en_otra = [it for it in items if not it['es_sin_categoria']]
+            if en_sin and en_otra:
+                cruce_sin_categoria.append({
+                    'nombre_normalizado': clave,
+                    'productos': items,
+                })
+        cruce_sin_categoria.sort(key=lambda g: g['nombre_normalizado'])
+
+        return {
+            'duplicados': duplicados,
+            'cruce_sin_categoria': cruce_sin_categoria,
+            'resumen': {
+                'resumen_categorias': resumen_categorias,
+                'total_productos': total_productos,
+                'num_sin_categoria': len(productos_sin_categoria),
+                'productos_sin_categoria': productos_sin_categoria,
+            },
+            'stock_invalido': stock_invalido,
+        }
+    finally:
+        db.close()
+
+
+@app.route('/admin/auditoria_inventario')
+def auditoria_inventario():
+    if 'usuario' not in session or session['rol'] != 'administrador':
+        return redirect(url_for('login'))
+
+    datos = _calcular_auditoria_inventario()
+    return jsonify(datos)
+
+
+@app.route('/admin/auditoria_inventario/export')
+def auditoria_inventario_export():
+    if 'usuario' not in session or session['rol'] != 'administrador':
+        return redirect(url_for('login'))
+
+    import io
+    import openpyxl
+
+    datos = _calcular_auditoria_inventario()
+
+    wb = openpyxl.Workbook()
+
+    # Hoja 1: Duplicados
+    ws_dup = wb.active
+    ws_dup.title = 'Duplicados'
+    ws_dup.append(['Nombre normalizado', 'ID', 'Nombre', 'Categoría', 'Stock', 'Tiene ventas'])
+    for grupo in datos['duplicados']:
+        for prod in grupo['productos']:
+            ws_dup.append([
+                grupo['nombre_normalizado'],
+                prod['id'],
+                prod['nombre'],
+                prod['categoria'],
+                prod['cantidad_stock'],
+                'Sí' if prod['tiene_ventas'] else 'No',
+            ])
+
+    # Hoja 2: Cruce Sin Categoria
+    ws_cruce = wb.create_sheet('Cruce Sin Categoria')
+    ws_cruce.append(['Nombre normalizado', 'ID', 'Nombre', 'Categoría', 'Stock', 'Tiene ventas'])
+    for grupo in datos['cruce_sin_categoria']:
+        for prod in grupo['productos']:
+            ws_cruce.append([
+                grupo['nombre_normalizado'],
+                prod['id'],
+                prod['nombre'],
+                prod['categoria'],
+                prod['cantidad_stock'],
+                'Sí' if prod['tiene_ventas'] else 'No',
+            ])
+
+    # Hoja 3: Resumen Categorias
+    ws_res = wb.create_sheet('Resumen Categorias')
+    ws_res.append(['Categoría', 'Número de productos'])
+    for fila in datos['resumen']['resumen_categorias']:
+        ws_res.append([fila['nombre_categoria'], fila['num_productos']])
+    ws_res.append([])
+    ws_res.append(['Total de productos', datos['resumen']['total_productos']])
+    ws_res.append(['Productos sin categoría', datos['resumen']['num_sin_categoria']])
+
+    # Hoja 4: Stock Invalido
+    ws_stock = wb.create_sheet('Stock Invalido')
+    ws_stock.append(['ID', 'Nombre', 'Categoría', 'Stock'])
+    for prod in datos['stock_invalido']:
+        ws_stock.append([prod['id'], prod['nombre'], prod['categoria'], prod['cantidad_stock']])
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name='auditoria_inventario.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
 
 @app.route('/admin/add_gasto', methods=['POST'])
 def add_gasto():

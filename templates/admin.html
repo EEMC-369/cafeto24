@@ -573,6 +573,7 @@
                 <button onclick="cambiarPestaña('tab-personal')" id="btn-tab-personal" class="flex-1 py-2.5 rounded-xl hover:bg-indigo-100 text-slate-700 transition whitespace-nowrap active:scale-95">👥 Personal</button>
                 <button onclick="cambiarPestaña('tab-perfil')" id="btn-tab-perfil" class="flex-1 py-2.5 rounded-xl hover:bg-purple-100 text-slate-700 transition whitespace-nowrap active:scale-95">⚙️ Perfil</button>
                 <button onclick="cambiarPestaña('tab-datos')" id="btn-tab-datos" class="flex-1 py-2.5 rounded-xl hover:bg-slate-200 text-slate-700 transition whitespace-nowrap active:scale-95">💾 Datos</button>
+                <button onclick="cambiarPestaña('tab-auditoria')" id="btn-tab-auditoria" class="flex-1 py-2.5 rounded-xl hover:bg-rose-100 text-slate-700 transition whitespace-nowrap active:scale-95">🔎 Auditoría</button>
             </div>
             
             <div id="tab-productos" class="ContenedorTab bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85">
@@ -920,6 +921,29 @@
                     </div>
                 </div>
             </div>
+
+            <div id="tab-auditoria" class="ContenedorTab hidden bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85 space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-800 mb-1 flex items-center gap-1.5">
+                            <span>🔎</span> Auditoría de Inventario
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium">Revisión de solo lectura: duplicados, cruces con Sin Categoría, resumen y stock inválido. No modifica datos.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="ejecutarAuditoria()" class="interactive-element bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-sm transition shadow-md shadow-rose-600/10 whitespace-nowrap">
+                            ▶️ Ejecutar auditoría
+                        </button>
+                        <a href="/admin/auditoria_inventario/export" class="interactive-element flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-sm transition shadow-md shadow-emerald-600/10 whitespace-nowrap">
+                            📊 Exportar a Excel
+                        </a>
+                    </div>
+                </div>
+
+                <div id="auditoria-resultado" class="space-y-6">
+                    <p class="text-xs text-slate-400 italic">Pulsa "Ejecutar auditoría" para generar el reporte.</p>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -1231,7 +1255,8 @@
             'tab-insumos': { active: 'bg-emerald-600 text-white shadow-sm font-black', inactive: 'hover:bg-emerald-100 text-slate-700' },
             'tab-personal': { active: 'bg-indigo-600 text-white shadow-sm font-black', inactive: 'hover:bg-indigo-100 text-slate-700' },
             'tab-perfil': { active: 'bg-purple-600 text-white shadow-sm font-black', inactive: 'hover:bg-purple-100 text-slate-700' },
-            'tab-datos': { active: 'bg-slate-700 text-white shadow-sm font-black', inactive: 'hover:bg-slate-200 text-slate-700' }
+            'tab-datos': { active: 'bg-slate-700 text-white shadow-sm font-black', inactive: 'hover:bg-slate-200 text-slate-700' },
+            'tab-auditoria': { active: 'bg-rose-600 text-white shadow-sm font-black', inactive: 'hover:bg-rose-100 text-slate-700' }
         };
 
         function cambiarPestaña(tabId) {
@@ -1252,6 +1277,120 @@
                 const conf = configTabs[tabId] || { active: 'bg-white text-slate-900 shadow-sm', inactive: 'hover:bg-white/50' };
                 btnActivo.className = `flex-1 py-2.5 rounded-xl transition duration-150 whitespace-nowrap active:scale-95 ${conf.active}`;
             }
+        }
+
+        function escaparHtmlAuditoria(valor) {
+            if (valor === null || valor === undefined) return '';
+            return String(valor)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function ejecutarAuditoria() {
+            const contenedor = document.getElementById('auditoria-resultado');
+            contenedor.innerHTML = '<p class="text-xs text-slate-400 italic">Ejecutando auditoría...</p>';
+            fetch('/admin/auditoria_inventario')
+                .then(resp => resp.json())
+                .then(datos => renderizarAuditoria(datos))
+                .catch(err => {
+                    contenedor.innerHTML = '<p class="text-xs text-rose-600 font-bold">Error al ejecutar la auditoría: ' + escaparHtmlAuditoria(err) + '</p>';
+                });
+        }
+
+        function renderizarAuditoria(datos) {
+            const contenedor = document.getElementById('auditoria-resultado');
+            const esc = escaparHtmlAuditoria;
+            let html = '';
+
+            const tablaClases = 'w-full text-xs text-left border border-slate-200 rounded-xl overflow-hidden';
+            const thClases = 'bg-slate-100 text-slate-600 font-bold uppercase px-3 py-2 text-[10px] tracking-wider';
+            const tdClases = 'px-3 py-2 border-t border-slate-100 text-slate-700';
+
+            // (1) Duplicados
+            html += '<div><h4 class="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-1.5"><span>🧩</span> Productos duplicados por nombre (' + datos.duplicados.length + ')</h4>';
+            if (datos.duplicados.length === 0) {
+                html += '<p class="text-xs text-slate-400 italic mb-2">Sin duplicados.</p>';
+            } else {
+                html += '<div class="overflow-x-auto"><table class="' + tablaClases + '"><thead><tr>'
+                    + '<th class="' + thClases + '">Nombre normalizado</th><th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th><th class="' + thClases + '">Ventas</th>'
+                    + '</tr></thead><tbody>';
+                datos.duplicados.forEach(grupo => {
+                    grupo.productos.forEach(prod => {
+                        html += '<tr>'
+                            + '<td class="' + tdClases + ' font-mono text-slate-500">' + esc(grupo.nombre_normalizado) + '</td>'
+                            + '<td class="' + tdClases + '">' + esc(prod.id) + '</td>'
+                            + '<td class="' + tdClases + ' font-semibold">' + esc(prod.nombre) + '</td>'
+                            + '<td class="' + tdClases + '">' + esc(prod.categoria) + '</td>'
+                            + '<td class="' + tdClases + '">' + esc(prod.cantidad_stock) + '</td>'
+                            + '<td class="' + tdClases + '">' + (prod.tiene_ventas ? 'Sí' : 'No') + '</td>'
+                            + '</tr>';
+                    });
+                });
+                html += '</tbody></table></div>';
+            }
+            html += '</div>';
+
+            // (2) Cruce Sin Categoria
+            html += '<div><h4 class="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-1.5"><span>🔀</span> Cruce con Sin Categoría (' + datos.cruce_sin_categoria.length + ')</h4>';
+            if (datos.cruce_sin_categoria.length === 0) {
+                html += '<p class="text-xs text-slate-400 italic mb-2">Sin cruces detectados.</p>';
+            } else {
+                html += '<div class="overflow-x-auto"><table class="' + tablaClases + '"><thead><tr>'
+                    + '<th class="' + thClases + '">Nombre normalizado</th><th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th>'
+                    + '</tr></thead><tbody>';
+                datos.cruce_sin_categoria.forEach(grupo => {
+                    grupo.productos.forEach(prod => {
+                        html += '<tr>'
+                            + '<td class="' + tdClases + ' font-mono text-slate-500">' + esc(grupo.nombre_normalizado) + '</td>'
+                            + '<td class="' + tdClases + '">' + esc(prod.id) + '</td>'
+                            + '<td class="' + tdClases + ' font-semibold">' + esc(prod.nombre) + '</td>'
+                            + '<td class="' + tdClases + '">' + esc(prod.categoria) + '</td>'
+                            + '<td class="' + tdClases + '">' + esc(prod.cantidad_stock) + '</td>'
+                            + '</tr>';
+                    });
+                });
+                html += '</tbody></table></div>';
+            }
+            html += '</div>';
+
+            // (3) Resumen por categoria
+            const resumen = datos.resumen;
+            html += '<div><h4 class="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-1.5"><span>📁</span> Resumen por categoría</h4>';
+            html += '<p class="text-xs text-slate-500 mb-2 font-medium">Total de productos: <span class="font-bold text-slate-700">' + esc(resumen.total_productos) + '</span> · Sin categoría: <span class="font-bold text-slate-700">' + esc(resumen.num_sin_categoria) + '</span></p>';
+            html += '<div class="overflow-x-auto"><table class="' + tablaClases + '"><thead><tr>'
+                + '<th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Productos</th>'
+                + '</tr></thead><tbody>';
+            resumen.resumen_categorias.forEach(fila => {
+                html += '<tr>'
+                    + '<td class="' + tdClases + '">' + esc(fila.nombre_categoria) + '</td>'
+                    + '<td class="' + tdClases + '">' + esc(fila.num_productos) + '</td>'
+                    + '</tr>';
+            });
+            html += '</tbody></table></div></div>';
+
+            // (4) Stock invalido
+            html += '<div><h4 class="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-1.5"><span>⚠️</span> Stock negativo o inválido (' + datos.stock_invalido.length + ')</h4>';
+            if (datos.stock_invalido.length === 0) {
+                html += '<p class="text-xs text-slate-400 italic mb-2">Sin stock inválido.</p>';
+            } else {
+                html += '<div class="overflow-x-auto"><table class="' + tablaClases + '"><thead><tr>'
+                    + '<th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th>'
+                    + '</tr></thead><tbody>';
+                datos.stock_invalido.forEach(prod => {
+                    html += '<tr>'
+                        + '<td class="' + tdClases + '">' + esc(prod.id) + '</td>'
+                        + '<td class="' + tdClases + ' font-semibold">' + esc(prod.nombre) + '</td>'
+                        + '<td class="' + tdClases + '">' + esc(prod.categoria) + '</td>'
+                        + '<td class="' + tdClases + ' text-rose-600 font-bold">' + esc(prod.cantidad_stock) + '</td>'
+                        + '</tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+            html += '</div>';
+
+            contenedor.innerHTML = html;
         }
 
         function toggleCategoria(id) {
