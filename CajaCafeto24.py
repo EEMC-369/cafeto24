@@ -4038,30 +4038,75 @@ def api_cobrar():
             cambio_val = max(0.0, efectivo_recibido_val - total_venta)
 
         # Insertar venta
-        cursor_venta = db.execute("""
-            INSERT INTO ventas (vendedor_id, turno_id, metodo_pago, total, efectivo_recibido, cambio, referencia_pago, cliente_fiado, estado_cobro, tipo_venta, fecha,
-                requiere_factura_electronica, fe_tipo_documento, fe_numero_documento, fe_nombre, fe_direccion, fe_telefono, fe_correo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'producto', datetime('now', 'localtime'),
-                ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            vendedor_id,
-            turno_id,
-            metodo_pago,
-            total_venta,
-            efectivo_recibido_val,
-            cambio_val,
-            referencia_pago,
-            (cliente_fiado if metodo_pago == 'fiado' else None),
-            ('pendiente' if metodo_pago == 'fiado' else 'pagado'),
-            requiere_fe,
-            (fe_tipo_documento if requiere_fe == 1 else None),
-            (fe_numero_documento if requiere_fe == 1 else None),
-            (fe_nombre if requiere_fe == 1 else None),
-            (fe_direccion if requiere_fe == 1 else None),
-            (fe_telefono if requiere_fe == 1 else None),
-            (fe_correo if requiere_fe == 1 else None),
-        ))
-        
+        # Blindaje: detectar si la BD tiene las columnas de factura electrónica (FE).
+        # Bases de datos antiguas (v6) pueden no tenerlas aún.
+        cols_ventas = [r[1] for r in db.execute("PRAGMA table_info(ventas)").fetchall()]
+        tiene_fe = 'requiere_factura_electronica' in cols_ventas
+        aviso_fe = None
+
+        if not tiene_fe:
+            # Intento defensivo de agregar las columnas FE sin romper la venta si falla
+            try:
+                columnas_fe = [
+                    ('requiere_factura_electronica', 'INTEGER DEFAULT 0'),
+                    ('fe_tipo_documento', 'TEXT'),
+                    ('fe_numero_documento', 'TEXT'),
+                    ('fe_nombre', 'TEXT'),
+                    ('fe_direccion', 'TEXT'),
+                    ('fe_telefono', 'TEXT'),
+                    ('fe_correo', 'TEXT'),
+                ]
+                for col_name, col_def in columnas_fe:
+                    if col_name not in cols_ventas:
+                        db.execute(f"ALTER TABLE ventas ADD COLUMN {col_name} {col_def};")
+                cols_ventas = [r[1] for r in db.execute("PRAGMA table_info(ventas)").fetchall()]
+                tiene_fe = 'requiere_factura_electronica' in cols_ventas
+            except Exception as fe_err:
+                print(f"ADVERTENCIA: No se pudieron agregar columnas de factura electrónica: {fe_err}")
+
+        if tiene_fe:
+            cursor_venta = db.execute("""
+                INSERT INTO ventas (vendedor_id, turno_id, metodo_pago, total, efectivo_recibido, cambio, referencia_pago, cliente_fiado, estado_cobro, tipo_venta, fecha,
+                    requiere_factura_electronica, fe_tipo_documento, fe_numero_documento, fe_nombre, fe_direccion, fe_telefono, fe_correo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'producto', datetime('now', 'localtime'),
+                    ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                vendedor_id,
+                turno_id,
+                metodo_pago,
+                total_venta,
+                efectivo_recibido_val,
+                cambio_val,
+                referencia_pago,
+                (cliente_fiado if metodo_pago == 'fiado' else None),
+                ('pendiente' if metodo_pago == 'fiado' else 'pagado'),
+                requiere_fe,
+                (fe_tipo_documento if requiere_fe == 1 else None),
+                (fe_numero_documento if requiere_fe == 1 else None),
+                (fe_nombre if requiere_fe == 1 else None),
+                (fe_direccion if requiere_fe == 1 else None),
+                (fe_telefono if requiere_fe == 1 else None),
+                (fe_correo if requiere_fe == 1 else None),
+            ))
+        else:
+            # Rama sin FE: BD no actualizada; registrar la venta solo con las columnas originales
+            cursor_venta = db.execute("""
+                INSERT INTO ventas (vendedor_id, turno_id, metodo_pago, total, efectivo_recibido, cambio, referencia_pago, cliente_fiado, estado_cobro, tipo_venta, fecha)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'producto', datetime('now', 'localtime'))
+            """, (
+                vendedor_id,
+                turno_id,
+                metodo_pago,
+                total_venta,
+                efectivo_recibido_val,
+                cambio_val,
+                referencia_pago,
+                (cliente_fiado if metodo_pago == 'fiado' else None),
+                ('pendiente' if metodo_pago == 'fiado' else 'pagado'),
+            ))
+            if requiere_fe == 1:
+                aviso_fe = 'La base de datos no esta actualizada para factura electronica; la venta se registro sin esos datos.'
+
         venta_id = cursor_venta.lastrowid
 
         if metodo_pago == 'dividido':
@@ -4144,7 +4189,10 @@ def api_cobrar():
             db.execute("UPDATE ordenes_abiertas SET estado = 'pagada' WHERE id = ?", (orden_abierta_id,))
 
         db.commit()
-        return jsonify({'success': True, 'venta_id': venta_id})
+        respuesta = {'success': True, 'venta_id': venta_id}
+        if aviso_fe:
+            respuesta['aviso'] = aviso_fe
+        return jsonify(respuesta)
     except Exception as e:
         db.rollback()
         return jsonify({'error': str(e), 'success': False}), 500
@@ -4849,7 +4897,7 @@ def inicializar_y_migrar_db():
     finally:
         conn.close()
         
-    VERSION_OBJETIVO = 6  # Versión actual de la base de datos del sistema
+    VERSION_OBJETIVO = 7  # Versión actual de la base de datos del sistema
     
     if version_actual >= VERSION_OBJETIVO:
         print(f"INFO: Base de datos en su versión más reciente (v{version_actual}).")
