@@ -3536,13 +3536,20 @@
         let saldosEsperadosCierre = { efectivo: 0, nequi: 0, daviplata: 0, tarjeta: 0 };
         let baseInicialCierre = 0;
 
+        // Efectivo esperado del turno = base inicial + flujo de efectivo del turno.
+        // Debe coincidir con el servidor (efectivo_esperado = base_inicial + flujo - destinos),
+        // de lo contrario el arqueo de efectivo mostraría un descuadre fantasma (D1/D3).
+        function efectivoEsperadoTurno() {
+            return Number(baseInicialCierre || 0) + Number(saldosEsperadosCierre.efectivo || 0);
+        }
+
         function recalcularBaseFinalCierre() {
             const parseNum = id => {
                 const val = document.getElementById(id)?.value;
                 const n = (val !== '' && val !== null) ? Number(val) : 0;
                 return (isNaN(n) || n < 0) ? 0 : n;
             };
-            const esperado = Number(saldosEsperadosCierre.efectivo || 0);
+            const esperado = efectivoEsperadoTurno();
             const ahorro = parseNum('cierre-destino-ahorro');
             const yessi = parseNum('cierre-destino-yessi');
             const baseFinal = esperado - ahorro - yessi;
@@ -3612,7 +3619,10 @@
 
                     ['efectivo', 'nequi', 'daviplata', 'tarjeta'].forEach(m => {
                         const espEl = document.getElementById(`cierre-esp-${m}`);
-                        if (espEl) espEl.innerText = dinero(saldosEsperadosCierre[m] || 0);
+                        const espMetodo = m === 'efectivo'
+                            ? efectivoEsperadoTurno()
+                            : Number(saldosEsperadosCierre[m] || 0);
+                        if (espEl) espEl.innerText = dinero(espMetodo);
                         calcularArqueoMetodo(m);
                     });
 
@@ -3655,7 +3665,11 @@
             }
 
             const real = Number(valStr);
-            const esp = Number(saldosEsperadosCierre[metodo] || 0);
+            // El efectivo esperado incluye la base inicial del turno (igual que el servidor);
+            // los demás métodos usan su saldo por turno tal cual.
+            const esp = metodo === 'efectivo'
+                ? efectivoEsperadoTurno()
+                : Number(saldosEsperadosCierre[metodo] || 0);
             const dif = real - esp;
 
             const difSigno = dif > 0 ? '+' : '';
@@ -3691,7 +3705,7 @@
                 alert('⚠️ Los montos a destinar a Ahorro y Yessi no pueden ser negativos.');
                 return;
             }
-            const esperadoEfectivo = Number(saldosEsperadosCierre.efectivo || 0);
+            const esperadoEfectivo = efectivoEsperadoTurno();
             if (destinoAhorro + destinoYessi > esperadoEfectivo) {
                 alert('⚠️ Lo destinado a Ahorro y Yessi no puede superar el efectivo esperado del turno.');
                 return;
