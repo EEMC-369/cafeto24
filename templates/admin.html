@@ -98,6 +98,22 @@
             transform: translate(-50%, -50%);
             text-shadow: 0 1px 2px rgba(0,0,0,0.45);
         }
+
+        /* ========== GUÍA DE USO INTERACTIVA (resaltado del control real) ========== */
+        @keyframes guiaPulso {
+            0%   { box-shadow: 0 0 0 0 rgba(251,191,36,0.70); }
+            70%  { box-shadow: 0 0 0 10px rgba(251,191,36,0); }
+            100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+        }
+        .guia-resaltado {
+            outline: 3px solid #fbbf24 !important;
+            outline-offset: 3px;
+            border-radius: 10px;
+            animation: guiaPulso 1.3s ease-out infinite;
+            scroll-margin: 100px;
+            position: relative;
+            z-index: 55;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -132,6 +148,9 @@
                     Reiniciar Caja 🔄
                 </button>
             </form>
+            <button id="btn-guia-uso-admin" onclick="abrirGuiaUsoAdmin()" type="button" title="Guía de uso" class="interactive-element bg-slate-800/80 hover:bg-slate-700 px-4 py-2 rounded-xl font-bold text-sm border border-slate-700 transition">
+                ❓ Ayuda
+            </button>
             <a href="/ventas" class="interactive-element bg-amber-500 hover:bg-amber-600 px-4 py-2 rounded-xl font-bold text-sm text-slate-950 shadow-md shadow-amber-500/10 transition">
                 Ir a Ventas 📱
             </a>
@@ -316,7 +335,7 @@
                             </div>
                             
                             <div class="flex items-center gap-1.5">
-                                <button onclick="abrirModalEditar('{{ prod.id }}', '{{ prod.nombre }}', '{{ prod.precio }}', '{{ prod.cantidad_stock }}', '{{ prod.es_pack }}', '{{ prod.unidades_por_pack }}', '{{ cat.id }}', '{{ prod.es_preparado }}', '{{ prod.codigo_barras or '' }}', '{{ prod.precio_unidad_venta if prod.precio_unidad_venta is not none else '' }}', '{{ prod.precio_medio_venta if prod.precio_medio_venta is not none else '' }}', '{{ prod.receta_personalizable }}')" 
+                                <button data-guia="editar-producto" onclick="abrirModalEditar('{{ prod.id }}', '{{ prod.nombre }}', '{{ prod.precio }}', '{{ prod.cantidad_stock }}', '{{ prod.es_pack }}', '{{ prod.unidades_por_pack }}', '{{ cat.id }}', '{{ prod.es_preparado }}', '{{ prod.codigo_barras or '' }}', '{{ prod.precio_unidad_venta if prod.precio_unidad_venta is not none else '' }}', '{{ prod.precio_medio_venta if prod.precio_medio_venta is not none else '' }}', '{{ prod.receta_personalizable }}')" 
                                         class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 p-2 rounded-xl text-xs shadow-sm transition active:scale-95">✏️</button>
                                 
                                 <form action="/admin/eliminar_producto/{{ prod.id }}" method="POST" onsubmit="return confirm('¿Eliminar?');" class="inline">
@@ -566,7 +585,7 @@
                 <span class="text-xl font-bold opacity-70 group-hover:translate-x-1 transition duration-150">➔</span>
             </a>
 
-            <div class="bg-slate-100 p-1.5 rounded-2xl flex flex-wrap gap-1 text-xs font-bold text-slate-600 border border-slate-200">
+            <div data-guia="tabs" class="bg-slate-100 p-1.5 rounded-2xl flex flex-wrap gap-1 text-xs font-bold text-slate-600 border border-slate-200">
                 <button onclick="cambiarPestaña('tab-productos')" id="btn-tab-productos" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 shadow-sm font-black transition whitespace-nowrap active:scale-95">🛒 Menú</button>
                 <button onclick="cambiarPestaña('tab-categorias')" id="btn-tab-categorias" class="flex-1 py-2.5 rounded-xl hover:bg-blue-100 text-slate-700 transition whitespace-nowrap active:scale-95">📁 Cat</button>
                 <button onclick="cambiarPestaña('tab-insumos')" id="btn-tab-insumos" class="flex-1 py-2.5 rounded-xl hover:bg-emerald-100 text-slate-700 transition whitespace-nowrap active:scale-95">🌾 Insumos</button>
@@ -1247,6 +1266,32 @@
         </div>
     </div>
 
+    <!-- PANEL LATERAL DE GUÍA DE USO (NO overlay de pantalla completa) -->
+    <div id="guia-uso-admin"
+         class="fixed top-0 right-0 h-full w-[92vw] max-w-[400px] z-[60] translate-x-full
+                transition-transform duration-300 flex flex-col
+                bg-white/90 backdrop-blur-md shadow-2xl border-l border-amber-300"
+         aria-hidden="true" role="dialog" aria-label="Guía de uso del panel de administración">
+        <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
+            <h3 class="font-black text-sm flex items-center gap-2">❓ Guía de uso (Admin)</h3>
+            <button type="button" onclick="cerrarGuiaUsoAdmin()" class="text-white/80 hover:text-white text-2xl leading-none" title="Cerrar">&times;</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 space-y-3">
+            <p class="text-[11px] text-slate-500">Toca una función para ver cómo se usa; cambiaré a su pestaña y la resaltaré en pantalla con un halo ámbar.</p>
+            <div id="guia-uso-admin-lista" class="flex flex-col gap-1.5"></div>
+            <div class="border-t border-slate-200 pt-3">
+                <h4 id="guia-uso-admin-titulo" class="font-black text-amber-800 text-sm mb-1">Selecciona una función</h4>
+                <div id="guia-uso-admin-desc" class="text-xs text-slate-700 leading-relaxed space-y-1">
+                    <p>Elige cualquier función de la lista de arriba y te explicaré paso a paso cómo usarla.</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-3 border-t border-slate-200 flex-shrink-0">
+            <button type="button" onclick="cerrarGuiaUsoAdmin()"
+                    class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs">Cerrar guía</button>
+        </div>
+    </div>
+
     <script>
         const todosLosInsumos = {{ insumos|tojson }};
         const configTabs = {
@@ -1719,6 +1764,115 @@
             `;
             alert('Se iniciará la descarga en segundo plano. Cafeto24 se cerrará automáticamente en unos segundos, aplicará los cambios e iniciará la nueva versión. Por favor espera.');
         }
+
+        /* ================== GUÍA DE USO INTERACTIVA (ADMIN) ================== */
+        // Cada entrada: { clave, titulo, descripcion (HTML), sel (selector CSS), pestaña? ('tab-...') }
+        const ENTRADAS_GUIA_ADMIN = [
+            { clave: 'reiniciar-caja', titulo: '🔄 Reiniciar caja', sel: 'form[action="/admin/reset_all_data"]',
+              descripcion: '<p>Borra ventas, gastos, turnos y movimientos del día. No elimina productos ni categorías. Pide confirmación antes de ejecutar.</p>' },
+            { clave: 'informes', titulo: '📊 Informes de ventas', sel: 'a[href="/admin/informes"]',
+              descripcion: '<p>Abre la auditoría general y por vendedor. Incluye el cierre de turno (reporte Z) y el resumen de la operación.</p>' },
+            { clave: 'tabs', titulo: '🗂️ Pestañas del panel', sel: '[data-guia="tabs"]',
+              descripcion: '<p>Cambia entre las secciones: 🛒 Menú, 📁 Cat, 🌾 Insumos, 👥 Personal, ⚙️ Perfil, 💾 Datos y 🔎 Auditoría.</p>' },
+            { clave: 'buscar-producto', titulo: '🔍 Buscar producto', sel: '#buscadorProductos',
+              descripcion: '<p>Filtra el catálogo escribiendo parte del nombre del producto. Abre automáticamente la categoría que lo contiene.</p>' },
+            { clave: 'editar-producto', titulo: '✏️ Editar / eliminar producto', sel: '[data-guia="editar-producto"]',
+              descripcion: '<p>En el listado del catálogo, cada producto tiene ✏️ para editarlo (abre un modal) y 🗑️ para eliminarlo (pide confirmación).</p>' },
+            { clave: 'eliminar-categoria', titulo: '🗑️ Eliminar categoría', sel: '[onclick^="abrirModalEliminarCat"]',
+              descripcion: '<p>Abre un modal con dos opciones: "Mover productos a Sin Categoría" o, en la zona peligrosa, "Eliminar categoría y sus N productos" (debes escribir el nombre o la palabra BORRAR para habilitarlo).</p>' },
+            { clave: 'crear-producto', titulo: '➕ Registrar producto', sel: '#formCrearProducto', pestaña: 'tab-productos',
+              descripcion: '<p>Crea un producto del menú: nombre, código de barras, categoría, packs (precio por paca y por unidad/medio) y receta de insumos si aplica.</p>' },
+            { clave: 'receta-producto', titulo: '🧪 Receta de materia prima', sel: '#seccion-receta-dinamica', pestaña: 'tab-productos',
+              descripcion: '<p>Marca "¿Lleva receta de materia prima?" para definir los ingredientes del producto. Puedes permitir personalizar la receta al vender.</p>' },
+            { clave: 'crear-categoria', titulo: '📁 Registrar categoría', sel: 'form[action="/admin/add_categoria"]', pestaña: 'tab-categorias',
+              descripcion: '<p>Crea una nueva categoría indicando su nombre y, opcionalmente, un ícono.</p>' },
+            { clave: 'crear-insumo', titulo: '🌾 Registrar insumo', sel: 'form[action="/admin/add_insumo"]', pestaña: 'tab-insumos',
+              descripcion: '<p>Crea un insumo base: nombre, stock inicial y unidad de medida (g, ml o unidades).</p>' },
+            { clave: 'editar-insumo', titulo: '✏️ Ajustar insumo', sel: '[onclick^="abrirModalEditarInsumo"]', pestaña: 'tab-insumos',
+              descripcion: '<p>El botón ✏️ de cada insumo abre un modal para ajustar su cantidad disponible.</p>' },
+            { clave: 'crear-personal', titulo: '👥 Registrar personal', sel: 'form[action="/admin/add_usuario"]', pestaña: 'tab-personal',
+              descripcion: '<p>Crea usuarios del sistema: nombre, usuario, rol (Empleado o Administrador) y contraseña.</p>' },
+            { clave: 'editar-personal', titulo: '✏️ Editar / dar de baja', sel: '[onclick^="abrirModalEditarUsuario"]', pestaña: 'tab-personal',
+              descripcion: '<p>El botón ✏️ edita un usuario y el botón ✕ lo da de baja (pierde acceso de inmediato, con confirmación).</p>' },
+            { clave: 'clientes-fiado', titulo: '🧾 Clientes exclusivos (fiado)', sel: 'form[action="/admin/add_cliente_exclusivo"]', pestaña: 'tab-personal',
+              descripcion: '<p>Agrega los clientes autorizados para ventas a fiado. Solo estos clientes podrán usarse al cobrar como fiado en Ventas.</p>' },
+            { clave: 'perfil', titulo: '⚙️ Modificar mis datos', sel: 'form[action="/admin/editar_perfil"]', pestaña: 'tab-perfil',
+              descripcion: '<p>Cambia tu propio nombre de administrador y tu contraseña.</p>' },
+            { clave: 'exportar', titulo: '📤 Exportar productos/categorías', sel: 'a[href="/admin/exportar/productos"]', pestaña: 'tab-datos',
+              descripcion: '<p>Descarga los catálogos completos en CSV compatible con Microsoft Excel, para respaldo o edición masiva.</p>' },
+            { clave: 'importar', titulo: '📥 Importar / actualizar inventario', sel: 'form[action="/admin/importar/productos"]', pestaña: 'tab-datos',
+              descripcion: '<p>Sube un archivo .xlsx, .xls o .csv con al menos Nombre y Precio para cargar productos nuevos o actualizar el inventario existente.</p>' },
+            { clave: 'actualizar-sistema', titulo: '🔄 Actualización del sistema', sel: '#status-actualizador', pestaña: 'tab-datos',
+              descripcion: '<p>Muestra la versión instalada y el botón "🔍 Buscar Actualizaciones". Si hay una versión nueva, aparece la opción para descargarla e instalarla.</p>' },
+            { clave: 'auditoria', titulo: '🔎 Auditoría de inventario', sel: '[onclick="ejecutarAuditoria()"]', pestaña: 'tab-auditoria',
+              descripcion: '<p>"▶️ Ejecutar auditoría" detecta productos duplicados y productos repartidos entre "Sin Categoría" y su categoría real. "📊 Exportar a Excel" descarga el reporte. No modifica datos.</p>' },
+        ];
+
+        function _construirListaGuiaAdmin() {
+            const lista = document.getElementById('guia-uso-admin-lista');
+            if (!lista || lista.children.length) return;
+            ENTRADAS_GUIA_ADMIN.forEach(entry => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = entry.titulo;
+                btn.setAttribute('onclick', `seleccionarEntradaGuiaAdmin('${entry.clave}')`);
+                btn.className = 'text-left text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-amber-50 hover:text-amber-900 border border-slate-200 rounded-xl px-3 py-2 transition';
+                lista.appendChild(btn);
+            });
+        }
+
+        function abrirGuiaUsoAdmin() {
+            _construirListaGuiaAdmin();
+            const panel = document.getElementById('guia-uso-admin');
+            if (!panel) return;
+            panel.classList.remove('translate-x-full');
+            panel.setAttribute('aria-hidden', 'false');
+        }
+
+        function cerrarGuiaUsoAdmin() {
+            limpiarResaltadoGuiaAdmin();
+            const panel = document.getElementById('guia-uso-admin');
+            if (!panel) return;
+            panel.classList.add('translate-x-full');
+            panel.setAttribute('aria-hidden', 'true');
+        }
+
+        function seleccionarEntradaGuiaAdmin(clave) {
+            const entry = ENTRADAS_GUIA_ADMIN.find(e => e.clave === clave);
+            if (!entry) return;
+            const titulo = document.getElementById('guia-uso-admin-titulo');
+            const desc = document.getElementById('guia-uso-admin-desc');
+            if (titulo) titulo.textContent = entry.titulo;
+            if (desc) desc.innerHTML = entry.descripcion;
+            if (entry.pestaña && typeof cambiarPestaña === 'function') {
+                try { cambiarPestaña(entry.pestaña); } catch (e) {}
+            }
+            // Espera breve para que el contenedor de la pestaña ya esté visible antes de resaltar/scroll
+            setTimeout(() => resaltarControlGuiaAdmin(entry.sel), 70);
+        }
+
+        function resaltarControlGuiaAdmin(selector) {
+            limpiarResaltadoGuiaAdmin();
+            let el = null;
+            try { el = document.querySelector(selector); } catch (e) { el = null; }
+            if (!el) return;
+            el.classList.add('guia-resaltado');
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function limpiarResaltadoGuiaAdmin() {
+            document.querySelectorAll('.guia-resaltado').forEach(el => el.classList.remove('guia-resaltado'));
+        }
+
+        // Escape acotado: solo cierra la guía si está abierta (no interfiere con cerrarModales ni pestañas)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const panel = document.getElementById('guia-uso-admin');
+                if (panel && !panel.classList.contains('translate-x-full')) {
+                    cerrarGuiaUsoAdmin();
+                }
+            }
+        });
     </script>
 </body>
 </html>

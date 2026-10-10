@@ -371,6 +371,22 @@
                 display: none !important;
             }
         }
+
+        /* ========== GUÍA DE USO INTERACTIVA (resaltado del control real) ========== */
+        @keyframes guiaPulso {
+            0%   { box-shadow: 0 0 0 0 rgba(251,191,36,0.70); }
+            70%  { box-shadow: 0 0 0 10px rgba(251,191,36,0); }
+            100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+        }
+        .guia-resaltado {
+            outline: 3px solid #fbbf24 !important;
+            outline-offset: 3px;
+            border-radius: 10px;
+            animation: guiaPulso 1.3s ease-out infinite;
+            scroll-margin: 100px;
+            position: relative;
+            z-index: 55;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
@@ -395,6 +411,11 @@
             </span>
             <span id="estado-turno-header" class="bg-slate-900 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-700 flex items-center gap-1 shadow-sm">⏱️ Turno: cargando...</span>
             
+            <!-- BOTÓN DE GUÍA DE USO (AYUDA) -->
+            <button id="btn-guia-uso" onclick="abrirGuiaUso()" type="button" class="bg-amber-900/80 hover:bg-amber-950 text-amber-200 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-600/50 flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer" title="Guía de uso">
+                <span>❓</span> <span class="hidden sm:inline">Ayuda</span>
+            </button>
+
             <!-- BOTÓN RÁPIDO DE NOVEDADES -->
             <button id="btn-header-novedades" onclick="abrirModalNovedades()" type="button" class="bg-amber-900/80 hover:bg-amber-950 text-amber-200 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-600/50 flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer" title="Novedades de Turno y Sistema">
                 <span>📝</span> <span class="hidden sm:inline">Novedades</span> <span id="badge-novedades-count" class="hidden bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">0</span>
@@ -518,7 +539,7 @@
                         <div id="detalle-cuentas-actuales" class="flex flex-wrap gap-1 text-[10px]"></div>
 
                         <p class="text-xs font-black text-gray-600 uppercase tracking-wider">Paso 2: Elige Método de Cobro</p>
-                        <div class="grid grid-cols-3 gap-2 font-black text-xs sm:text-sm">
+                        <div data-guia="metodos-pago" class="grid grid-cols-3 gap-2 font-black text-xs sm:text-sm">
                             <button id="btn-pago-efectivo" type="button" onclick="cambiarMetodoPago('efectivo')" class="py-3.5 rounded-2xl text-center border-2 transition active:scale-95 shadow-sm">💵 Efectivo</button>
                             <button id="btn-pago-nequi" type="button" onclick="cambiarMetodoPago('nequi')" class="py-3.5 rounded-2xl text-center border-2 transition active:scale-95 shadow-sm">📱 Nequi</button>
                             <button id="btn-pago-daviplata" type="button" onclick="cambiarMetodoPago('daviplata')" class="py-3.5 rounded-2xl text-center border-2 transition active:scale-95 shadow-sm">📲 Daviplata</button>
@@ -568,7 +589,7 @@
                         </label>
 
                         <!-- MODO DE FACTURA: normal vs electronica -->
-                        <div class="bg-slate-50 border rounded-xl px-2.5 py-2 shadow-sm space-y-2">
+                        <div data-guia="modo-factura" class="bg-slate-50 border rounded-xl px-2.5 py-2 shadow-sm space-y-2">
                             <div class="flex gap-2 text-[11px] font-bold text-gray-600">
                                 <label class="flex items-center gap-1.5 cursor-pointer">
                                     <input type="radio" name="modo-factura" value="normal" checked
@@ -1591,6 +1612,32 @@
                     Cerrar
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- PANEL LATERAL DE GUÍA DE USO (NO overlay de pantalla completa) -->
+    <div id="guia-uso-ventas"
+         class="fixed top-0 right-0 h-full w-[92vw] max-w-[400px] z-[60] translate-x-full
+                transition-transform duration-300 flex flex-col
+                bg-white/90 backdrop-blur-md shadow-2xl border-l border-amber-300"
+         aria-hidden="true" role="dialog" aria-label="Guía de uso">
+        <div class="bg-gradient-to-r from-amber-700 to-amber-900 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
+            <h3 class="font-black text-sm flex items-center gap-2">❓ Guía de uso</h3>
+            <button type="button" onclick="cerrarGuiaUso()" class="text-white/80 hover:text-white text-2xl leading-none" title="Cerrar">&times;</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 space-y-3">
+            <p class="text-[11px] text-slate-500">Toca una función para ver cómo se usa; se resaltará en pantalla con un halo ámbar.</p>
+            <div id="guia-uso-ventas-lista" class="flex flex-col gap-1.5"></div>
+            <div class="border-t border-slate-200 pt-3">
+                <h4 id="guia-uso-ventas-titulo" class="font-black text-amber-800 text-sm mb-1">Selecciona una función</h4>
+                <div id="guia-uso-ventas-desc" class="text-xs text-slate-700 leading-relaxed space-y-1">
+                    <p>Elige cualquier función de la lista de arriba y te explicaré paso a paso cómo usarla.</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-3 border-t border-slate-200 flex-shrink-0">
+            <button type="button" onclick="cerrarGuiaUso()"
+                    class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs">Cerrar guía</button>
         </div>
     </div>
 
@@ -3836,6 +3883,12 @@
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                // Cerrar primero la guía de uso si está abierta
+                const panelGuia = document.getElementById('guia-uso-ventas');
+                if (panelGuia && !panelGuia.classList.contains('translate-x-full')) {
+                    cerrarGuiaUso();
+                    return;
+                }
                 cerrarMenuKebab();
                 // close any open modal
                 const modals = ['modal-factura-pos','modal-pago-dividido','modal-cierre-turno','modal-cierre-exito','modal-personalizar-receta','modal-novedades'];
@@ -4033,6 +4086,118 @@
                 console.error('Error al cobrar pago dividido:', err);
                 alert('Error crítico: ' + err.message);
             }
+        }
+
+        /* ================== GUÍA DE USO INTERACTIVA (VENTAS) ================== */
+        // Cada entrada: { clave, titulo, descripcion (HTML), sel (selector CSS), pestañaIzq? }
+        const ENTRADAS_GUIA_VENTAS = [
+            { clave: 'pestanas-ordenes', titulo: '🧾 Pestañas de órdenes', sel: '#barra-pestanas-ordenes',
+              descripcion: '<p>Cada pestaña es una cuenta/orden independiente (por defecto "⚡ Venta Rápida"). Toca una pestaña para cambiar entre cuentas abiertas al mismo tiempo.</p>' },
+            { clave: 'nueva-mesa', titulo: '➕ Nueva mesa / cuenta', sel: '[onclick="abrirModalNuevaMesa()"]',
+              descripcion: '<p>Abre una nueva cuenta en paralelo para atender a otra mesa o cliente sin perder la orden actual.</p>' },
+            { clave: 'categorias-productos', titulo: '📂 Filtrar por categoría', sel: '.panel-categorias-contenedor',
+              descripcion: '<p>Toca una categoría para ver solo sus productos. Usa "Todas" para ver el catálogo completo.</p>' },
+            { clave: 'grid-productos', titulo: '☕ Agregar productos', sel: '#contenedor-productos',
+              descripcion: '<p>Toca la tarjeta de un producto para agregarlo al carrito. Algunos productos permiten elegir unidad, medio o paca.</p>' },
+            { clave: 'buscar-codigo', titulo: '🏷️ Escanear código de barras', sel: '#codigo-barras-venta',
+              descripcion: '<p>Escanea con el lector o escribe el código y pulsa Enter para agregar el producto directamente al carrito.</p>' },
+            { clave: 'carrito', titulo: '🛒 Detalle del pedido', sel: '#elementos-carrito', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Aquí ves los ítems agregados. Puedes cambiar cantidades con los botones + / − o quitar productos del carrito.</p>' },
+            { clave: 'total', titulo: '💲 Total a pagar', sel: '#total-pago', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Muestra el total actual de la orden, actualizado cada vez que agregas o quitas productos.</p>' },
+            { clave: 'metodo-pago', titulo: '💳 Métodos de cobro', sel: '[data-guia="metodos-pago"]', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Elige cómo paga el cliente: 💵 Efectivo, 📱 Nequi, 📲 Daviplata, 💳 Tarjeta o 🧾 Fiado. Según el método aparecen campos distintos abajo.</p>' },
+            { clave: 'pago-efectivo', titulo: '💵 Efectivo y cambio', sel: '#panel-efectivo', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Escribe en "Paga Con ($)" el dinero recibido y el sistema calcula el Cambio automáticamente. Con Enter se cobra.</p>' },
+            { clave: 'pago-digital', titulo: '📱 Nequi / Daviplata / Tarjeta', sel: '#panel-digital', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Estos métodos se registran como pago exacto de inmediato. Puedes anotar una referencia de auditoría (opcional).</p>' },
+            { clave: 'pago-fiado', titulo: '🧾 Fiado (exclusivo)', sel: '#panel-fiado', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Elige el cliente exclusivo autorizado (obligatorio). La venta descuenta inventario y queda registrada como deuda pendiente.</p>' },
+            { clave: 'cobrar', titulo: '💰 Cobrar', sel: '[onclick="cobrarPedido()"]', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Finaliza la venta con el método elegido. Si está marcada la casilla de impresión, imprime la factura.</p>' },
+            { clave: 'pago-dividido', titulo: '🟦 Pago dividido', sel: '[onclick="abrirModalPagoDividido()"]', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Reparte el total entre varios métodos de pago (por ejemplo parte en efectivo y parte en Nequi).</p>' },
+            { clave: 'imprimir-factura', titulo: '🖨️ Imprimir factura', sel: '#imprimir-factura', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Marca esta casilla solo cuando necesites imprimir la factura. Si la dejas sin marcar, la venta no se imprime.</p>' },
+            { clave: 'modo-factura', titulo: '📧 Factura normal / electrónica', sel: '[data-guia="modo-factura"]', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>"🧾 Factura normal" no pide datos del cliente. "📧 Factura electrónica" despliega los campos para registrarlos.</p>' },
+            { clave: 'factura-electronica', titulo: '📄 Datos de factura electrónica', sel: '#panel-factura-electronica', pestañaIzq: 'tab-ventas-cobro',
+              descripcion: '<p>Completa Tipo de Documento (CC/NIT/CE/Pasaporte), N° de Documento, Nombre o Razón social, Dirección, Teléfono y Correo del cliente.</p>' },
+            { clave: 'caja-turno', titulo: '💼 Caja y turno', sel: '#btn-tab-caja-turno', pestañaIzq: 'tab-caja-turno',
+              descripcion: '<p>En esta pestaña ves el resumen de tu turno: vendido, gastos, saldo, ventas por método y el dinero esperado en caja.</p>' },
+            { clave: 'registrar-gasto', titulo: '📉 Registrar gasto / entrada', sel: '#form_gasto_ventas', pestañaIzq: 'tab-caja-turno',
+              descripcion: '<p>Registra un gasto general, la compra de un insumo o de un producto para inventario, indicando el método de pago.</p>' },
+            { clave: 'novedades', titulo: '📝 Novedades', sel: '#btn-header-novedades',
+              descripcion: '<p>Abre las novedades del turno y del sistema. También están disponibles dentro del menú ⋮.</p>' },
+            { clave: 'kebab', titulo: '⋮ Menú de acciones', sel: '#btn-kebab-menu',
+              descripcion: '<p>Despliega acciones de caja: iniciar/terminar turno, abrir cajón, ver movimientos, novedades y cerrar sesión (y Panel Administrador si eres administrador).</p>' },
+            { clave: 'iniciar-turno', titulo: '▶️ Iniciar turno', sel: '#form-iniciar-turno',
+              descripcion: '<p>Inicia tu turno de caja. Esta opción está dentro del menú ⋮; ábrelo con el botón de tres puntos para verla.</p>' },
+            { clave: 'cerrar-turno', titulo: '⏹️ Terminar turno', sel: '#btn-cerrar-turno',
+              descripcion: '<p>Cierra tu turno y realiza el arqueo de caja. Está dentro del menú ⋮ (ábrelo con el botón de tres puntos).</p>' },
+            { clave: 'abrir-cajon', titulo: '🔑 Abrir cajón monedero', sel: '#btn-abrir-cajon-manual',
+              descripcion: '<p>Abre el cajón de dinero de forma manual. Está dentro del menú ⋮ (ábrelo con el botón de tres puntos).</p>' },
+            { clave: 'panel-admin', titulo: '⚙️ Panel Administrador', sel: 'a[href="/admin"]',
+              descripcion: '<p>Acceso directo al panel de administración. Solo aparece para usuarios administradores, dentro del menú ⋮.</p>' },
+        ];
+
+        let _guiaVentasElResaltado = null;
+
+        function _construirListaGuiaVentas() {
+            const lista = document.getElementById('guia-uso-ventas-lista');
+            if (!lista || lista.children.length) return;
+            ENTRADAS_GUIA_VENTAS.forEach(entry => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = entry.titulo;
+                btn.setAttribute('onclick', `seleccionarEntradaGuia('${entry.clave}')`);
+                btn.className = 'text-left text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-amber-50 hover:text-amber-900 border border-slate-200 rounded-xl px-3 py-2 transition';
+                lista.appendChild(btn);
+            });
+        }
+
+        function abrirGuiaUso() {
+            _construirListaGuiaVentas();
+            const panel = document.getElementById('guia-uso-ventas');
+            if (!panel) return;
+            panel.classList.remove('translate-x-full');
+            panel.setAttribute('aria-hidden', 'false');
+        }
+
+        function cerrarGuiaUso() {
+            limpiarResaltadoGuia();
+            const panel = document.getElementById('guia-uso-ventas');
+            if (!panel) return;
+            panel.classList.add('translate-x-full');
+            panel.setAttribute('aria-hidden', 'true');
+        }
+
+        function seleccionarEntradaGuia(clave) {
+            const entry = ENTRADAS_GUIA_VENTAS.find(e => e.clave === clave);
+            if (!entry) return;
+            const titulo = document.getElementById('guia-uso-ventas-titulo');
+            const desc = document.getElementById('guia-uso-ventas-desc');
+            if (titulo) titulo.textContent = entry.titulo;
+            if (desc) desc.innerHTML = entry.descripcion;
+            if (entry.pestañaIzq && typeof cambiarPestañaIzquierda === 'function') {
+                try { cambiarPestañaIzquierda(entry.pestañaIzq); } catch (e) {}
+            }
+            setTimeout(() => resaltarControlGuia(entry.sel), 60);
+        }
+
+        function resaltarControlGuia(selector) {
+            limpiarResaltadoGuia();
+            let el = null;
+            try { el = document.querySelector(selector); } catch (e) { el = null; }
+            if (!el) return;
+            el.classList.add('guia-resaltado');
+            _guiaVentasElResaltado = el;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function limpiarResaltadoGuia() {
+            document.querySelectorAll('.guia-resaltado').forEach(el => el.classList.remove('guia-resaltado'));
+            _guiaVentasElResaltado = null;
         }
     </script>
 
