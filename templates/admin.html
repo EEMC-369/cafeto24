@@ -325,7 +325,7 @@
                     </div>
                     <div id="cat-{{ cat.id }}" class="productos-lista hidden">
                         {% for prod in productos if prod.categoria_id == cat.id %}
-                        <div class="producto-item p-4 border-b border-slate-50 flex justify-between items-center hover:bg-slate-50">
+                        <div id="producto-{{ prod.id }}" data-producto-id="{{ prod.id }}" class="producto-item p-4 border-b border-slate-50 flex justify-between items-center hover:bg-slate-50">
                             <div>
                                 <p class="font-bold text-slate-900">{{ prod.nombre }}</p>
                                 <p class="text-xs text-slate-500">${{ "{:,.0f}".format(prod.precio) }} | Stock: {{ prod.cantidad_stock }}</p>
@@ -365,7 +365,7 @@
                     </div>
                     <div id="cat-sin-categoria" class="productos-lista hidden">
                         {% for prod in productos if prod.categoria_id == '' or prod.categoria_id is none %}
-                        <div class="producto-item p-4 border-b border-slate-50 flex justify-between items-center hover:bg-slate-50">
+                        <div id="producto-{{ prod.id }}" data-producto-id="{{ prod.id }}" class="producto-item p-4 border-b border-slate-50 flex justify-between items-center hover:bg-slate-50">
                             <div>
                                 <p class="font-bold text-slate-900">{{ prod.nombre }}</p>
                                 <p class="text-xs text-slate-500">${{ "{:,.0f}".format(prod.precio) }} | Stock: {{ prod.cantidad_stock }}</p>
@@ -1359,7 +1359,7 @@
                 html += '<p class="text-xs text-slate-400 italic mb-2">Sin duplicados.</p>';
             } else {
                 html += '<div class="overflow-x-auto"><table class="' + tablaClases + '"><thead><tr>'
-                    + '<th class="' + thClases + '">Nombre normalizado</th><th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th><th class="' + thClases + '">Ventas</th>'
+                    + '<th class="' + thClases + '">Nombre normalizado</th><th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th><th class="' + thClases + '">Ventas</th><th class="' + thClases + '">Acción</th>'
                     + '</tr></thead><tbody>';
                 datos.duplicados.forEach(grupo => {
                     grupo.productos.forEach(prod => {
@@ -1370,6 +1370,7 @@
                             + '<td class="' + tdClases + '">' + esc(prod.categoria) + '</td>'
                             + '<td class="' + tdClases + '">' + esc(prod.cantidad_stock) + '</td>'
                             + '<td class="' + tdClases + '">' + (prod.tiene_ventas ? 'Sí' : 'No') + '</td>'
+                            + '<td class="' + tdClases + '"><button type="button" onclick="irAProductoDesdeAuditoria(' + Number(prod.id) + ')" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 px-2 py-1 rounded-lg text-[11px] font-bold transition active:scale-95 whitespace-nowrap">➡️ Ir al producto</button></td>'
                             + '</tr>';
                     });
                 });
@@ -1383,7 +1384,7 @@
                 html += '<p class="text-xs text-slate-400 italic mb-2">Sin cruces detectados.</p>';
             } else {
                 html += '<div class="overflow-x-auto"><table class="' + tablaClases + '"><thead><tr>'
-                    + '<th class="' + thClases + '">Nombre normalizado</th><th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th>'
+                    + '<th class="' + thClases + '">Nombre normalizado</th><th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th><th class="' + thClases + '">Acción</th>'
                     + '</tr></thead><tbody>';
                 datos.cruce_sin_categoria.forEach(grupo => {
                     grupo.productos.forEach(prod => {
@@ -1393,6 +1394,7 @@
                             + '<td class="' + tdClases + ' font-semibold">' + esc(prod.nombre) + '</td>'
                             + '<td class="' + tdClases + '">' + esc(prod.categoria) + '</td>'
                             + '<td class="' + tdClases + '">' + esc(prod.cantidad_stock) + '</td>'
+                            + '<td class="' + tdClases + '"><button type="button" onclick="irAProductoDesdeAuditoria(' + Number(prod.id) + ')" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 px-2 py-1 rounded-lg text-[11px] font-bold transition active:scale-95 whitespace-nowrap">➡️ Ir al producto</button></td>'
                             + '</tr>';
                     });
                 });
@@ -1421,7 +1423,7 @@
                 html += '<p class="text-xs text-slate-400 italic mb-2">Sin stock inválido.</p>';
             } else {
                 html += '<div class="overflow-x-auto"><table class="' + tablaClases + '"><thead><tr>'
-                    + '<th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th>'
+                    + '<th class="' + thClases + '">ID</th><th class="' + thClases + '">Nombre</th><th class="' + thClases + '">Categoría</th><th class="' + thClases + '">Stock</th><th class="' + thClases + '">Acción</th>'
                     + '</tr></thead><tbody>';
                 datos.stock_invalido.forEach(prod => {
                     html += '<tr>'
@@ -1429,6 +1431,7 @@
                         + '<td class="' + tdClases + ' font-semibold">' + esc(prod.nombre) + '</td>'
                         + '<td class="' + tdClases + '">' + esc(prod.categoria) + '</td>'
                         + '<td class="' + tdClases + ' text-rose-600 font-bold">' + esc(prod.cantidad_stock) + '</td>'
+                        + '<td class="' + tdClases + '"><button type="button" onclick="irAProductoDesdeAuditoria(' + Number(prod.id) + ')" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 px-2 py-1 rounded-lg text-[11px] font-bold transition active:scale-95 whitespace-nowrap">➡️ Ir al producto</button></td>'
                         + '</tr>';
                 });
                 html += '</tbody></table></div>';
@@ -1436,6 +1439,32 @@
             html += '</div>';
 
             contenedor.innerHTML = html;
+        }
+
+        // Redirige desde una novedad de auditoría al producto afectado: cambia a la pestaña
+        // Menú, expande su categoría, lo resalta con el halo pulsante existente y hace scroll.
+        // Comportamiento "(a)": solo redirigir + resaltar, sin correcciones automáticas.
+        function irAProductoDesdeAuditoria(idProducto) {
+            if (typeof cambiarPestaña === 'function') {
+                try { cambiarPestaña('tab-productos'); } catch (e) {}
+            }
+            // Espera breve para que tab-productos esté visible antes de resaltar/scroll.
+            setTimeout(() => {
+                const el = document.querySelector('[data-producto-id="' + String(idProducto) + '"]');
+                if (!el) {
+                    alert('El producto ya no está en el menú (puede haber sido eliminado). Actualiza la lista o ejecuta la auditoría de nuevo.');
+                    return;
+                }
+                // Las listas de categoría arrancan colapsadas: expandir la del producto.
+                const grupo = el.closest('.categoria-grupo');
+                if (grupo) {
+                    const lista = grupo.querySelector('.productos-lista');
+                    if (lista) lista.classList.remove('hidden');
+                }
+                limpiarResaltadoGuiaAdmin();
+                el.classList.add('guia-resaltado');
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 70);
         }
 
         function toggleCategoria(id) {
