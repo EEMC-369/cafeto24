@@ -720,6 +720,18 @@
                         </div>
                     </div>
 
+                    <!-- SALDOS DE ALCANCÍAS (SOLO LECTURA) -->
+                    <div class="p-3.5 rounded-2xl border border-amber-200 bg-amber-50/60 shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xs font-extrabold text-amber-800 uppercase tracking-wide">🐷 Alcancías Apartadas</h3>
+                            <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Solo Lectura</span>
+                        </div>
+                        <p class="text-[9px] text-amber-700 mb-2">Monto total que debe haber apartado en cada alcancía de efectivo.</p>
+                        <div id="alcancias-saldos-ventas" class="grid grid-cols-2 gap-2 text-[11px]">
+                            <span class="text-gray-400 italic col-span-2">Cargando…</span>
+                        </div>
+                    </div>
+
                     <!-- REGISTRAR GASTO -->
                     <div class="border border-rose-200 bg-rose-50/60 rounded-2xl p-3.5 shadow-sm">
                         <div class="flex items-center space-x-2 text-rose-800 font-bold text-xs mb-2 border-b border-rose-100 pb-1">
@@ -3372,8 +3384,41 @@
                         contProductos.appendChild(row);
                     });
                 }
+
+                cargarSaldosAlcanciasVentas();
             } catch (error) {
                 console.error('Error cargando resumen de turno:', error);
+            }
+        }
+
+        // Muestra los saldos de las alcancías (Ahorro/Yessi) en SOLO LECTURA para el empleado.
+        async function cargarSaldosAlcanciasVentas() {
+            const cont = document.getElementById('alcancias-saldos-ventas');
+            if (!cont) return;
+            try {
+                const respuesta = await fetch('/api/alcancias');
+                if (!respuesta.ok) throw new Error('No se pudo consultar las alcancías');
+                const data = await respuesta.json();
+                if (!data.success) throw new Error(data.error || 'Error de datos');
+
+                const alcancias = data.alcancias || [];
+                cont.innerHTML = '';
+                if (alcancias.length === 0) {
+                    cont.innerHTML = '<span class="text-gray-400 italic col-span-2">Sin alcancías configuradas.</span>';
+                    return;
+                }
+                alcancias.forEach(a => {
+                    const tarjeta = document.createElement('div');
+                    tarjeta.className = 'bg-white border border-amber-100 rounded-lg p-2 shadow-sm';
+                    tarjeta.innerHTML = `
+                        <p class="text-gray-500 font-bold uppercase text-[9px]">${a.nombre}</p>
+                        <p class="font-black text-amber-700 text-sm">${dinero(a.saldo || 0)}</p>
+                    `;
+                    cont.appendChild(tarjeta);
+                });
+            } catch (error) {
+                console.error('Error cargando saldos de alcancías:', error);
+                cont.innerHTML = '<span class="text-gray-400 italic col-span-2">—</span>';
             }
         }
 
@@ -3974,6 +4019,7 @@
         }
 
         cargarResumenTurno();
+        cargarSaldosAlcanciasVentas();
         cargarOrdenesAbiertas();
         cargarPlantillasIntangibles();
         setInterval(cargarOrdenesAbiertas, 20000);
@@ -4292,6 +4338,8 @@
               descripcion: '<ol><li>Selecciona "📧 Factura electrónica".</li><li>Elige el Tipo de Documento (CC, NIT, CE o Pasaporte).</li><li>Escribe N° de Documento, Nombre o Razón social, Dirección, Teléfono y Correo.</li></ol><p class="mt-2"><strong>Resultado:</strong> la factura sale con los datos del cliente.</p><p class="mt-1"><strong>Ojo:</strong> completa estos campos antes de cobrar o la factura electrónica no se genera.</p>' },
             { clave: 'caja-turno', titulo: '💼 Caja y turno', sel: '#tab-caja-turno', pestañaIzq: 'tab-caja-turno',
               descripcion: '<ol><li>Abre la pestaña "💼 Caja y Turno".</li><li>Revisa vendido, gastos, saldo y ventas por método.</li><li>Verifica el dinero esperado en caja.</li></ol><p class="mt-2"><strong>Resultado:</strong> conoces el estado de tu turno en curso.</p>' },
+            { clave: 'alcancias-saldos', titulo: '🐷 Alcancías apartadas', sel: '#alcancias-saldos-ventas', pestañaIzq: 'tab-caja-turno',
+              descripcion: '<ol><li>Abre la pestaña "💼 Caja y Turno".</li><li>Ubica el bloque "🐷 Alcancías Apartadas".</li><li>Revisa el monto total de cada alcancía.</li></ol><p class="mt-2"><strong>Resultado:</strong> compruebas que el efectivo apartado esté completo.</p><p class="mt-1"><strong>Ojo:</strong> es solo lectura; no puedes retirar ni modificar desde aquí.</p>' },
             { clave: 'registrar-gasto', titulo: '📉 Registrar gasto / entrada', sel: '#form_gasto_ventas', pestañaIzq: 'tab-caja-turno',
               descripcion: '<ol><li>Abre el formulario "Registrar Gasto / Entrada Inventario".</li><li>Escribe el concepto y el monto.</li><li>Selecciona el método de pago.</li><li>Pulsa para registrar.</li></ol><p class="mt-2"><strong>Resultado:</strong> el movimiento queda reflejado en el turno.</p>' },
             { clave: 'novedades', titulo: '📝 Novedades', sel: '#btn-header-novedades',

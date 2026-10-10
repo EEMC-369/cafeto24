@@ -4321,16 +4321,16 @@ def registrar_compra():
 
 
 # ==========================================================================
-# Rutas de alcancías y base inicial (solo admin, JSON, atómicas) — F-01 D7/D8
-# Consumidas por fetch desde admin.html. Guard JSON: 401 sin sesión, 403 si no es admin.
+# Rutas de alcancías y base inicial (JSON, atómicas) — F-01 D7/D8
+# /api/alcancias (lectura de saldos): cualquier usuario autenticado (vendedores
+# ven los saldos en solo lectura desde ventas.html). Historial y retiro: solo admin.
+# Guard JSON: 401 sin sesión.
 # ==========================================================================
 
 @app.route('/api/alcancias', methods=['GET'])
 def api_alcancias():
     if 'usuario' not in session:
         return jsonify({'success': False, 'error': 'No autorizado'}), 401
-    if session.get('rol') != 'administrador':
-        return jsonify({'success': False, 'error': 'Acceso denegado'}), 403
 
     db = conectar_db()
     try:
