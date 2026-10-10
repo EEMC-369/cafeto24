@@ -387,6 +387,25 @@
             position: relative;
             z-index: 55;
         }
+        /* Nube flotante de la guía (popover anclado al control) */
+        .guia-nube-flecha {
+            position: absolute;
+            width: 14px; height: 14px;
+            background: #fff;
+            border-left: 1px solid #fcd34d;   /* amber-300 */
+            border-top: 1px solid #fcd34d;
+            transform: rotate(45deg);
+            left: 24px;
+        }
+        .guia-nube-flecha.abajo { top: -7px; }          /* nube debajo del control: flecha hacia arriba */
+        .guia-nube-flecha.arriba { bottom: -7px; border-left: none; border-top: none;
+            border-right: 1px solid #fcd34d; border-bottom: 1px solid #fcd34d; } /* nube encima del control */
+        .guia-nube-cuerpo ol { list-style: decimal; margin-left: 1.1rem; }
+        .guia-nube-cuerpo li { margin-bottom: .2rem; }
+        /* Lista colapsada y panel translúcido mientras hay nube */
+        .guia-lista-colapsada { max-height: 0 !important; opacity: 0; overflow: hidden;
+            transition: max-height .25s ease, opacity .2s ease; }
+        .guia-panel-translucido { background-color: rgba(255,255,255,0.35) !important; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
@@ -3883,7 +3902,12 @@
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                // Cerrar primero la guía de uso si está abierta
+                // Si la nube de la guía está abierta, cerrarla primero (mantiene la guía abierta).
+                if (document.getElementById('guia-nube-ventas')) {
+                    _cerrarNubeGuia();
+                    return;
+                }
+                // Cerrar luego la guía de uso si está abierta
                 const panelGuia = document.getElementById('guia-uso-ventas');
                 if (panelGuia && !panelGuia.classList.contains('translate-x-full')) {
                     cerrarGuiaUso();
@@ -4092,53 +4116,53 @@
         // Cada entrada: { clave, titulo, descripcion (HTML), sel (selector CSS), pestañaIzq? }
         const ENTRADAS_GUIA_VENTAS = [
             { clave: 'pestanas-ordenes', titulo: '🧾 Pestañas de órdenes', sel: '#barra-pestanas-ordenes',
-              descripcion: '<p>Cada pestaña es una cuenta/orden independiente (por defecto "⚡ Venta Rápida"). Toca una pestaña para cambiar entre cuentas abiertas al mismo tiempo.</p>' },
+              descripcion: '<ol><li>Mira la barra de pestañas de la parte superior.</li><li>Pulsa una pestaña para abrir esa cuenta.</li><li>Vuelve a "⚡ Venta Rápida" cuando quieras la cuenta por defecto.</li></ol><p class="mt-2"><strong>Resultado:</strong> trabajas varias cuentas a la vez sin mezclar sus productos.</p>' },
             { clave: 'nueva-mesa', titulo: '➕ Nueva mesa / cuenta', sel: '[onclick="abrirModalNuevaMesa()"]',
-              descripcion: '<p>Abre una nueva cuenta en paralelo para atender a otra mesa o cliente sin perder la orden actual.</p>' },
+              descripcion: '<ol><li>Pulsa "➕ Nueva Mesa / Cuenta".</li><li>Escribe un nombre para la mesa o cuenta.</li><li>Confirma para crearla.</li></ol><p class="mt-2"><strong>Resultado:</strong> se abre una pestaña nueva y conservas la orden que tenías.</p>' },
             { clave: 'categorias-productos', titulo: '📂 Filtrar por categoría', sel: '.panel-categorias-contenedor',
-              descripcion: '<p>Toca una categoría para ver solo sus productos. Usa "Todas" para ver el catálogo completo.</p>' },
+              descripcion: '<ol><li>Mira el carrusel de categorías.</li><li>Pulsa una categoría para ver solo sus productos.</li><li>Pulsa "Todas" para ver el catálogo completo.</li></ol><p class="mt-2"><strong>Resultado:</strong> la cuadrícula muestra únicamente los productos de la categoría elegida.</p>' },
             { clave: 'grid-productos', titulo: '☕ Agregar productos', sel: '#contenedor-productos',
-              descripcion: '<p>Toca la tarjeta de un producto para agregarlo al carrito. Algunos productos permiten elegir unidad, medio o paca.</p>' },
+              descripcion: '<ol><li>Busca el producto en la cuadrícula.</li><li>Pulsa su tarjeta para agregarlo al carrito.</li><li>Si pregunta, elige unidad, medio o paca.</li></ol><p class="mt-2"><strong>Resultado:</strong> el producto queda sumado al detalle del pedido.</p>' },
             { clave: 'buscar-codigo', titulo: '🏷️ Escanear código de barras', sel: '#codigo-barras-venta',
-              descripcion: '<p>Escanea con el lector o escribe el código y pulsa Enter para agregar el producto directamente al carrito.</p>' },
+              descripcion: '<ol><li>Haz clic en el campo "Escanear código de barras...".</li><li>Escanea con el lector o escribe el código.</li><li>Pulsa Enter.</li></ol><p class="mt-2"><strong>Resultado:</strong> el producto del código se agrega directo al carrito.</p>' },
             { clave: 'carrito', titulo: '🛒 Detalle del pedido', sel: '#elementos-carrito', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Aquí ves los ítems agregados. Puedes cambiar cantidades con los botones + / − o quitar productos del carrito.</p>' },
+              descripcion: '<ol><li>Revisa los productos agregados en la lista.</li><li>Pulsa + o − para cambiar la cantidad.</li><li>Pulsa quitar para eliminar un producto.</li></ol><p class="mt-2"><strong>Resultado:</strong> el total se recalcula con cada cambio.</p>' },
             { clave: 'total', titulo: '💲 Total a pagar', sel: '#total-pago', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Muestra el total actual de la orden, actualizado cada vez que agregas o quitas productos.</p>' },
+              descripcion: '<ol><li>Observa el valor junto a "Total a pagar:".</li><li>Verifica que coincida con los productos del carrito.</li></ol><p class="mt-2"><strong>Resultado:</strong> conoces el monto exacto a cobrar.</p>' },
             { clave: 'metodo-pago', titulo: '💳 Métodos de cobro', sel: '[data-guia="metodos-pago"]', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Elige cómo paga el cliente: 💵 Efectivo, 📱 Nequi, 📲 Daviplata, 💳 Tarjeta o 🧾 Fiado. Según el método aparecen campos distintos abajo.</p>' },
+              descripcion: '<ol><li>Elige cómo paga el cliente: 💵 Efectivo, 📱 Nequi, 📲 Daviplata, 💳 Tarjeta o 🧾 Fiado.</li><li>Verifica que abajo aparezcan los campos del método elegido.</li></ol><p class="mt-2"><strong>Resultado:</strong> el formulario se ajusta al medio de pago seleccionado.</p>' },
             { clave: 'pago-efectivo', titulo: '💵 Efectivo y cambio', sel: '#panel-efectivo', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Escribe en "Paga Con ($)" el dinero recibido y el sistema calcula el Cambio automáticamente. Con Enter se cobra.</p>' },
+              descripcion: '<ol><li>Selecciona 💵 Efectivo.</li><li>Escribe en "Paga Con ($)" el dinero recibido.</li><li>Verifica el "Cambio" calculado.</li></ol><p class="mt-2"><strong>Resultado:</strong> ves de inmediato cuánto debes devolver.</p>' },
             { clave: 'pago-digital', titulo: '📱 Nequi / Daviplata / Tarjeta', sel: '[data-guia="metodos-pago"]', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Elige 📱 Nequi, 📲 Daviplata o 💳 Tarjeta y abajo aparecerá el panel para anotar una referencia de auditoría (opcional). Estos métodos se registran como pago exacto de inmediato.</p>' },
+              descripcion: '<ol><li>Selecciona 📱 Nequi, 📲 Daviplata o 💳 Tarjeta.</li><li>Si quieres, escribe una referencia de auditoría.</li><li>Confirma que el panel muestra el pago exacto.</li></ol><p class="mt-2"><strong>Resultado:</strong> el método digital queda listo para cobrar.</p>' },
             { clave: 'pago-fiado', titulo: '🧾 Fiado (exclusivo)', sel: '[data-guia="metodos-pago"]', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Elige 🧾 Fiado (Exclusivo) y abajo aparecerá el panel para seleccionar el cliente exclusivo autorizado (obligatorio). La venta descuenta inventario y queda registrada como deuda pendiente.</p>' },
+              descripcion: '<ol><li>Selecciona 🧾 Fiado (Exclusivo).</li><li>Elige el cliente exclusivo autorizado en el panel de abajo.</li><li>Confirma que el cliente quedó seleccionado.</li></ol><p class="mt-2"><strong>Resultado:</strong> la venta se guarda como deuda del cliente.</p><p class="mt-1"><strong>Ojo:</strong> descuenta inventario y queda como deuda pendiente; requiere un cliente exclusivo autorizado.</p>' },
             { clave: 'cobrar', titulo: '💰 Cobrar', sel: '[onclick="cobrarPedido()"]', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Finaliza la venta con el método elegido. Si está marcada la casilla de impresión, imprime la factura.</p>' },
+              descripcion: '<ol><li>Verifica el total y el método de pago.</li><li>Pulsa "💰 Cobrar".</li></ol><p class="mt-2"><strong>Resultado:</strong> la venta se registra y el carrito se vacía.</p><p class="mt-1"><strong>Ojo:</strong> finaliza la venta; si "Imprimir factura" está marcada, también imprime.</p>' },
             { clave: 'pago-dividido', titulo: '🟦 Pago dividido', sel: '[onclick="abrirModalPagoDividido()"]', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Reparte el total entre varios métodos de pago (por ejemplo parte en efectivo y parte en Nequi).</p>' },
+              descripcion: '<ol><li>Pulsa "🟦 Pago dividido".</li><li>Escribe cuánto paga con cada método.</li><li>Confirma que la suma iguale el total.</li></ol><p class="mt-2"><strong>Resultado:</strong> el total queda repartido entre varios medios de pago.</p><p class="mt-1"><strong>Ojo:</strong> la suma de los montos debe cuadrar con el total o no deja cobrar.</p>' },
             { clave: 'imprimir-factura', titulo: '🖨️ Imprimir factura', sel: '#imprimir-factura', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Marca esta casilla solo cuando necesites imprimir la factura. Si la dejas sin marcar, la venta no se imprime.</p>' },
+              descripcion: '<ol><li>Ubica la casilla "Imprimir factura".</li><li>Márcala solo cuando necesites el impreso.</li></ol><p class="mt-2"><strong>Resultado:</strong> al cobrar se envía la factura a la impresora.</p><p class="mt-1"><strong>Ojo:</strong> si la dejas sin marcar, la venta no se imprime.</p>' },
             { clave: 'modo-factura', titulo: '📧 Factura normal / electrónica', sel: '[data-guia="modo-factura"]', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>"🧾 Factura normal" no pide datos del cliente. "📧 Factura electrónica" despliega los campos para registrarlos.</p>' },
+              descripcion: '<ol><li>Elige "🧾 Factura normal" o "📧 Factura electrónica".</li><li>Verifica que con la electrónica aparezcan los campos del cliente.</li></ol><p class="mt-2"><strong>Resultado:</strong> defines qué tipo de comprobante se genera al cobrar.</p>' },
             { clave: 'factura-electronica', titulo: '📄 Datos de factura electrónica', sel: '[data-guia="modo-factura"]', pestañaIzq: 'tab-ventas-cobro',
-              descripcion: '<p>Marca "📧 Factura electrónica" y abajo se desplegarán los campos: Tipo de Documento (CC/NIT/CE/Pasaporte), N° de Documento, Nombre o Razón social, Dirección, Teléfono y Correo del cliente.</p>' },
+              descripcion: '<ol><li>Selecciona "📧 Factura electrónica".</li><li>Elige el Tipo de Documento (CC, NIT, CE o Pasaporte).</li><li>Escribe N° de Documento, Nombre o Razón social, Dirección, Teléfono y Correo.</li></ol><p class="mt-2"><strong>Resultado:</strong> la factura sale con los datos del cliente.</p><p class="mt-1"><strong>Ojo:</strong> completa estos campos antes de cobrar o la factura electrónica no se genera.</p>' },
             { clave: 'caja-turno', titulo: '💼 Caja y turno', sel: '#tab-caja-turno', pestañaIzq: 'tab-caja-turno',
-              descripcion: '<p>En esta pestaña ves el resumen de tu turno: vendido, gastos, saldo, ventas por método y el dinero esperado en caja.</p>' },
+              descripcion: '<ol><li>Abre la pestaña "💼 Caja y Turno".</li><li>Revisa vendido, gastos, saldo y ventas por método.</li><li>Verifica el dinero esperado en caja.</li></ol><p class="mt-2"><strong>Resultado:</strong> conoces el estado de tu turno en curso.</p>' },
             { clave: 'registrar-gasto', titulo: '📉 Registrar gasto / entrada', sel: '#form_gasto_ventas', pestañaIzq: 'tab-caja-turno',
-              descripcion: '<p>Registra un gasto general, la compra de un insumo o de un producto para inventario, indicando el método de pago.</p>' },
+              descripcion: '<ol><li>Abre el formulario "Registrar Gasto / Entrada Inventario".</li><li>Escribe el concepto y el monto.</li><li>Selecciona el método de pago.</li><li>Pulsa para registrar.</li></ol><p class="mt-2"><strong>Resultado:</strong> el movimiento queda reflejado en el turno.</p>' },
             { clave: 'novedades', titulo: '📝 Novedades', sel: '#btn-header-novedades',
-              descripcion: '<p>Abre las novedades del turno y del sistema. También están disponibles dentro del menú ⋮.</p>' },
+              descripcion: '<ol><li>Pulsa "📝 Novedades".</li><li>Revisa los avisos del turno y del sistema.</li></ol><p class="mt-2"><strong>Resultado:</strong> ves las novedades recientes; también están dentro del menú ⋮.</p>' },
             { clave: 'kebab', titulo: '⋮ Menú de acciones', sel: '#btn-kebab-menu',
-              descripcion: '<p>Despliega acciones de caja: iniciar/terminar turno, abrir cajón, ver movimientos, novedades y cerrar sesión (y Panel Administrador si eres administrador).</p>' },
+              descripcion: '<ol><li>Pulsa el botón ⋮ "Menú de Acciones".</li><li>Elige la acción de caja que necesites.</li></ol><p class="mt-2"><strong>Resultado:</strong> accedes a iniciar o terminar turno, abrir cajón, ver movimientos, novedades y cerrar sesión.</p>' },
             { clave: 'iniciar-turno', titulo: '▶️ Iniciar turno', sel: '#form-iniciar-turno', abrirKebab: true, selFallback: '#dropdown-kebab-menu',
-              descripcion: '<p>Inicia tu turno de caja. Esta opción está dentro del menú ⋮ (la guía lo abre para mostrártela). Solo aparece cuando no tienes un turno activo.</p>' },
+              descripcion: '<ol><li>Abre el menú ⋮ (la guía lo abre por ti).</li><li>Pulsa "▶️ Iniciar Turno".</li><li>Confirma el monto base de caja.</li></ol><p class="mt-2"><strong>Resultado:</strong> queda abierto tu turno. Solo aparece cuando no tienes un turno activo.</p>' },
             { clave: 'cerrar-turno', titulo: '⏹️ Terminar turno', sel: '#btn-cerrar-turno', abrirKebab: true, selFallback: '#dropdown-kebab-menu',
-              descripcion: '<p>Cierra tu turno y realiza el arqueo de caja. Está dentro del menú ⋮ (la guía lo abre para mostrártela). Solo aparece cuando tienes un turno activo.</p>' },
+              descripcion: '<ol><li>Abre el menú ⋮ (la guía lo abre por ti).</li><li>Pulsa "⏹️ Terminar Turno".</li><li>Realiza el arqueo de caja y confirma.</li></ol><p class="mt-2"><strong>Resultado:</strong> se cierra el turno con su reporte. Solo aparece cuando tienes un turno activo.</p>' },
             { clave: 'abrir-cajon', titulo: '🔑 Abrir cajón monedero', sel: '#btn-abrir-cajon-manual', abrirKebab: true,
-              descripcion: '<p>Abre el cajón de dinero de forma manual. Está dentro del menú ⋮ (la guía lo abre para mostrártela).</p>' },
+              descripcion: '<ol><li>Abre el menú ⋮ (la guía lo abre por ti).</li><li>Pulsa "🔑 Abrir Cajón Monedero".</li></ol><p class="mt-2"><strong>Resultado:</strong> el cajón de dinero se abre de forma manual.</p>' },
             { clave: 'panel-admin', titulo: '⚙️ Panel Administrador', sel: 'a[href="/admin"]', abrirKebab: true,
-              descripcion: '<p>Acceso directo al panel de administración. Solo aparece para usuarios administradores, dentro del menú ⋮ (la guía lo abre para mostrártela).</p>' },
+              descripcion: '<ol><li>Abre el menú ⋮ (la guía lo abre por ti).</li><li>Pulsa "⚙️ Panel Administrador".</li></ol><p class="mt-2"><strong>Resultado:</strong> entras al panel de administración. Solo aparece para usuarios administradores.</p>' },
         ];
 
         let _guiaVentasElResaltado = null;
@@ -4151,7 +4175,7 @@
                 btn.type = 'button';
                 btn.textContent = entry.titulo;
                 btn.setAttribute('onclick', `seleccionarEntradaGuia('${entry.clave}')`);
-                btn.className = 'text-left text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-amber-50 hover:text-amber-900 border border-slate-200 rounded-xl px-3 py-2 transition';
+                btn.className = 'text-left text-sm font-semibold text-slate-700 bg-slate-50 hover:bg-amber-50 hover:text-amber-900 border border-slate-200 rounded-xl px-3 py-2 transition';
                 lista.appendChild(btn);
             });
         }
@@ -4176,10 +4200,7 @@
         function seleccionarEntradaGuia(clave) {
             const entry = ENTRADAS_GUIA_VENTAS.find(e => e.clave === clave);
             if (!entry) return;
-            const titulo = document.getElementById('guia-uso-ventas-titulo');
-            const desc = document.getElementById('guia-uso-ventas-desc');
-            if (titulo) titulo.textContent = entry.titulo;
-            if (desc) desc.innerHTML = entry.descripcion;
+            // Cambio de pestaña y apertura del kebab ANTES de resaltar/posicionar la nube.
             if (entry.pestañaIzq && typeof cambiarPestañaIzquierda === 'function') {
                 try { cambiarPestañaIzquierda(entry.pestañaIzq); } catch (e) {}
             }
@@ -4193,7 +4214,13 @@
                     menu.classList.add('visible');
                 }
             }
-            setTimeout(() => resaltarControlGuia(entry.sel, entry.selFallback), 60);
+            // Minimiza la lista y vuelve el panel translúcido para no tapar el control.
+            _minimizarListaGuia();
+            // Espera breve para que pestaña/kebab terminen antes de resaltar y posicionar la nube.
+            setTimeout(() => {
+                resaltarControlGuia(entry.sel, entry.selFallback);
+                _mostrarNubeGuia(entry, _guiaVentasElResaltado);
+            }, 90);
         }
 
         function resaltarControlGuia(selector, selectorFallback) {
@@ -4214,6 +4241,110 @@
         function limpiarResaltadoGuia() {
             document.querySelectorAll('.guia-resaltado').forEach(el => el.classList.remove('guia-resaltado'));
             _guiaVentasElResaltado = null;
+            _cerrarNubeGuia();
+        }
+
+        // ---- Nube flotante de la guía (solo lectura de DOM + posicionamiento; sin negocio) ----
+        let _guiaNubeReposHandler = null;
+
+        function _minimizarListaGuia() {
+            const lista = document.getElementById('guia-uso-ventas-lista');
+            const panel = document.getElementById('guia-uso-ventas');
+            if (lista) lista.classList.add('guia-lista-colapsada');
+            if (panel) panel.classList.add('guia-panel-translucido');
+            const bloqueDesc = document.getElementById('guia-uso-ventas-titulo');
+            if (bloqueDesc && bloqueDesc.parentElement) bloqueDesc.parentElement.classList.add('guia-lista-colapsada');
+        }
+
+        function _restaurarListaGuia() {
+            const lista = document.getElementById('guia-uso-ventas-lista');
+            const panel = document.getElementById('guia-uso-ventas');
+            if (lista) lista.classList.remove('guia-lista-colapsada');
+            if (panel) panel.classList.remove('guia-panel-translucido');
+            const bloqueDesc = document.getElementById('guia-uso-ventas-titulo');
+            if (bloqueDesc && bloqueDesc.parentElement) bloqueDesc.parentElement.classList.remove('guia-lista-colapsada');
+        }
+
+        function _mostrarNubeGuia(entry, el) {
+            let nube = document.getElementById('guia-nube-ventas');
+            if (!nube) {
+                nube = document.createElement('div');
+                nube.id = 'guia-nube-ventas';
+                nube.setAttribute('role', 'tooltip');
+                nube.setAttribute('aria-live', 'polite');
+                nube.className = 'fixed z-[70] max-w-[340px] w-[86vw] sm:w-[340px] bg-white rounded-2xl shadow-2xl border border-amber-300 ring-1 ring-amber-200 p-4 text-slate-800';
+                document.body.appendChild(nube);
+            }
+            const sinControl = !el;
+            const nota = sinControl
+                ? '<p class="mt-2 text-xs text-slate-500">Esta función no está visible ahora mismo en pantalla.</p>'
+                : '';
+            nube.innerHTML =
+                '<button type="button" aria-label="Cerrar explicación" class="absolute top-2 right-2 text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>'
+                + '<h4 class="font-black text-amber-800 text-base pr-6 mb-2">' + (entry.titulo || '') + '</h4>'
+                + '<div class="guia-nube-cuerpo text-sm text-slate-700 leading-relaxed space-y-2">' + (entry.descripcion || '') + nota + '</div>'
+                + '<span class="guia-nube-flecha" aria-hidden="true"></span>';
+            const btnCerrar = nube.querySelector('button');
+            if (btnCerrar) btnCerrar.addEventListener('click', _cerrarNubeGuia);
+            // Asegura la lista colapsada/panel translúcido (resaltarControlGuia pudo restaurarla).
+            _minimizarListaGuia();
+            _posicionarNubeGuia(el);
+            // Reposicionar ante scroll/resize mientras la nube exista.
+            if (!_guiaNubeReposHandler) {
+                _guiaNubeReposHandler = () => _posicionarNubeGuia(_guiaVentasElResaltado);
+                window.addEventListener('scroll', _guiaNubeReposHandler, true);
+                window.addEventListener('resize', _guiaNubeReposHandler);
+            }
+        }
+
+        function _posicionarNubeGuia(el) {
+            const nube = document.getElementById('guia-nube-ventas');
+            if (!nube) return;
+            const flecha = nube.querySelector('.guia-nube-flecha');
+            const margen = 8;
+            const vw = window.innerWidth, vh = window.innerHeight;
+            const nr = nube.getBoundingClientRect();
+            const nubeW = nr.width || 340, nubeH = nr.height || 200;
+            // Sin control visible: centrar en el viewport y ocultar flecha.
+            if (!el || el.offsetParent === null) {
+                nube.style.left = Math.max(margen, (vw - nubeW) / 2) + 'px';
+                nube.style.top = Math.max(margen, (vh - nubeH) / 2) + 'px';
+                if (flecha) flecha.style.display = 'none';
+                return;
+            }
+            if (flecha) flecha.style.display = '';
+            const r = el.getBoundingClientRect();
+            // Preferir arriba del control; si no cabe, ir abajo.
+            let top = r.top - nubeH - 12;
+            let colocadaArriba = true;
+            if (top < margen) { top = r.bottom + 12; colocadaArriba = false; }
+            // Alinear la nube con el control por la izquierda; si se sale, mover a la izquierda.
+            let left = r.left;
+            if (left + nubeW > vw - margen) left = r.right - nubeW;
+            // Clamp final al viewport.
+            left = Math.max(margen, Math.min(left, vw - nubeW - margen));
+            top = Math.max(margen, Math.min(top, vh - nubeH - margen));
+            nube.style.left = left + 'px';
+            nube.style.top = top + 'px';
+            if (flecha) {
+                flecha.classList.toggle('arriba', colocadaArriba);
+                flecha.classList.toggle('abajo', !colocadaArriba);
+                // Apuntar la flecha hacia el control dentro del ancho de la nube.
+                let fx = r.left + (r.width / 2) - left - 7;
+                fx = Math.max(12, Math.min(fx, nubeW - 26));
+                flecha.style.left = fx + 'px';
+            }
+        }
+
+        function _cerrarNubeGuia() {
+            const nube = document.getElementById('guia-nube-ventas');
+            if (nube) nube.remove();
+            if (_guiaNubeReposHandler) {
+                window.removeEventListener('scroll', _guiaNubeReposHandler, true);
+                window.removeEventListener('resize', _guiaNubeReposHandler);
+                _guiaNubeReposHandler = null;
+            }
+            _restaurarListaGuia();
         }
     </script>
 

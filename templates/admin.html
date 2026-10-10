@@ -114,6 +114,25 @@
             position: relative;
             z-index: 55;
         }
+        /* Nube flotante de la guía (popover anclado al control) */
+        .guia-nube-flecha {
+            position: absolute;
+            width: 14px; height: 14px;
+            background: #fff;
+            border-left: 1px solid #fcd34d;   /* amber-300 */
+            border-top: 1px solid #fcd34d;
+            transform: rotate(45deg);
+            left: 24px;
+        }
+        .guia-nube-flecha.abajo { top: -7px; }          /* nube debajo del control: flecha hacia arriba */
+        .guia-nube-flecha.arriba { bottom: -7px; border-left: none; border-top: none;
+            border-right: 1px solid #fcd34d; border-bottom: 1px solid #fcd34d; } /* nube encima del control */
+        .guia-nube-cuerpo ol { list-style: decimal; margin-left: 1.1rem; }
+        .guia-nube-cuerpo li { margin-bottom: .2rem; }
+        /* Lista colapsada y panel translúcido mientras hay nube */
+        .guia-lista-colapsada { max-height: 0 !important; opacity: 0; overflow: hidden;
+            transition: max-height .25s ease, opacity .2s ease; }
+        .guia-panel-translucido { background-color: rgba(255,255,255,0.35) !important; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
@@ -1798,43 +1817,43 @@
         // Cada entrada: { clave, titulo, descripcion (HTML), sel (selector CSS), pestaña? ('tab-...') }
         const ENTRADAS_GUIA_ADMIN = [
             { clave: 'reiniciar-caja', titulo: '🔄 Reiniciar caja', sel: 'form[action="/admin/reset_all_data"]',
-              descripcion: '<p>Borra ventas, gastos, turnos y movimientos del día. No elimina productos ni categorías. Pide confirmación antes de ejecutar.</p>' },
+              descripcion: '<ol><li>Ubica el bloque "Reiniciar caja".</li><li>Pulsa el botón de reinicio.</li><li>Confirma en el aviso que aparece.</li></ol><p class="mt-2"><strong>Resultado:</strong> se limpian los datos del día y la caja queda en cero.</p><p class="mt-1"><strong>Ojo:</strong> borra ventas, gastos, turnos y movimientos del día; no borra productos ni categorías. La acción no se puede deshacer.</p>' },
             { clave: 'informes', titulo: '📊 Informes de ventas', sel: 'a[href="/admin/informes"]',
-              descripcion: '<p>Abre la auditoría general y por vendedor. Incluye el cierre de turno (reporte Z) y el resumen de la operación.</p>' },
+              descripcion: '<ol><li>Pulsa "Informes de ventas".</li><li>Revisa la auditoría general y por vendedor.</li><li>Consulta el cierre de turno (reporte Z).</li></ol><p class="mt-2"><strong>Resultado:</strong> ves el resumen completo de la operación.</p>' },
             { clave: 'tabs', titulo: '🗂️ Pestañas del panel', sel: '[data-guia="tabs"]',
-              descripcion: '<p>Cambia entre las secciones: 🛒 Menú, 📁 Cat, 🌾 Insumos, 👥 Personal, ⚙️ Perfil, 💾 Datos y 🔎 Auditoría.</p>' },
+              descripcion: '<ol><li>Mira la fila de pestañas del panel.</li><li>Pulsa 🛒 Menú, 📁 Cat, 🌾 Insumos, 👥 Personal, ⚙️ Perfil, 💾 Datos o 🔎 Auditoría.</li></ol><p class="mt-2"><strong>Resultado:</strong> cambias a la sección elegida.</p>' },
             { clave: 'buscar-producto', titulo: '🔍 Buscar producto', sel: '#buscadorProductos',
-              descripcion: '<p>Filtra el catálogo escribiendo parte del nombre del producto. Abre automáticamente la categoría que lo contiene.</p>' },
+              descripcion: '<ol><li>Haz clic en el campo "🔍 Buscar producto por nombre...".</li><li>Escribe parte del nombre del producto.</li></ol><p class="mt-2"><strong>Resultado:</strong> el catálogo se filtra y abre la categoría que lo contiene.</p>' },
             { clave: 'editar-producto', titulo: '✏️ Editar / eliminar producto', sel: '[data-guia="editar-producto"]',
-              descripcion: '<p>En el listado del catálogo, cada producto tiene ✏️ para editarlo (abre un modal) y 🗑️ para eliminarlo (pide confirmación).</p>' },
+              descripcion: '<ol><li>Ubica el producto en el listado del catálogo.</li><li>Pulsa ✏️ para editarlo en un modal.</li><li>Pulsa 🗑️ para eliminarlo y confirma.</li></ol><p class="mt-2"><strong>Resultado:</strong> el producto queda actualizado o eliminado.</p>' },
             { clave: 'eliminar-categoria', titulo: '🗑️ Eliminar categoría', sel: '[onclick^="abrirModalEliminarCat"]',
-              descripcion: '<p>Abre un modal con dos opciones: "Mover productos a Sin Categoría" o, en la zona peligrosa, "Eliminar categoría y sus N productos" (debes escribir el nombre o la palabra BORRAR para habilitarlo).</p>' },
+              descripcion: '<ol><li>Pulsa el botón de eliminar de la categoría.</li><li>Elige "Mover productos a Sin Categoría" o la opción de la zona peligrosa.</li><li>Escribe el nombre o la palabra BORRAR para habilitar.</li><li>Confirma la eliminación.</li></ol><p class="mt-2"><strong>Resultado:</strong> la categoría se elimina según la opción elegida.</p><p class="mt-1"><strong>Ojo:</strong> "Eliminar categoría y sus N productos" borra también esos productos; úsala con cuidado.</p>' },
             { clave: 'crear-producto', titulo: '➕ Registrar producto', sel: '#formCrearProducto', pestaña: 'tab-productos',
-              descripcion: '<p>Crea un producto del menú: nombre, código de barras, categoría, packs (precio por paca y por unidad/medio) y receta de insumos si aplica.</p>' },
+              descripcion: '<ol><li>Escribe el nombre y el código de barras.</li><li>Selecciona la categoría.</li><li>Define los packs (precio por paca y por unidad o medio).</li><li>Pulsa para registrar.</li></ol><p class="mt-2"><strong>Resultado:</strong> el producto aparece disponible en el menú de ventas.</p>' },
             { clave: 'receta-producto', titulo: '🧪 Receta de materia prima', sel: '#create-es-preparado', pestaña: 'tab-productos',
-              descripcion: '<p>Marca "¿Lleva receta de materia prima?" y se desplegará la sección para definir los ingredientes del producto. Allí también puedes permitir personalizar la receta al vender.</p>' },
+              descripcion: '<ol><li>Marca "¿Lleva receta de materia prima?".</li><li>Agrega los ingredientes y sus cantidades.</li><li>Si quieres, permite personalizar la receta al vender.</li></ol><p class="mt-2"><strong>Resultado:</strong> al vender el producto se descuentan sus insumos.</p>' },
             { clave: 'crear-categoria', titulo: '📁 Registrar categoría', sel: 'form[action="/admin/add_categoria"]', pestaña: 'tab-categorias',
-              descripcion: '<p>Crea una nueva categoría indicando su nombre y, opcionalmente, un ícono.</p>' },
+              descripcion: '<ol><li>Escribe el nombre de la categoría.</li><li>Si quieres, elige un ícono.</li><li>Pulsa para crearla.</li></ol><p class="mt-2"><strong>Resultado:</strong> la categoría queda lista para agrupar productos.</p>' },
             { clave: 'crear-insumo', titulo: '🌾 Registrar insumo', sel: 'form[action="/admin/add_insumo"]', pestaña: 'tab-insumos',
-              descripcion: '<p>Crea un insumo base: nombre, stock inicial y unidad de medida (g, ml o unidades).</p>' },
+              descripcion: '<ol><li>Escribe el nombre del insumo.</li><li>Indica el stock inicial.</li><li>Selecciona la unidad (g, ml o unidades).</li><li>Pulsa para crearlo.</li></ol><p class="mt-2"><strong>Resultado:</strong> el insumo queda disponible para las recetas.</p>' },
             { clave: 'editar-insumo', titulo: '✏️ Ajustar insumo', sel: '[onclick^="abrirModalEditarInsumo"]', pestaña: 'tab-insumos',
-              descripcion: '<p>El botón ✏️ de cada insumo abre un modal para ajustar su cantidad disponible.</p>' },
+              descripcion: '<ol><li>Pulsa ✏️ en el insumo que quieras ajustar.</li><li>Escribe la nueva cantidad disponible.</li><li>Confirma el cambio.</li></ol><p class="mt-2"><strong>Resultado:</strong> el stock del insumo queda actualizado.</p>' },
             { clave: 'crear-personal', titulo: '👥 Registrar personal', sel: 'form[action="/admin/add_usuario"]', pestaña: 'tab-personal',
-              descripcion: '<p>Crea usuarios del sistema: nombre, usuario, rol (Empleado o Administrador) y contraseña.</p>' },
+              descripcion: '<ol><li>Escribe el nombre y el usuario.</li><li>Selecciona el rol: Empleado o Administrador.</li><li>Escribe la contraseña.</li><li>Pulsa para crear el usuario.</li></ol><p class="mt-2"><strong>Resultado:</strong> la persona puede ingresar con sus credenciales.</p>' },
             { clave: 'editar-personal', titulo: '✏️ Editar / dar de baja', sel: '[onclick^="abrirModalEditarUsuario"]', pestaña: 'tab-personal',
-              descripcion: '<p>El botón ✏️ edita un usuario y el botón ✕ lo da de baja (pierde acceso de inmediato, con confirmación).</p>' },
+              descripcion: '<ol><li>Pulsa ✏️ para editar los datos del usuario.</li><li>Pulsa ✕ para darlo de baja.</li><li>Confirma la acción.</li></ol><p class="mt-2"><strong>Resultado:</strong> al dar de baja, la persona pierde el acceso de inmediato.</p>' },
             { clave: 'clientes-fiado', titulo: '🧾 Clientes exclusivos (fiado)', sel: 'form[action="/admin/add_cliente_exclusivo"]', pestaña: 'tab-personal',
-              descripcion: '<p>Agrega los clientes autorizados para ventas a fiado. Solo estos clientes podrán usarse al cobrar como fiado en Ventas.</p>' },
+              descripcion: '<ol><li>Escribe los datos del cliente autorizado.</li><li>Pulsa para agregarlo.</li></ol><p class="mt-2"><strong>Resultado:</strong> solo estos clientes podrán usarse al cobrar a fiado en Ventas.</p>' },
             { clave: 'perfil', titulo: '⚙️ Modificar mis datos', sel: 'form[action="/admin/editar_perfil"]', pestaña: 'tab-perfil',
-              descripcion: '<p>Cambia tu propio nombre de administrador y tu contraseña.</p>' },
+              descripcion: '<ol><li>Escribe tu nombre de administrador.</li><li>Si quieres cambiar la contraseña, escribe la nueva.</li><li>Pulsa para guardar.</li></ol><p class="mt-2"><strong>Resultado:</strong> tus datos de acceso quedan actualizados.</p>' },
             { clave: 'exportar', titulo: '📤 Exportar productos/categorías', sel: 'a[href="/admin/exportar/productos"]', pestaña: 'tab-datos',
-              descripcion: '<p>Descarga los catálogos completos en CSV compatible con Microsoft Excel, para respaldo o edición masiva.</p>' },
+              descripcion: '<ol><li>Pulsa el enlace de exportar.</li><li>Guarda el archivo CSV que se descarga.</li></ol><p class="mt-2"><strong>Resultado:</strong> obtienes los catálogos en CSV compatible con Excel, para respaldo o edición masiva.</p>' },
             { clave: 'importar', titulo: '📥 Importar / actualizar inventario', sel: 'form[action="/admin/importar/productos"]', pestaña: 'tab-datos',
-              descripcion: '<p>Sube un archivo .xlsx, .xls o .csv con al menos Nombre y Precio para cargar productos nuevos o actualizar el inventario existente.</p>' },
+              descripcion: '<ol><li>Prepara un archivo .xlsx, .xls o .csv con al menos Nombre y Precio.</li><li>Selecciona el archivo en el formulario.</li><li>Pulsa para importar.</li></ol><p class="mt-2"><strong>Resultado:</strong> se crean productos nuevos y se actualiza el inventario existente.</p><p class="mt-1"><strong>Ojo:</strong> actualiza el inventario de forma masiva; verifica las columnas Nombre y Precio antes de subir.</p>' },
             { clave: 'actualizar-sistema', titulo: '🔄 Actualización del sistema', sel: '#status-actualizador', pestaña: 'tab-datos',
-              descripcion: '<p>Muestra la versión instalada y el botón "🔍 Buscar Actualizaciones". Si hay una versión nueva, aparece la opción para descargarla e instalarla.</p>' },
+              descripcion: '<ol><li>Revisa la versión instalada.</li><li>Pulsa "🔍 Buscar Actualizaciones".</li><li>Si hay versión nueva, pulsa para descargarla e instalarla.</li></ol><p class="mt-2"><strong>Resultado:</strong> el sistema queda en la última versión disponible.</p>' },
             { clave: 'auditoria', titulo: '🔎 Auditoría de inventario', sel: '[onclick="ejecutarAuditoria()"]', pestaña: 'tab-auditoria',
-              descripcion: '<p>"▶️ Ejecutar auditoría" detecta productos duplicados y productos repartidos entre "Sin Categoría" y su categoría real. "📊 Exportar a Excel" descarga el reporte. No modifica datos.</p>' },
+              descripcion: '<ol><li>Pulsa "▶️ Ejecutar auditoría".</li><li>Revisa los duplicados y los productos repartidos entre "Sin Categoría" y su categoría real.</li><li>Si quieres, pulsa "📊 Exportar a Excel".</li></ol><p class="mt-2"><strong>Resultado:</strong> ves las novedades del inventario; la auditoría no modifica datos.</p>' },
         ];
 
         function _construirListaGuiaAdmin() {
@@ -1845,7 +1864,7 @@
                 btn.type = 'button';
                 btn.textContent = entry.titulo;
                 btn.setAttribute('onclick', `seleccionarEntradaGuiaAdmin('${entry.clave}')`);
-                btn.className = 'text-left text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-amber-50 hover:text-amber-900 border border-slate-200 rounded-xl px-3 py-2 transition';
+                btn.className = 'text-left text-sm font-semibold text-slate-700 bg-slate-50 hover:bg-amber-50 hover:text-amber-900 border border-slate-200 rounded-xl px-3 py-2 transition';
                 lista.appendChild(btn);
             });
         }
@@ -1867,18 +1886,22 @@
             panel.setAttribute('aria-hidden', 'true');
         }
 
+        let _guiaAdminElResaltado = null;
+
         function seleccionarEntradaGuiaAdmin(clave) {
             const entry = ENTRADAS_GUIA_ADMIN.find(e => e.clave === clave);
             if (!entry) return;
-            const titulo = document.getElementById('guia-uso-admin-titulo');
-            const desc = document.getElementById('guia-uso-admin-desc');
-            if (titulo) titulo.textContent = entry.titulo;
-            if (desc) desc.innerHTML = entry.descripcion;
+            // Cambio de pestaña ANTES de resaltar/posicionar la nube.
             if (entry.pestaña && typeof cambiarPestaña === 'function') {
                 try { cambiarPestaña(entry.pestaña); } catch (e) {}
             }
-            // Espera breve para que el contenedor de la pestaña ya esté visible antes de resaltar/scroll
-            setTimeout(() => resaltarControlGuiaAdmin(entry.sel), 70);
+            // Minimiza la lista y vuelve el panel translúcido para no tapar el control.
+            _minimizarListaGuiaAdmin();
+            // Espera breve para que el contenedor de la pestaña ya esté visible antes de resaltar/posicionar.
+            setTimeout(() => {
+                resaltarControlGuiaAdmin(entry.sel);
+                _mostrarNubeGuiaAdmin(entry, _guiaAdminElResaltado);
+            }, 90);
         }
 
         function resaltarControlGuiaAdmin(selector) {
@@ -1887,16 +1910,120 @@
             try { el = document.querySelector(selector); } catch (e) { el = null; }
             if (!el) return;
             el.classList.add('guia-resaltado');
+            _guiaAdminElResaltado = el;
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         function limpiarResaltadoGuiaAdmin() {
             document.querySelectorAll('.guia-resaltado').forEach(el => el.classList.remove('guia-resaltado'));
+            _guiaAdminElResaltado = null;
+            _cerrarNubeGuiaAdmin();
         }
 
-        // Escape acotado: solo cierra la guía si está abierta (no interfiere con cerrarModales ni pestañas)
+        // ---- Nube flotante de la guía admin (solo lectura de DOM + posicionamiento; sin negocio) ----
+        let _guiaNubeAdminReposHandler = null;
+
+        function _minimizarListaGuiaAdmin() {
+            const lista = document.getElementById('guia-uso-admin-lista');
+            const panel = document.getElementById('guia-uso-admin');
+            if (lista) lista.classList.add('guia-lista-colapsada');
+            if (panel) panel.classList.add('guia-panel-translucido');
+            const bloqueDesc = document.getElementById('guia-uso-admin-titulo');
+            if (bloqueDesc && bloqueDesc.parentElement) bloqueDesc.parentElement.classList.add('guia-lista-colapsada');
+        }
+
+        function _restaurarListaGuiaAdmin() {
+            const lista = document.getElementById('guia-uso-admin-lista');
+            const panel = document.getElementById('guia-uso-admin');
+            if (lista) lista.classList.remove('guia-lista-colapsada');
+            if (panel) panel.classList.remove('guia-panel-translucido');
+            const bloqueDesc = document.getElementById('guia-uso-admin-titulo');
+            if (bloqueDesc && bloqueDesc.parentElement) bloqueDesc.parentElement.classList.remove('guia-lista-colapsada');
+        }
+
+        function _mostrarNubeGuiaAdmin(entry, el) {
+            let nube = document.getElementById('guia-nube-admin');
+            if (!nube) {
+                nube = document.createElement('div');
+                nube.id = 'guia-nube-admin';
+                nube.setAttribute('role', 'tooltip');
+                nube.setAttribute('aria-live', 'polite');
+                nube.className = 'fixed z-[70] max-w-[340px] w-[86vw] sm:w-[340px] bg-white rounded-2xl shadow-2xl border border-amber-300 ring-1 ring-amber-200 p-4 text-slate-800';
+                document.body.appendChild(nube);
+            }
+            const sinControl = !el;
+            const nota = sinControl
+                ? '<p class="mt-2 text-xs text-slate-500">Esta función no está visible ahora mismo en pantalla.</p>'
+                : '';
+            nube.innerHTML =
+                '<button type="button" aria-label="Cerrar explicación" class="absolute top-2 right-2 text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>'
+                + '<h4 class="font-black text-amber-800 text-base pr-6 mb-2">' + (entry.titulo || '') + '</h4>'
+                + '<div class="guia-nube-cuerpo text-sm text-slate-700 leading-relaxed space-y-2">' + (entry.descripcion || '') + nota + '</div>'
+                + '<span class="guia-nube-flecha" aria-hidden="true"></span>';
+            const btnCerrar = nube.querySelector('button');
+            if (btnCerrar) btnCerrar.addEventListener('click', _cerrarNubeGuiaAdmin);
+            // Asegura la lista colapsada/panel translúcido (resaltarControlGuiaAdmin pudo restaurarla).
+            _minimizarListaGuiaAdmin();
+            _posicionarNubeGuiaAdmin(el);
+            if (!_guiaNubeAdminReposHandler) {
+                _guiaNubeAdminReposHandler = () => _posicionarNubeGuiaAdmin(_guiaAdminElResaltado);
+                window.addEventListener('scroll', _guiaNubeAdminReposHandler, true);
+                window.addEventListener('resize', _guiaNubeAdminReposHandler);
+            }
+        }
+
+        function _posicionarNubeGuiaAdmin(el) {
+            const nube = document.getElementById('guia-nube-admin');
+            if (!nube) return;
+            const flecha = nube.querySelector('.guia-nube-flecha');
+            const margen = 8;
+            const vw = window.innerWidth, vh = window.innerHeight;
+            const nr = nube.getBoundingClientRect();
+            const nubeW = nr.width || 340, nubeH = nr.height || 200;
+            if (!el || el.offsetParent === null) {
+                nube.style.left = Math.max(margen, (vw - nubeW) / 2) + 'px';
+                nube.style.top = Math.max(margen, (vh - nubeH) / 2) + 'px';
+                if (flecha) flecha.style.display = 'none';
+                return;
+            }
+            if (flecha) flecha.style.display = '';
+            const r = el.getBoundingClientRect();
+            let top = r.top - nubeH - 12;
+            let colocadaArriba = true;
+            if (top < margen) { top = r.bottom + 12; colocadaArriba = false; }
+            let left = r.left;
+            if (left + nubeW > vw - margen) left = r.right - nubeW;
+            left = Math.max(margen, Math.min(left, vw - nubeW - margen));
+            top = Math.max(margen, Math.min(top, vh - nubeH - margen));
+            nube.style.left = left + 'px';
+            nube.style.top = top + 'px';
+            if (flecha) {
+                flecha.classList.toggle('arriba', colocadaArriba);
+                flecha.classList.toggle('abajo', !colocadaArriba);
+                let fx = r.left + (r.width / 2) - left - 7;
+                fx = Math.max(12, Math.min(fx, nubeW - 26));
+                flecha.style.left = fx + 'px';
+            }
+        }
+
+        function _cerrarNubeGuiaAdmin() {
+            const nube = document.getElementById('guia-nube-admin');
+            if (nube) nube.remove();
+            if (_guiaNubeAdminReposHandler) {
+                window.removeEventListener('scroll', _guiaNubeAdminReposHandler, true);
+                window.removeEventListener('resize', _guiaNubeAdminReposHandler);
+                _guiaNubeAdminReposHandler = null;
+            }
+            _restaurarListaGuiaAdmin();
+        }
+
+        // Escape acotado: cierra la nube primero y luego la guía (no interfiere con cerrarModales ni pestañas)
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                if (document.getElementById('guia-nube-admin')) {
+                    _cerrarNubeGuiaAdmin();
+                    return;
+                }
                 const panel = document.getElementById('guia-uso-admin');
                 if (panel && !panel.classList.contains('translate-x-full')) {
                     cerrarGuiaUsoAdmin();
