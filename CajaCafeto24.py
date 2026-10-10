@@ -1997,6 +1997,11 @@ def panel_administrador():
         })
     
     categorias = [dict(c) for c in db.execute("SELECT * FROM categorias").fetchall()]
+    conteos_categorias = {row['categoria_id']: row['total'] for row in db.execute(
+        "SELECT categoria_id, COUNT(*) as total FROM productos GROUP BY categoria_id"
+    ).fetchall()}
+    for c in categorias:
+        c['num_productos'] = conteos_categorias.get(c['id'], 0)
     usuarios = [dict(u) for u in db.execute("SELECT id, nombre, usuario, rol FROM usuarios").fetchall()]
     insumos = [dict(i) for i in db.execute("SELECT * FROM insumos").fetchall()]
     clientes_exclusivos = db.execute("""
@@ -3230,19 +3235,57 @@ def eliminar_categoria(id):
     if 'usuario' not in session or session['rol'] != 'administrador':
         return redirect(url_for('login'))
         
+    modo = request.form.get('modo', 'mover')
+
     db = conectar_db()
     try:
-        # Verificamos si hay productos en esta categoría
-        cursor = db.execute("SELECT COUNT(*) FROM productos WHERE categoria_id = ?", (id,))
-        cantidad = cursor.fetchone()[0]
-        
-        if cantidad > 0:
-            flash('No se puede eliminar: hay productos asociados a esta categoría.', 'error')
+        # Resolver la categoría 'Sin Categoria' sin hardcodear id
+        fila_sin_cat = db.execute(
+            "SELECT id FROM categorias WHERE LOWER(nombre_categoria) LIKE 'sin categor%' LIMIT 1"
+        ).fetchone()
+        if fila_sin_cat is None:
+            cur = db.execute("INSERT INTO categorias (nombre_categoria) VALUES ('Sin Categoria')")
+            db.commit()
+            sin_cat_id = cur.lastrowid
         else:
+            sin_cat_id = fila_sin_cat['id']
+
+        # PROTECCIÓN: no permitir borrar la categoría 'Sin Categoria'
+        if id == sin_cat_id:
+            flash('No se puede eliminar la categoría Sin Categoria', 'error')
+            return redirect(url_for('panel_administrador'))
+
+        # Contamos los productos de la categoría
+        cantidad = db.execute(
+            "SELECT COUNT(*) FROM productos WHERE categoria_id = ?", (id,)
+        ).fetchone()[0]
+
+        db.execute("BEGIN TRANSACTION;")
+        if cantidad == 0:
+            # Sin productos: se borra directamente en cualquier modo
             db.execute("DELETE FROM categorias WHERE id = ?", (id,))
             db.commit()
             flash('✅ Categoría eliminada con éxito', 'success')
+        elif modo == 'borrar_todo':
+            db.execute(
+                "DELETE FROM recetas WHERE producto_id IN (SELECT id FROM productos WHERE categoria_id = ?)",
+                (id,)
+            )
+            db.execute("DELETE FROM productos WHERE categoria_id = ?", (id,))
+            db.execute("DELETE FROM categorias WHERE id = ?", (id,))
+            db.commit()
+            flash(f'✅ Categoría eliminada junto con {cantidad} producto(s)', 'success')
+        else:
+            # modo == 'mover' (por defecto): reasignar productos a 'Sin Categoria'
+            db.execute(
+                "UPDATE productos SET categoria_id = ? WHERE categoria_id = ?",
+                (sin_cat_id, id)
+            )
+            db.execute("DELETE FROM categorias WHERE id = ?", (id,))
+            db.commit()
+            flash(f'✅ Categoría eliminada. {cantidad} producto(s) movido(s) a Sin Categoria', 'success')
     except Exception as e:
+        db.rollback()
         flash(f'Error al eliminar: {e}', 'error')
     finally:
         db.close()
