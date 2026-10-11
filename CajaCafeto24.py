@@ -5079,9 +5079,6 @@ def imprimir_factura_directa(venta_id):
                 raw_data.extend(f"Ticket: {ticket_num}\n".encode('latin1', errors='replace'))
                 raw_data.extend(f"Fecha: {venta['fecha']}\n".encode('latin1', errors='replace'))
                 
-                vendedor = venta['vendedor_nombre'] or 'Cajero'
-                raw_data.extend(f"Atendido: {vendedor}\n".encode('latin1', errors='replace'))
-                
                 cliente = venta['cliente_fiado']
                 if cliente:
                     raw_data.extend(f"Cliente: {cliente}\n".encode('latin1', errors='replace'))
@@ -6036,12 +6033,76 @@ def mostrar_error_gui(titulo, mensaje):
         except Exception:
             pass
 
+def _ruta_lock_instancia():
+    return os.path.join(USER_DATA_DIR, 'instancia.lock')
+
+def _instancia_viva(puerto):
+    # Comprueba si hay un servidor escuchando en el puerto indicado (instancia viva).
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", int(puerto)), timeout=0.8):
+            return True
+    except Exception:
+        return False
+
+def _escribir_lock(pid, puerto, host):
+    try:
+        with open(_ruta_lock_instancia(), 'w', encoding='utf-8') as f:
+            json.dump({"pid": int(pid), "puerto": int(puerto), "host": host}, f)
+    except Exception:
+        pass
+
+def _borrar_lock():
+    try:
+        ruta = _ruta_lock_instancia()
+        if os.path.exists(ruta):
+            os.remove(ruta)
+    except Exception:
+        pass
+
+def _leer_lock():
+    try:
+        ruta = _ruta_lock_instancia()
+        if not os.path.exists(ruta):
+            return None
+        with open(ruta, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return None
+
 if __name__ == '__main__':
     try:
         # Inicialización y migración automática de la base de datos al arrancar el servidor
         inicializar_y_migrar_db()
         
+        # --- Instancia única: si ya hay un servidor vivo, abrir el navegador a él y salir ---
+        try:
+            import webbrowser as _wb_single
+            _lock = _leer_lock()
+            if _lock and _lock.get('puerto') and _instancia_viva(_lock['puerto']):
+                try:
+                    _wb_single.open(f"http://127.0.0.1:{_lock['puerto']}")
+                except Exception:
+                    pass
+                sys.exit(0)
+            elif _lock:
+                # Lock huérfano (instancia no responde): borrarlo y continuar arranque normal
+                _borrar_lock()
+        except SystemExit:
+            raise
+        except Exception:
+            # Si la detección falla por cualquier razón, arrancar normalmente
+            pass
+        
         puerto, host = encontrar_puerto_libre(8080)
+        
+        # Registrar el lock de esta instancia (PID + puerto) y limpiarlo al salir
+        try:
+            import atexit
+            _escribir_lock(os.getpid(), puerto, host)
+            atexit.register(_borrar_lock)
+        except Exception:
+            pass
         
         # Abrir navegador automáticamente siempre
         import webbrowser

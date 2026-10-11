@@ -1745,6 +1745,7 @@
     <script id="insumos-json" type="application/json">{{ insumos_disponibles|tojson }}</script>
 
     <script>
+        const NOMBRE_USUARIO_TURNO = {{ nombre | tojson }};
         const todosLosInsumos = JSON.parse(document.getElementById('insumos-json').textContent || '[]');
         let baseDatosProductos = {};
         let carrito = [];
@@ -3317,7 +3318,7 @@
 
                 const hayTurno = Boolean(data.turno_id);
                 document.getElementById('badge-turno-actual').innerText = hayTurno ? `Turno #${data.turno_id}` : 'Sin turno';
-                document.getElementById('estado-turno-header').innerText = hayTurno ? `⏱️ Turno activo #${data.turno_id}` : '⏱️ Sin turno activo';
+                document.getElementById('estado-turno-header').innerText = hayTurno ? `⏱️ Turno activo: ${NOMBRE_USUARIO_TURNO}` : '⏱️ Sin turno activo';
 
                 const formIniciar = document.getElementById('form-iniciar-turno');
                 const btnCerrar = document.getElementById('btn-cerrar-turno');
