@@ -2109,6 +2109,17 @@
                 contenedor.classList.remove('hidden');
                 boton.innerText = 'Ocultar Teclado ▾';
                 localStorage.setItem('teclado_visible', 'si');
+                // Al mostrar el teclado, traer el campo activo a la vista (sobre el teclado).
+                const inputActivo = document.getElementById(entradaNumericaActiva);
+                if (inputActivo) {
+                    setTimeout(() => {
+                        try {
+                            inputActivo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        } catch (e) {
+                            inputActivo.scrollIntoView();
+                        }
+                    }, 60);
+                }
             } else {
                 contenedor.classList.add('hidden');
                 boton.innerText = 'Mostrar Teclado ▴';
@@ -2142,6 +2153,18 @@
                 else if (inputId === 'referencia-pago') nombreCampo = 'Referencia de Pago';
                 else if (inputId === 'referencia-fiado') nombreCampo = 'Referencia de Fiado';
                 labelTeclado.innerText = `⌨️ Teclado: ${nombreCampo}`;
+            }
+
+            // Asegurar que el campo activo quede visible por encima del teclado,
+            // para no tener que desplazarse a buscarlo cuando el teclado está abierto.
+            if (inputActivo) {
+                setTimeout(() => {
+                    try {
+                        inputActivo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } catch (e) {
+                        inputActivo.scrollIntoView();
+                    }
+                }, 60);
             }
         }
 
