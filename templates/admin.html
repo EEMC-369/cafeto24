@@ -1091,6 +1091,11 @@
                         <option value="empleado">Empleado</option>
                     </select>
                 </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Nueva contraseña (opcional)</label>
+                    <input type="text" id="edit-usuario-clave" name="contrasena" autocomplete="off" placeholder="Dejar en blanco para no cambiarla" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:ring-indigo-500">
+                    <p class="text-[10px] text-slate-400 mt-1">Escribe una clave solo si quieres restablecer la del usuario. Por seguridad, la clave actual no se puede ver.</p>
+                </div>
                 <div class="flex space-x-3 pt-2">
                     <button type="button" onclick="cerrarModales()" class="interactive-element flex-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition">Cancelar</button>
                     <button type="submit" class="interactive-element flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-bold transition shadow-md shadow-indigo-650/10">
@@ -1683,6 +1688,8 @@
             document.getElementById('edit-usuario-nombre').value = nombre;
             document.getElementById('edit-usuario-user').value = usuario;
             document.getElementById('edit-usuario-rol').value = rol;
+            const campoClave = document.getElementById('edit-usuario-clave');
+            if (campoClave) campoClave.value = '';
             document.getElementById('modalEditarUsuario').classList.remove('hidden');
         }
 
