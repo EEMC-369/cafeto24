@@ -410,7 +410,7 @@
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
 
-    <header class="bg-amber-800 text-white px-5 py-2.5 flex justify-between items-center shadow-md z-40 relative">
+    <header class="px-5 py-2.5 flex justify-between items-center shadow-md z-40 relative" style='background-image: url("{{ url_for('static', filename='patron_cafe_ventas.svg') }}"); background-repeat: repeat; background-size: 220px auto; background-color: #fbe4cf;'>
         <div class="flex items-center space-x-3">
             <div class="brand-mark">
                 <div class="brand-mark__cup">
@@ -420,29 +420,29 @@
                 </div>
             </div>
             {% if url_acceso_red %}
-            <span class="text-[10px] bg-amber-900/80 text-amber-200 px-2.5 py-1 rounded-full border border-amber-600/50 font-mono hidden sm:inline-flex items-center gap-1">📍 {{ url_acceso_red }}</span>
+            <span class="text-[10px] bg-white/60 text-amber-900 px-2.5 py-1 rounded-full border border-amber-300 font-mono hidden sm:inline-flex items-center gap-1">📍 {{ url_acceso_red }}</span>
             {% endif %}
         </div>
         
         <div class="flex items-center space-x-2 sm:space-x-3">
-            <span class="bg-amber-900/60 text-amber-100 px-3 py-1.5 rounded-full text-xs font-semibold border border-amber-700/50 flex items-center gap-1.5 shadow-sm">
+            <span class="bg-amber-100/70 text-amber-900 px-3 py-1.5 rounded-full text-xs font-semibold border border-amber-300 flex items-center gap-1.5 shadow-sm">
                 <span>👤</span> <span>{{ nombre }}</span> <span class="text-[10px] opacity-75 uppercase">({{ rol }})</span>
             </span>
-            <span id="estado-turno-header" class="bg-slate-900 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-700 flex items-center gap-1 shadow-sm">⏱️ Turno: cargando...</span>
+            <span id="estado-turno-header" class="bg-white/60 text-amber-900 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-300 flex items-center gap-1 shadow-sm">⏱️ Turno: cargando...</span>
             
             <!-- BOTÓN DE GUÍA DE USO (AYUDA) -->
-            <button id="btn-guia-uso" onclick="abrirGuiaUso()" type="button" class="bg-amber-900/80 hover:bg-amber-950 text-amber-200 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-600/50 flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer" title="Guía de uso">
+            <button id="btn-guia-uso" onclick="abrirGuiaUso()" type="button" class="bg-white/60 hover:bg-white/80 text-amber-900 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-300 flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer" title="Guía de uso">
                 <span>❓</span> <span class="hidden sm:inline">Ayuda</span>
             </button>
 
             <!-- BOTÓN RÁPIDO DE NOVEDADES -->
-            <button id="btn-header-novedades" onclick="abrirModalNovedades()" type="button" class="bg-amber-900/80 hover:bg-amber-950 text-amber-200 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-600/50 flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer" title="Novedades de Turno y Sistema">
+            <button id="btn-header-novedades" onclick="abrirModalNovedades()" type="button" class="bg-white/60 hover:bg-white/80 text-amber-900 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-300 flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer" title="Novedades de Turno y Sistema">
                 <span>📝</span> <span class="hidden sm:inline">Novedades</span> <span id="badge-novedades-count" class="hidden bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">0</span>
             </button>
 
             <!-- BOTÓN DE MENÚ DE TRES PUNTITOS (KEBAB) -->
             <div class="relative">
-                <button id="btn-kebab-menu" onclick="toggleMenuKebab(event)" type="button" class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-900/90 hover:bg-amber-950 text-white font-black text-xl shadow border border-amber-600/50 transition active:scale-95 cursor-pointer" title="Menú de Acciones">
+                <button id="btn-kebab-menu" onclick="toggleMenuKebab(event)" type="button" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white/60 hover:bg-white/80 text-amber-900 font-black text-xl shadow border border-amber-300 transition active:scale-95 cursor-pointer" title="Menú de Acciones">
                     ⋮
                 </button>
                 

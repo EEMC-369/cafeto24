@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="140" viewBox="0 0 220 140">
+  <!-- Patron de granos de cafe + hojitas, fondo NARANJA CLARO (ventas) -->
+  <defs>
+    <style>
+      .grano { fill: #5a3a22; }
+      .grano-raya { stroke: #e8c9a8; stroke-width: 2.2; fill: none; stroke-linecap: round; }
+      .hoja { fill: #7cb342; }
+    </style>
+    <g id="granoCafe">
+      <ellipse class="grano" cx="0" cy="0" rx="13" ry="18"/>
+      <path class="grano-raya" d="M 0 -14 Q 5 0 0 14"/>
+    </g>
+    <g id="hojasCafe">
+      <path class="hoja" d="M0 0 C -16 -4 -22 -18 -14 -30 C -4 -22 2 -10 0 0 Z"/>
+      <path class="hoja" d="M0 0 C 16 -4 22 -18 14 -30 C 4 -22 -2 -10 0 0 Z"/>
+      <use href="#granoCafe" transform="translate(0,-20) scale(0.72)"/>
+    </g>
+  </defs>
+
+  <rect width="220" height="140" fill="#fbe4cf"/>
+
+  <use href="#granoCafe" transform="translate(30,28) rotate(35) scale(0.9)"/>
+  <use href="#granoCafe" transform="translate(60,46) rotate(-20) scale(0.8)"/>
+  <use href="#hojasCafe" transform="translate(120,40) scale(0.95)"/>
+  <use href="#granoCafe" transform="translate(185,30) rotate(50) scale(0.85)"/>
+  <use href="#granoCafe" transform="translate(40,100) rotate(-40) scale(1.0)"/>
+  <use href="#granoCafe" transform="translate(72,116) rotate(60) scale(0.75)"/>
+  <use href="#granoCafe" transform="translate(150,95) rotate(15) scale(0.9)"/>
+  <use href="#granoCafe" transform="translate(180,112) rotate(-30) scale(0.8)"/>
+  <use href="#granoCafe" transform="translate(110,120) rotate(80) scale(0.7)"/>
+</svg>
