@@ -56,7 +56,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.23.0"
+VERSION = "3.23.1"
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
