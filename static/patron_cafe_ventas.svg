@@ -17,7 +17,7 @@
     </g>
   </defs>
 
-  <rect width="220" height="140" fill="#fcc896"/>
+  <rect width="220" height="140" fill="#f59e42"/>
 
   <use href="#granoCafe" transform="translate(30,28) rotate(35) scale(0.9)"/>
   <use href="#granoCafe" transform="translate(60,46) rotate(-20) scale(0.8)"/>
