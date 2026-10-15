@@ -56,7 +56,7 @@ else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     USER_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = "3.23.1"
+VERSION = "3.24.0"
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -83,6 +83,10 @@ def _obtener_o_generar_secret_key():
         return 'clave_secreta_para_sesiones_cafeto_fallback_2026'
 
 app.secret_key = _obtener_o_generar_secret_key()
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+)
 
 puerto = 8080
 host = "0.0.0.0"
@@ -185,6 +189,145 @@ def pantalla_licencia():
             flash(f"Error de activación: {msg}", "error")
             
     return render_template('licencia.html', machine_id=machine_id)
+
+# ==========================================
+# 🛡️ PROTECCIÓN CSRF (token por sesión)
+# Toda petición POST/PUT/PATCH/DELETE debe traer el token de la sesión, ya sea en la
+# cabecera X-CSRF-Token (fetch) o en el campo csrf_token (formularios). El script que
+# lo agrega automáticamente se inyecta en las páginas HTML (ver inyectar_csrf_en_html).
+# ==========================================
+import hmac as _hmac_csrf
+import re as _re_csrf
+import secrets as _secrets_csrf
+
+
+def obtener_token_csrf():
+    token = session.get('csrf_token')
+    if not token:
+        token = _secrets_csrf.token_hex(32)
+        session['csrf_token'] = token
+    return token
+
+
+@app.before_request
+def verificar_csrf():
+    if request.method in ('GET', 'HEAD', 'OPTIONS'):
+        return None
+    if request.path.startswith('/static/'):
+        return None
+    esperado = session.get('csrf_token') or ''
+    enviado = request.headers.get('X-CSRF-Token') or request.form.get('csrf_token') or ''
+    if esperado and enviado and _hmac_csrf.compare_digest(str(esperado), str(enviado)):
+        return None
+    print(f"CSRF: petición rechazada {request.method} {request.path} desde {request.remote_addr}")
+    mensaje = 'La verificación de seguridad expiró o es inválida. Recarga la página e inténtalo de nuevo.'
+    if request.path.startswith('/api/') or request.is_json or request.headers.get('X-Requested-With'):
+        return jsonify({'success': False, 'error': mensaje}), 403
+    return (f"<h3>{mensaje}</h3><p><a href='/'>Volver al inicio</a></p>", 403)
+
+
+_SCRIPT_CSRF = """<script>(function(){var T='%s';
+window.CSRF_TOKEN=T;
+var of=window.fetch;
+if(of){window.fetch=function(input,init){
+  init=init||{};
+  var metodo=String(init.method||(input&&input.method)||'GET').toUpperCase();
+  if(metodo!=='GET'&&metodo!=='HEAD'&&metodo!=='OPTIONS'){
+    var url=typeof input==='string'?input:((input&&input.url)||'');
+    var externo=/^(?:[a-z][a-z0-9+.-]*:|\\/\\/)/i.test(url)&&url.indexOf(location.origin)!==0;
+    if(!externo){var h=new Headers(init.headers||(input&&input.headers)||{});h.set('X-CSRF-Token',T);init.headers=h;}
+  }
+  return of.call(this,input,init);};}
+function marcar(f){
+  if(!f||!f.method||f.method.toLowerCase()!=='post')return;
+  if(f.querySelector('input[name="csrf_token"]'))return;
+  var i=document.createElement('input');i.type='hidden';i.name='csrf_token';i.value=T;f.appendChild(i);}
+document.addEventListener('submit',function(e){marcar(e.target);},true);
+document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('form').forEach(marcar);});
+})();</script>"""
+
+
+@app.after_request
+def inyectar_csrf_en_html(response):
+    try:
+        if (response.mimetype == 'text/html' and not response.direct_passthrough
+                and not response.is_streamed and response.status_code != 304):
+            html = response.get_data(as_text=True)
+            m = _re_csrf.search(r'<head[^>]*>', html, flags=_re_csrf.IGNORECASE)
+            if m:
+                token = obtener_token_csrf()
+                bloque = f'<meta name="csrf-token" content="{token}">' + (_SCRIPT_CSRF % token)
+                response.set_data(html[:m.end()] + bloque + html[m.end():])
+    except Exception as e:
+        print(f"No se pudo inyectar el token CSRF: {e}")
+    return response
+
+
+# ==========================================
+# 🔒 BLOQUEO DE LOGIN POR INTENTOS FALLIDOS
+# Se cuenta por (IP + usuario) para que un atacante no pueda bloquear a un cajero
+# real desde otro equipo, y por IP en general para frenar la prueba de muchos usuarios.
+# ==========================================
+import threading as _threading_login
+import time as _time_login
+
+_login_lock = _threading_login.Lock()
+_HASH_FALSO_LOGIN = generate_password_hash('contraseña-falsa-no-usar-jamas')
+_login_intentos = {}
+LOGIN_MAX_FALLOS_USUARIO = 5        # fallos para bloquear una combinación IP+usuario
+LOGIN_MAX_FALLOS_IP = 20            # fallos totales de una IP para bloquearla
+LOGIN_VENTANA_SEGUNDOS = 15 * 60    # periodo en el que se cuentan los fallos
+LOGIN_BLOQUEO_BASE_SEGUNDOS = 5 * 60
+LOGIN_BLOQUEO_MAX_SEGUNDOS = 30 * 60
+
+
+def _clave_login_usuario(ip, usuario):
+    return ('u', ip, (usuario or '').strip().lower())
+
+
+def _clave_login_ip(ip):
+    return ('ip', ip)
+
+
+def login_segundos_bloqueado(ip, usuario):
+    """Segundos restantes de bloqueo (0 si puede intentar)."""
+    ahora = _time_login.time()
+    with _login_lock:
+        restante = 0
+        for clave in (_clave_login_usuario(ip, usuario), _clave_login_ip(ip)):
+            estado = _login_intentos.get(clave)
+            if estado and estado.get('bloqueado_hasta', 0) > ahora:
+                restante = max(restante, int(estado['bloqueado_hasta'] - ahora) + 1)
+        return restante
+
+
+def login_registrar_fallo(ip, usuario):
+    ahora = _time_login.time()
+    with _login_lock:
+        for clave, maximo in ((_clave_login_usuario(ip, usuario), LOGIN_MAX_FALLOS_USUARIO),
+                              (_clave_login_ip(ip), LOGIN_MAX_FALLOS_IP)):
+            estado = _login_intentos.setdefault(clave, {'fallos': 0, 'primero': ahora, 'bloqueos': 0, 'bloqueado_hasta': 0})
+            if ahora - estado['primero'] > LOGIN_VENTANA_SEGUNDOS and estado['bloqueado_hasta'] <= ahora:
+                estado.update({'fallos': 0, 'primero': ahora})
+            estado['fallos'] += 1
+            if estado['fallos'] >= maximo:
+                duracion = min(LOGIN_BLOQUEO_BASE_SEGUNDOS * (2 ** estado['bloqueos']), LOGIN_BLOQUEO_MAX_SEGUNDOS)
+                estado['bloqueado_hasta'] = ahora + duracion
+                estado['bloqueos'] += 1
+                estado['fallos'] = 0
+                estado['primero'] = ahora
+                print(f"SEGURIDAD: bloqueo de login {clave} por {int(duracion)} segundos")
+        # Limpieza de registros viejos para no crecer indefinidamente
+        if len(_login_intentos) > 2000:
+            for k in [k for k, v in _login_intentos.items()
+                      if v.get('bloqueado_hasta', 0) <= ahora and ahora - v['primero'] > LOGIN_VENTANA_SEGUNDOS]:
+                _login_intentos.pop(k, None)
+
+
+def login_registrar_exito(ip, usuario):
+    with _login_lock:
+        _login_intentos.pop(_clave_login_usuario(ip, usuario), None)
+
 
 def conectar_db():
     # timeout=15 y WAL evitan bloqueos concurrentes en Waitress multi-hilo
@@ -1406,7 +1549,15 @@ def login():
     if request.method == 'POST':
         usuario_ingresado = (request.form.get('username') or '').strip()
         password_ingresada = request.form.get('password') or ''
-        
+        ip_cliente = request.remote_addr or 'desconocida'
+
+        segundos = login_segundos_bloqueado(ip_cliente, usuario_ingresado)
+        if segundos > 0:
+            minutos = (segundos + 59) // 60
+            return render_template(
+                'login.html',
+                error=f"Demasiados intentos fallidos. Intenta de nuevo en {minutos} minuto{'s' if minutos != 1 else ''}."
+            ), 429
         db = conectar_db()
         usuario = db.execute(
             "SELECT * FROM usuarios WHERE LOWER(usuario) = LOWER(?)", 
@@ -1429,10 +1580,15 @@ def login():
                     db.commit()
                 except Exception:
                     pass
+        else:
+            # Usuario inexistente: hacer el mismo trabajo de hash para no revelar por tiempo si existe
+            check_password_hash(_HASH_FALSO_LOGIN, password_ingresada)
 
         db.close()
         
         if login_valido and usuario:
+            login_registrar_exito(ip_cliente, usuario_ingresado)
+            session.pop('csrf_token', None)  # rotar el token CSRF al iniciar sesión
             session['id'] = usuario['id']
             session['usuario'] = usuario['usuario']
             session['nombre'] = usuario['nombre']
@@ -1443,6 +1599,8 @@ def login():
                 return redirect(url_for('panel_administrador'))
             return redirect(url_for('pantalla_ventas'))
         else:
+            login_registrar_fallo(ip_cliente, usuario_ingresado)
+            print(f"SEGURIDAD: login fallido para '{usuario_ingresado}' desde {ip_cliente}")
             return render_template('login.html', error="Usuario o contraseña incorrectos.")
             
     return render_template('login.html')
@@ -4172,6 +4330,37 @@ def add_gasto():
                 descripcion = f"Compra Inventario: {nom_prod}"
                 if descripcion_usuario and descripcion_usuario != 'Sin descripción':
                     descripcion += f" - {descripcion_usuario}"
+            elif tipo_gasto == 'pedido':
+                # Pedido/factura: varios productos (solo cantidades) con UN valor total (monto)
+                categoria_gasto = 'Compra Inventario'
+                try:
+                    items_crudos = json.loads(request.form.get('items_pedido') or '[]')
+                except (ValueError, TypeError):
+                    items_crudos = []
+                if not isinstance(items_crudos, list) or not items_crudos:
+                    raise ValueError("El pedido no tiene productos. Agrega al menos uno.")
+
+                items_pedido = []
+                partes_desc = []
+                for it in items_crudos:
+                    pid = int(it.get('producto_id'))
+                    cant = float(it.get('cantidad'))
+                    if cant <= 0:
+                        raise ValueError("Todas las cantidades del pedido deben ser mayores a 0.")
+                    prod = cursor.execute(
+                        "SELECT nombre, es_pack, unidades_por_pack FROM productos WHERE id = ?", (pid,)
+                    ).fetchone()
+                    if not prod:
+                        raise ValueError(f"Producto no encontrado en el pedido (id {pid}).")
+                    es_pack = 1 if prod['es_pack'] else 0
+                    unidades_por_pack = float(prod['unidades_por_pack'] or 1)
+                    a_sumar = cant * unidades_por_pack if es_pack else cant
+                    items_pedido.append((pid, a_sumar))
+                    partes_desc.append(f"{prod['nombre']} (x{cant:g} {'pacas' if es_pack else 'uds'})")
+
+                descripcion = f"Compra Inventario (Pedido): {', '.join(partes_desc)}"
+                if descripcion_usuario and descripcion_usuario != 'Sin descripción':
+                    descripcion += f" - {descripcion_usuario}"
             else:
                 categoria_gasto = 'Gasto General'
                 descripcion = descripcion_usuario or 'Gasto General'
@@ -4226,6 +4415,15 @@ def add_gasto():
                 except ValueError:
                     pass
             
+            # Actualizar stock de todos los productos del pedido
+            if tipo_gasto == 'pedido':
+                for pid, a_sumar in items_pedido:
+                    cursor.execute("""
+                        UPDATE productos
+                        SET cantidad_stock = cantidad_stock + ?
+                        WHERE id = ?
+                    """, (a_sumar, pid))
+
             db.commit()
             flash(f"✅ Gasto registrado: ${monto:,.0f}", "success")
         except Exception as e:
@@ -4580,6 +4778,469 @@ def add_insumo():
             
     return redirect(url_for('panel_administrador'))
 
+# ==========================================================================
+# Envío de factura electrónica por correo (SMTP)
+# La configuración se guarda en config_correo.json dentro de USER_DATA_DIR.
+# ==========================================================================
+CONFIG_CORREO_PATH = os.path.join(USER_DATA_DIR, 'config_correo.json')
+CONFIG_CORREO_DEFECTO = {
+    'servidor': 'smtp.gmail.com',
+    'puerto': 587,
+    'seguridad': 'starttls',   # 'starttls' (587) o 'ssl' (465)
+    'usuario': '',
+    'clave': '',
+    'remitente_nombre': 'Cafeto 24',
+}
+
+
+def _proteger_secreto(texto):
+    """Cifra un texto con DPAPI de Windows (ligado a este equipo). Devuelve base64 o None si no es posible."""
+    if os.name != 'nt' or not texto:
+        return None
+    try:
+        import ctypes
+        import base64
+        from ctypes import wintypes
+
+        class DATA_BLOB(ctypes.Structure):
+            _fields_ = [('cbData', wintypes.DWORD), ('pbData', ctypes.POINTER(ctypes.c_char))]
+
+        datos = texto.encode('utf-8')
+        buf = ctypes.create_string_buffer(datos, len(datos))
+        entrada = DATA_BLOB(len(datos), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char)))
+        salida = DATA_BLOB()
+        # 0x1 = sin interfaz, 0x4 = ligado a la máquina (funciona con cualquier usuario de este equipo)
+        if not ctypes.windll.crypt32.CryptProtectData(ctypes.byref(entrada), None, None, None, None, 0x5, ctypes.byref(salida)):
+            return None
+        try:
+            cifrado = ctypes.string_at(salida.pbData, salida.cbData)
+        finally:
+            ctypes.windll.kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+            ctypes.windll.kernel32.LocalFree(ctypes.cast(salida.pbData, ctypes.c_void_p))
+        return base64.b64encode(cifrado).decode('ascii')
+    except Exception as e:
+        print(f"No se pudo cifrar el secreto: {e}")
+        return None
+
+
+def _desproteger_secreto(texto_b64):
+    """Descifra un secreto creado con _proteger_secreto. Devuelve '' si falla."""
+    if os.name != 'nt' or not texto_b64:
+        return ''
+    try:
+        import ctypes
+        import base64
+        from ctypes import wintypes
+
+        class DATA_BLOB(ctypes.Structure):
+            _fields_ = [('cbData', wintypes.DWORD), ('pbData', ctypes.POINTER(ctypes.c_char))]
+
+        datos = base64.b64decode(texto_b64)
+        buf = ctypes.create_string_buffer(datos, len(datos))
+        entrada = DATA_BLOB(len(datos), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char)))
+        salida = DATA_BLOB()
+        if not ctypes.windll.crypt32.CryptUnprotectData(ctypes.byref(entrada), None, None, None, None, 0x1, ctypes.byref(salida)):
+            return ''
+        try:
+            return ctypes.string_at(salida.pbData, salida.cbData).decode('utf-8')
+        finally:
+            ctypes.windll.kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+            ctypes.windll.kernel32.LocalFree(ctypes.cast(salida.pbData, ctypes.c_void_p))
+    except Exception as e:
+        print(f"No se pudo descifrar el secreto: {e}")
+        return ''
+
+
+def guardar_config_correo(config):
+    """Guarda la configuración con la contraseña cifrada (si el sistema lo permite), de forma atómica."""
+    datos = {k: v for k, v in config.items() if k != 'clave'}
+    clave = config.get('clave') or ''
+    protegida = _proteger_secreto(clave)
+    if protegida:
+        datos['clave_protegida'] = protegida
+    elif clave:
+        datos['clave'] = clave  # respaldo si el cifrado del sistema no está disponible
+    temporal = CONFIG_CORREO_PATH + '.tmp'
+    with open(temporal, 'w', encoding='utf-8') as f:
+        json.dump(datos, f, ensure_ascii=False, indent=2)
+    try:
+        os.chmod(temporal, 0o600)
+    except Exception:
+        pass
+    os.replace(temporal, CONFIG_CORREO_PATH)
+
+
+def cargar_config_correo():
+    config = dict(CONFIG_CORREO_DEFECTO)
+    try:
+        if os.path.exists(CONFIG_CORREO_PATH):
+            with open(CONFIG_CORREO_PATH, 'r', encoding='utf-8') as f:
+                guardada = json.load(f)
+            if isinstance(guardada, dict):
+                config.update({k: v for k, v in guardada.items() if k in config})
+                if guardada.get('clave_protegida'):
+                    config['clave'] = _desproteger_secreto(guardada['clave_protegida'])
+                elif config.get('clave') and _proteger_secreto(config['clave']):
+                    # Archivo antiguo con la contraseña en texto plano: se migra a formato cifrado
+                    guardar_config_correo(config)
+    except Exception as e:
+        print(f"Error leyendo config de correo: {e}")
+    return config
+
+
+# Límite de envíos manuales (reenvío/prueba) para que nadie use la cuenta de la tienda como relay de spam.
+import threading as _threading_correo
+import time as _time_correo
+_limite_correo_lock = _threading_correo.Lock()
+_envios_correo_manuales = []
+_ultimo_envio_por_clave = {}
+MAX_ENVIOS_MANUALES_POR_HORA = 30
+SEGUNDOS_ENTRE_REENVIOS = 20
+
+
+def permitir_envio_manual(clave):
+    """Devuelve (permitido, mensaje). Aplica un tope por hora y una espera entre reenvíos de la misma factura."""
+    ahora = _time_correo.time()
+    with _limite_correo_lock:
+        _envios_correo_manuales[:] = [t for t in _envios_correo_manuales if ahora - t < 3600]
+        if len(_envios_correo_manuales) >= MAX_ENVIOS_MANUALES_POR_HORA:
+            return False, 'Se alcanzó el límite de envíos por hora. Intenta más tarde.'
+        ultimo = _ultimo_envio_por_clave.get(clave, 0)
+        if ahora - ultimo < SEGUNDOS_ENTRE_REENVIOS:
+            return False, f'Espera {int(SEGUNDOS_ENTRE_REENVIOS - (ahora - ultimo)) + 1} segundos antes de volver a enviar.'
+        _envios_correo_manuales.append(ahora)
+        _ultimo_envio_por_clave[clave] = ahora
+    return True, ''
+
+
+def correo_configurado(config=None):
+    config = config or cargar_config_correo()
+    return bool(config.get('servidor') and config.get('usuario') and config.get('clave'))
+
+
+def correo_valido(texto):
+    import re
+    return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", (texto or '').strip()))
+
+
+def _formato_pesos(valor):
+    try:
+        return "$ " + f"{float(valor or 0):,.0f}".replace(',', '.')
+    except (TypeError, ValueError):
+        return "$ 0"
+
+
+def construir_correo_factura(db, venta_id):
+    """Devuelve (asunto, html, texto) de la factura de una venta."""
+    from html import escape
+    venta = db.execute("""
+        SELECT v.*, COALESCE(u.nombre, 'Sin cajero') AS vendedor_nombre
+        FROM ventas v
+        LEFT JOIN usuarios u ON u.id = v.vendedor_id
+        WHERE v.id = ?
+    """, (venta_id,)).fetchone()
+    if not venta:
+        raise ValueError('Venta no encontrada')
+    llaves = venta.keys()
+    detalles = db.execute("""
+        SELECT COALESCE(p.nombre, dv.nombre_producto, 'Producto') AS nombre,
+               dv.cantidad, dv.precio_unitario,
+               (dv.cantidad * dv.precio_unitario) AS subtotal
+        FROM detalle_ventas dv
+        LEFT JOIN productos p ON p.id = dv.producto_id
+        WHERE dv.venta_id = ?
+        ORDER BY nombre ASC
+    """, (venta_id,)).fetchall()
+
+    numero = f"261-1-{int(venta_id):06d}"
+    fe_nombre = venta['fe_nombre'] if 'fe_nombre' in llaves else ''
+    fe_tipo = venta['fe_tipo_documento'] if 'fe_tipo_documento' in llaves else ''
+    fe_doc = venta['fe_numero_documento'] if 'fe_numero_documento' in llaves else ''
+    fe_dir = venta['fe_direccion'] if 'fe_direccion' in llaves else ''
+
+    filas_html = ''.join(
+        f"<tr><td style='padding:6px 8px;border-bottom:1px solid #eee'>{escape(str(d['nombre']))}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #eee;text-align:center'>{d['cantidad']:g}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #eee;text-align:right'>{_formato_pesos(d['precio_unitario'])}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #eee;text-align:right'>{_formato_pesos(d['subtotal'])}</td></tr>"
+        for d in detalles
+    )
+    html = f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;color:#1e293b">
+      <h2 style="margin:0;color:#78350f">☕ Cafeto 24</h2>
+      <p style="margin:2px 0;font-size:12px;color:#64748b">NIT: 1013587664-8 · Diagonal 62 sur #22-04, Bogotá D.C.</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0">
+      <p style="font-size:14px">Hola <strong>{escape(fe_nombre or 'cliente')}</strong>, gracias por tu compra. Esta es tu factura:</p>
+      <table style="font-size:13px;margin-bottom:10px">
+        <tr><td style="color:#64748b;padding-right:12px">Factura:</td><td><strong>{numero}</strong></td></tr>
+        <tr><td style="color:#64748b;padding-right:12px">Fecha:</td><td>{escape(str(venta['fecha']))}</td></tr>
+        <tr><td style="color:#64748b;padding-right:12px">Documento:</td><td>{escape(str(fe_tipo or ''))} {escape(str(fe_doc or ''))}</td></tr>
+        {f"<tr><td style='color:#64748b;padding-right:12px'>Dirección:</td><td>{escape(str(fe_dir))}</td></tr>" if fe_dir else ''}
+        <tr><td style="color:#64748b;padding-right:12px">Atendido por:</td><td>{escape(str(venta['vendedor_nombre']))}</td></tr>
+        <tr><td style="color:#64748b;padding-right:12px">Método de pago:</td><td style="text-transform:capitalize">{escape(str(venta['metodo_pago'] or 'efectivo'))}</td></tr>
+      </table>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f1f5f9">
+          <th style="padding:6px 8px;text-align:left">Producto</th>
+          <th style="padding:6px 8px">Cant.</th>
+          <th style="padding:6px 8px;text-align:right">Precio</th>
+          <th style="padding:6px 8px;text-align:right">Subtotal</th>
+        </tr></thead>
+        <tbody>{filas_html}</tbody>
+      </table>
+      <p style="text-align:right;font-size:18px;margin:14px 0"><strong>Total: {_formato_pesos(venta['total'])}</strong></p>
+      <p style="font-size:11px;color:#94a3b8;text-align:center">¡Gracias por visitarnos! · Cafeto 24</p>
+    </div>
+    """
+    lineas = [f"Cafeto 24 - Factura {numero}", f"Fecha: {venta['fecha']}", f"Cliente: {fe_nombre} {fe_tipo} {fe_doc}", ""]
+    for d in detalles:
+        lineas.append(f"{d['cantidad']:g} x {d['nombre']} - {_formato_pesos(d['subtotal'])}")
+    lineas += ["", f"TOTAL: {_formato_pesos(venta['total'])}", "", "¡Gracias por visitarnos!"]
+    return f"Factura Cafeto 24 - {numero}", html, "\n".join(lineas)
+
+
+def enviar_correo_smtp(destinatario, asunto, html, texto, config=None):
+    import smtplib
+    import ssl
+    from email.message import EmailMessage
+    from email.utils import formataddr
+
+    config = config or cargar_config_correo()
+    if not correo_configurado(config):
+        raise RuntimeError('El correo de envío no está configurado.')
+
+    msg = EmailMessage()
+    msg['Subject'] = asunto
+    msg['From'] = formataddr((config.get('remitente_nombre') or 'Cafeto 24', config['usuario']))
+    msg['To'] = destinatario
+    msg.set_content(texto)
+    msg.add_alternative(html, subtype='html')
+
+    puerto = int(config.get('puerto') or 587)
+    contexto = ssl.create_default_context()
+    if (config.get('seguridad') or 'starttls') == 'ssl':
+        with smtplib.SMTP_SSL(config['servidor'], puerto, timeout=20, context=contexto) as smtp:
+            smtp.login(config['usuario'], config['clave'])
+            smtp.send_message(msg)
+    else:
+        with smtplib.SMTP(config['servidor'], puerto, timeout=20) as smtp:
+            smtp.starttls(context=contexto)
+            smtp.login(config['usuario'], config['clave'])
+            smtp.send_message(msg)
+
+
+def asegurar_columnas_envio_correo(db):
+    """Agrega (si faltan) las columnas que guardan el estado del envío de la factura por correo."""
+    cols = [r[1] for r in db.execute("PRAGMA table_info(ventas)").fetchall()]
+    for nombre, definicion in (('fe_correo_estado', 'TEXT'), ('fe_correo_error', 'TEXT'), ('fe_correo_fecha', 'TEXT')):
+        if nombre not in cols:
+            db.execute(f"ALTER TABLE ventas ADD COLUMN {nombre} {definicion};")
+    db.commit()
+
+
+def registrar_estado_envio_fe(venta_id, estado, error=None):
+    """Guarda 'enviado' o 'error' del envío de la factura; nunca debe romper el flujo de venta."""
+    db = None
+    try:
+        db = conectar_db()
+        asegurar_columnas_envio_correo(db)
+        db.execute("""
+            UPDATE ventas
+            SET fe_correo_estado = ?, fe_correo_error = ?, fe_correo_fecha = DATETIME('now', 'localtime')
+            WHERE id = ?
+        """, (estado, (str(error)[:300] if error else None), venta_id))
+        db.commit()
+    except Exception as e:
+        print(f"No se pudo registrar el estado de envío de la factura #{venta_id}: {e}")
+    finally:
+        if db:
+            db.close()
+
+
+def enviar_factura_electronica_async(venta_id, destinatario):
+    """Envía la factura en un hilo aparte para no demorar el cobro."""
+    import threading
+
+    def _tarea():
+        db = None
+        try:
+            db = conectar_db()
+            asunto, html, texto = construir_correo_factura(db, venta_id)
+            enviar_correo_smtp(destinatario, asunto, html, texto)
+            print(f"Factura electrónica de venta #{venta_id} enviada a {destinatario}")
+            registrar_estado_envio_fe(venta_id, 'enviado')
+        except Exception as e:
+            print(f"ERROR enviando factura electrónica de venta #{venta_id} a {destinatario}: {e}")
+            registrar_estado_envio_fe(venta_id, 'error', e)
+        finally:
+            if db:
+                db.close()
+
+    threading.Thread(target=_tarea, daemon=True).start()
+
+
+@app.route('/api/facturas_electronicas', methods=['GET'])
+def api_facturas_electronicas():
+    """Lista las últimas ventas con factura electrónica y el estado de su envío por correo."""
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    db = conectar_db()
+    try:
+        asegurar_columnas_envio_correo(db)
+        # Los vendedores solo ven sus propias facturas (datos personales de clientes); el admin ve todas.
+        filtro_vendedor = ''
+        parametros = []
+        if session.get('rol') != 'administrador':
+            filtro_vendedor = 'AND vendedor_id = ?'
+            parametros.append(session.get('id'))
+        filas = db.execute(f"""
+            SELECT id, fecha, total, fe_nombre, fe_correo, fe_correo_estado, fe_correo_error
+            FROM ventas
+            WHERE requiere_factura_electronica = 1 {filtro_vendedor}
+            ORDER BY id DESC
+            LIMIT 30
+        """, parametros).fetchall()
+        return jsonify({'success': True, 'facturas': [{
+            'venta_id': f['id'],
+            'fecha': f['fecha'],
+            'total': float(f['total'] or 0),
+            'nombre': f['fe_nombre'] or '',
+            'correo': f['fe_correo'] or '',
+            'estado': f['fe_correo_estado'] or 'pendiente',
+            'error': f['fe_correo_error'] or '',
+        } for f in filas]})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db.close()
+
+
+@app.route('/api/reenviar_factura/<int:venta_id>', methods=['POST'])
+def api_reenviar_factura(venta_id):
+    """Reenvía la factura electrónica; permite corregir el correo del cliente."""
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+
+    if not correo_configurado():
+        return jsonify({'success': False, 'error': 'Falta configurar el correo de envío (Panel Admin → Perfil).'}), 400
+
+    nuevo_correo = ((request.json or {}).get('correo') or '').strip()
+    db = conectar_db()
+    try:
+        asegurar_columnas_envio_correo(db)
+        venta = db.execute(
+            "SELECT id, vendedor_id, requiere_factura_electronica, fe_correo FROM ventas WHERE id = ?", (venta_id,)
+        ).fetchone()
+        if not venta or venta['requiere_factura_electronica'] != 1:
+            return jsonify({'success': False, 'error': 'Esa venta no tiene factura electrónica'}), 404
+        # Un vendedor solo puede reenviar sus propias facturas; el administrador cualquiera.
+        if session.get('rol') != 'administrador' and venta['vendedor_id'] != session.get('id'):
+            return jsonify({'success': False, 'error': 'No tienes permiso para reenviar esta factura'}), 403
+
+        destinatario = nuevo_correo or (venta['fe_correo'] or '').strip()
+        if not correo_valido(destinatario):
+            return jsonify({'success': False, 'error': 'El correo del cliente no es válido'}), 400
+
+        permitido, motivo = permitir_envio_manual(f'venta:{venta_id}')
+        if not permitido:
+            return jsonify({'success': False, 'error': motivo}), 429
+
+        if destinatario != (venta['fe_correo'] or '').strip():
+            print(f"AUDITORIA: {session.get('usuario')} cambió el correo de la factura #{venta_id} de '{venta['fe_correo']}' a '{destinatario}'")
+            db.execute("UPDATE ventas SET fe_correo = ? WHERE id = ?", (destinatario, venta_id))
+            db.commit()
+        print(f"AUDITORIA: {session.get('usuario')} reenvía la factura #{venta_id} a {destinatario}")
+
+        try:
+            asunto, html, texto = construir_correo_factura(db, venta_id)
+            enviar_correo_smtp(destinatario, asunto, html, texto)
+        except Exception as e:
+            print(f"ERROR reenviando factura electrónica #{venta_id} a {destinatario}: {e}")
+            registrar_estado_envio_fe(venta_id, 'error', e)
+            return jsonify({'success': False, 'error': f'No se pudo enviar: {e}'}), 500
+
+        registrar_estado_envio_fe(venta_id, 'enviado')
+        return jsonify({'success': True, 'correo': destinatario})
+    finally:
+        db.close()
+
+
+@app.route('/api/config_correo', methods=['GET', 'POST'])
+def api_config_correo():
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    if session.get('rol') != 'administrador':
+        return jsonify({'success': False, 'error': 'Acceso denegado'}), 403
+
+    if request.method == 'GET':
+        config = cargar_config_correo()
+        return jsonify({
+            'success': True,
+            'servidor': config['servidor'],
+            'puerto': config['puerto'],
+            'seguridad': config['seguridad'],
+            'usuario': config['usuario'],
+            'remitente_nombre': config['remitente_nombre'],
+            'tiene_clave': bool(config['clave']),
+        })
+
+    data = request.json or {}
+    config = cargar_config_correo()
+    usuario = (data.get('usuario') or '').strip()
+    if usuario and not correo_valido(usuario):
+        return jsonify({'success': False, 'error': 'El correo de envío no es válido'}), 400
+    try:
+        puerto = int(data.get('puerto') or config['puerto'])
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Puerto inválido'}), 400
+    if not (1 <= puerto <= 65535):
+        return jsonify({'success': False, 'error': 'El puerto debe estar entre 1 y 65535'}), 400
+
+    config['servidor'] = (data.get('servidor') or '').strip() or config['servidor']
+    config['puerto'] = puerto
+    config['seguridad'] = 'ssl' if data.get('seguridad') == 'ssl' else 'starttls'
+    config['usuario'] = usuario
+    config['remitente_nombre'] = (data.get('remitente_nombre') or '').strip() or 'Cafeto 24'
+    nueva_clave = (data.get('clave') or '').strip()
+    if nueva_clave:
+        config['clave'] = nueva_clave  # si viene vacía se conserva la guardada
+
+    try:
+        guardar_config_correo(config)
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'No se pudo guardar la configuración: {e}'}), 500
+    return jsonify({'success': True})
+
+
+@app.route('/api/config_correo/probar', methods=['POST'])
+def api_config_correo_probar():
+    if 'usuario' not in session:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    if session.get('rol') != 'administrador':
+        return jsonify({'success': False, 'error': 'Acceso denegado'}), 403
+
+    destinatario = ((request.json or {}).get('destinatario') or '').strip()
+    if not correo_valido(destinatario):
+        return jsonify({'success': False, 'error': 'Escribe un correo de destino válido'}), 400
+    config = cargar_config_correo()
+    if not correo_configurado(config):
+        return jsonify({'success': False, 'error': 'Primero guarda la configuración del correo'}), 400
+    permitido, motivo = permitir_envio_manual('prueba')
+    if not permitido:
+        return jsonify({'success': False, 'error': motivo}), 429
+    try:
+        enviar_correo_smtp(
+            destinatario,
+            'Prueba de correo - Cafeto 24',
+            '<p>✅ El envío de facturas electrónicas desde <strong>Cafeto 24</strong> está funcionando.</p>',
+            'El envío de facturas electrónicas desde Cafeto 24 está funcionando.',
+            config
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/cobrar', methods=['POST'])
 def api_cobrar():
     if 'usuario' not in session:
@@ -4601,6 +5262,8 @@ def api_cobrar():
     fe_correo = (data.get('fe_correo') or '').strip()
     if requiere_fe == 1 and (not fe_numero_documento or not fe_nombre):
         return jsonify({'error': 'Para factura electrónica se requiere documento y nombre', 'success': False}), 400
+    if requiere_fe == 1 and not correo_valido(fe_correo):
+        return jsonify({'error': 'Para factura electrónica debes ingresar un correo válido del cliente', 'success': False}), 400
     vendedor_id = session.get('id')
     turno_id = session.get('turno_id') or obtener_turno_activo(vendedor_id)
     # F-02: bloquear el cobro si no hay un turno de caja abierto (evita ventas con turno_id NULL)
@@ -4822,6 +5485,13 @@ def api_cobrar():
         respuesta = {'success': True, 'venta_id': venta_id}
         if aviso_fe:
             respuesta['aviso'] = aviso_fe
+        if requiere_fe == 1 and tiene_fe:
+            if correo_configurado():
+                enviar_factura_electronica_async(venta_id, fe_correo)
+                respuesta['correo_fe'] = 'enviando'
+            else:
+                respuesta['correo_fe'] = 'sin_config'
+                registrar_estado_envio_fe(venta_id, 'error', 'Correo de envío no configurado')
         return jsonify(respuesta)
     except Exception as e:
         db.rollback()

@@ -647,8 +647,8 @@
                                         <input type="text" id="fe-telefono" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
                                     </div>
                                     <div>
-                                        <label class="block text-[9px] font-bold text-gray-400 uppercase">Correo</label>
-                                        <input type="text" id="fe-correo" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
+                                        <label class="block text-[9px] font-bold text-gray-400 uppercase">Correo (se envía la factura)</label>
+                                        <input type="email" id="fe-correo" placeholder="cliente@correo.com" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-xs text-gray-700 outline-none">
                                     </div>
                                 </div>
                             </div>
@@ -745,6 +745,7 @@
                                     <option value="general">Gasto General</option>
                                     <option value="insumo">Compra de Insumo</option>
                                     <option value="producto">Compra de Producto para Inventario</option>
+                                    <option value="pedido">Pedido / Factura de varios productos (valor total)</option>
                                 </select>
                             </div>
 
@@ -786,6 +787,18 @@
                                     <input type="number" name="cantidad_producto_comprada" id="cantidad_producto_ventas" step="any" placeholder="Ej: 10" class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-rose-400">
                                     <p id="ayuda_cantidad_producto_ventas" class="text-[10px] text-rose-700 mt-1 hidden"></p>
                                 </div>
+                                <div id="bloque_pedido_ventas" class="hidden space-y-1.5">
+                                    <button type="button" onclick="agregarItemPedido()" class="w-full bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-xs py-2 rounded-lg border border-rose-300 active:scale-95 transition">
+                                        ➕ Agregar al pedido
+                                    </button>
+                                    <div class="border border-rose-200 rounded-lg bg-rose-50/50 p-1.5">
+                                        <p class="text-[10px] font-bold text-rose-700 uppercase mb-1">Productos del pedido: <span id="contador_pedido_ventas">0</span></p>
+                                        <ul id="lista_pedido_ventas" class="space-y-1 max-h-40 overflow-y-auto"></ul>
+                                        <p id="pedido_vacio_ventas" class="text-[10px] text-gray-500 italic">Aún no has agregado productos al pedido.</p>
+                                    </div>
+                                    <p class="text-[10px] text-rose-700">Solo indica la cantidad de cada producto; el costo se ingresa abajo como valor total de la factura.</p>
+                                    <input type="hidden" name="items_pedido" id="items_pedido_ventas" value="[]">
+                                </div>
                             </div>
 
                             <input type="hidden" name="categoria_gasto" id="categoria_gasto_ventas" value="General">
@@ -804,7 +817,7 @@
                                        class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-rose-400">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Monto Retirado ($):</label>
+                                <label id="label_monto_gasto_ventas" class="block text-[10px] font-bold text-rose-700 uppercase mb-0.5">Monto Retirado ($):</label>
                                 <input type="number" id="monto-gasto-ventas" name="monto" placeholder="Ej: 45000" required onfocus="usarTecladoParaGasto()"
                                        class="w-full bg-white border border-rose-200 p-1.5 rounded-lg text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-rose-400">
                             </div>
@@ -812,6 +825,20 @@
                                 💸 Registrar Gasto
                             </button>
                         </form>
+                    </div>
+
+                    <!-- FACTURAS ELECTRÓNICAS: ESTADO DE ENVÍO Y REENVÍO -->
+                    <div id="card-facturas-electronicas" class="border border-sky-200 bg-sky-50/60 rounded-2xl p-3.5 shadow-sm">
+                        <div class="flex items-center justify-between text-sky-800 font-bold text-xs mb-2 border-b border-sky-100 pb-1">
+                            <div class="flex items-center space-x-2">
+                                <span>📧</span>
+                                <h2>Facturas Electrónicas Enviadas</h2>
+                            </div>
+                            <button type="button" onclick="cargarFacturasElectronicas()" class="text-[10px] font-bold bg-white border border-sky-200 rounded-lg px-2 py-1 hover:bg-sky-100 active:scale-95 transition">🔄 Actualizar</button>
+                        </div>
+                        <div id="lista-facturas-electronicas" class="space-y-1.5 overflow-y-auto pr-1" style="max-height: 19.5rem; scrollbar-width: thin;">
+                            <p class="text-[11px] text-gray-500 italic">Cargando...</p>
+                        </div>
                     </div>
 
                     <!-- ABONO FIADO -->
@@ -3054,7 +3081,26 @@
             const filtroProducto = document.getElementById('filtro_producto_ventas');
             const cantidadProducto = document.getElementById('cantidad_producto_ventas');
 
-            if (valor === 'insumo') {
+            const bloquePedido = document.getElementById('bloque_pedido_ventas');
+            const labelMonto = document.getElementById('label_monto_gasto_ventas');
+            const esPedido = valor === 'pedido';
+            bloquePedido.classList.toggle('hidden', !esPedido);
+            labelMonto.innerText = esPedido ? 'Valor Total de la Factura ($):' : 'Monto Retirado ($):';
+            if (!esPedido) limpiarPedidoVentas();
+
+            if (esPedido) {
+                seccionProducto.classList.remove('hidden');
+                seccionInsumo.classList.add('hidden');
+                // En un pedido los productos se validan al agregarlos a la lista, no en el formulario
+                productoId.required = false;
+                cantidadProducto.required = false;
+                renderCategoriasCompra();
+                filtrarProductosCompra();
+                insumoId.required = false;
+                cantidadInsumo.required = false;
+                categoriaGasto.value = 'Inventario';
+                actualizarAyudaProductoGasto();
+            } else if (valor === 'insumo') {
                 seccionInsumo.classList.remove('hidden');
                 seccionProducto.classList.add('hidden');
                 insumoId.required = true;
@@ -3090,6 +3136,79 @@
                 productoCompraSeleccionado = null;
                 categoriaGasto.value = 'General';
             }
+        }
+
+        // ===== Pedido / Factura de varios productos: solo cantidades, valor total único =====
+        let itemsPedidoVentas = [];
+
+        function limpiarPedidoVentas() {
+            itemsPedidoVentas = [];
+            renderItemsPedido();
+        }
+
+        function agregarItemPedido() {
+            const productoId = document.getElementById('producto_id_ventas').value;
+            const inputCantidad = document.getElementById('cantidad_producto_ventas');
+            const cantidad = parseFloat(inputCantidad.value);
+            const producto = productosCompra.find(p => String(p.id) === String(productoId));
+
+            if (!producto) {
+                alert('Selecciona un producto válido de la lista.');
+                return;
+            }
+            if (!(cantidad > 0)) {
+                alert('Ingresa una cantidad mayor a 0 para el producto.');
+                inputCantidad.focus();
+                return;
+            }
+
+            const esPack = String(producto.es_pack) === '1';
+            const existente = itemsPedidoVentas.find(i => String(i.producto_id) === String(producto.id));
+            if (existente) {
+                existente.cantidad += cantidad;
+            } else {
+                itemsPedidoVentas.push({
+                    producto_id: producto.id,
+                    nombre: producto.nombre,
+                    cantidad: cantidad,
+                    unidad: esPack ? 'pacas' : 'uds'
+                });
+            }
+            inputCantidad.value = '';
+            renderItemsPedido();
+        }
+
+        function quitarItemPedido(indice) {
+            itemsPedidoVentas.splice(indice, 1);
+            renderItemsPedido();
+        }
+
+        function renderItemsPedido() {
+            const lista = document.getElementById('lista_pedido_ventas');
+            const vacio = document.getElementById('pedido_vacio_ventas');
+            const contador = document.getElementById('contador_pedido_ventas');
+            const hidden = document.getElementById('items_pedido_ventas');
+            if (!lista) return;
+
+            lista.innerHTML = '';
+            itemsPedidoVentas.forEach((item, idx) => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center justify-between bg-white border border-rose-100 rounded-md px-2 py-1 text-[11px]';
+                const texto = document.createElement('span');
+                texto.className = 'font-semibold text-gray-700';
+                texto.textContent = `${item.nombre} — x${item.cantidad} ${item.unidad}`;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'text-rose-600 font-black px-1';
+                btn.textContent = '✕';
+                btn.onclick = () => quitarItemPedido(idx);
+                li.appendChild(texto);
+                li.appendChild(btn);
+                lista.appendChild(li);
+            });
+            contador.textContent = String(itemsPedidoVentas.length);
+            vacio.classList.toggle('hidden', itemsPedidoVentas.length > 0);
+            hidden.value = JSON.stringify(itemsPedidoVentas.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad })));
         }
 
         function renderCategoriasCompra() {
@@ -3340,7 +3459,7 @@
                 if (!data.success) throw new Error(data.error || 'Error de datos');
 
                 const hayTurno = Boolean(data.turno_id);
-                document.getElementById('badge-turno-actual').innerText = hayTurno ? `Turno #${data.turno_id}` : 'Sin turno';
+                document.getElementById('badge-turno-actual').innerText = hayTurno ? `Turno: ${NOMBRE_USUARIO_TURNO}` : 'Sin turno';
                 document.getElementById('estado-turno-header').innerText = hayTurno ? `⏱️ Turno activo: ${NOMBRE_USUARIO_TURNO}` : '⏱️ Sin turno activo';
 
                 const formIniciar = document.getElementById('form-iniciar-turno');
@@ -3460,8 +3579,13 @@
             }
             const numero = (document.getElementById('fe-numero-documento').value || '').trim();
             const nombre = (document.getElementById('fe-nombre').value || '').trim();
+            const correo = (document.getElementById('fe-correo').value || '').trim();
             if (!numero || !nombre) {
                 alert('⚠️ Para factura electrónica debes ingresar número de documento y nombre.');
+                return { ok: false, data: null };
+            }
+            if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo)) {
+                alert('⚠️ Para factura electrónica debes ingresar un correo válido del cliente; allí se enviará la factura.');
                 return { ok: false, data: null };
             }
             return {
@@ -3473,7 +3597,7 @@
                     fe_nombre: nombre,
                     fe_direccion: (document.getElementById('fe-direccion').value || '').trim(),
                     fe_telefono: (document.getElementById('fe-telefono').value || '').trim(),
-                    fe_correo: (document.getElementById('fe-correo').value || '').trim(),
+                    fe_correo: correo,
                 }
             };
         }
@@ -3550,7 +3674,13 @@
                             });
                     }
 
-                    alert("💸 Venta Procesada Exitosamente.");
+                    let mensajeVenta = "💸 Venta Procesada Exitosamente.";
+                    if (resultado.correo_fe === 'enviando') {
+                        mensajeVenta += "\n📧 La factura electrónica se está enviando al correo del cliente.";
+                    } else if (resultado.correo_fe === 'sin_config') {
+                        mensajeVenta += "\n⚠️ La factura NO se envió: falta configurar el correo de envío (Panel Admin → Perfil).";
+                    }
+                    alert(mensajeVenta);
                     carrito = [];
                     document.getElementById('efectivo-recibido').value = '0';
                     document.getElementById('referencia-pago').value = '';
@@ -3565,6 +3695,10 @@
                     await cargarProductosDesdeDB();
                     await cargarResumenTurno();
                     await cargarDeudasPendientes();
+                    if (resultado.correo_fe) {
+                        cargarFacturasElectronicas();
+                        setTimeout(cargarFacturasElectronicas, 6000);
+                    }
                 } else alert("⚠️ Error: " + resultado.error);
             } catch (e) { 
                 alert("Error crítico de conexión con la caja.");
@@ -3578,6 +3712,9 @@
             if (tipo === 'producto' && !productoId) {
                 event.preventDefault();
                 alert('Selecciona un producto válido de la lista para registrar inventario.');
+            } else if (tipo === 'pedido' && itemsPedidoVentas.length === 0) {
+                event.preventDefault();
+                alert('Agrega al menos un producto al pedido con el botón "Agregar al pedido".');
             }
         });
 
@@ -4042,7 +4179,123 @@
                 });
         }
 
+        // ===== Facturas electrónicas: estado de envío y reenvío =====
+        async function cargarFacturasElectronicas() {
+            const cont = document.getElementById('lista-facturas-electronicas');
+            if (!cont) return;
+            try {
+                const r = await fetch('/api/facturas_electronicas');
+                const d = await r.json();
+                if (!d.success) throw new Error(d.error || 'Error');
+                cont.innerHTML = '';
+                if (!d.facturas.length) {
+                    cont.innerHTML = '<p class="text-[11px] text-gray-500 italic">Aún no hay facturas electrónicas.</p>';
+                    return;
+                }
+                const estilos = {
+                    enviado: ['✅ Enviada', 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+                    error: ['❌ Falló', 'text-rose-700 bg-rose-50 border-rose-200'],
+                    pendiente: ['⏳ Enviando...', 'text-amber-700 bg-amber-50 border-amber-200']
+                };
+                d.facturas.forEach(f => {
+                    const [textoEstado, claseEstado] = estilos[f.estado] || estilos.pendiente;
+                    const fila = document.createElement('div');
+                    fila.className = 'bg-white border border-sky-100 rounded-xl p-2 space-y-1';
+
+                    const cab = document.createElement('div');
+                    cab.className = 'flex items-center justify-between gap-2 text-[11px]';
+                    const titulo = document.createElement('span');
+                    titulo.className = 'font-bold text-gray-700 truncate';
+                    titulo.textContent = `#${f.venta_id} · ${f.nombre || 'Cliente'} · ${dinero(f.total)}`;
+                    const badge = document.createElement('span');
+                    badge.className = `shrink-0 font-bold border rounded-full px-2 py-0.5 text-[10px] ${claseEstado}`;
+                    badge.textContent = textoEstado;
+                    cab.appendChild(titulo);
+                    cab.appendChild(badge);
+                    fila.appendChild(cab);
+
+                    if (f.estado === 'error' && f.error) {
+                        const err = document.createElement('p');
+                        err.className = 'text-[10px] text-rose-600';
+                        err.textContent = f.error;
+                        fila.appendChild(err);
+                    }
+
+                    const acciones = document.createElement('div');
+                    acciones.className = 'flex gap-1.5';
+                    const input = document.createElement('input');
+                    input.type = 'email';
+                    input.value = f.correo;
+                    input.className = 'flex-1 min-w-0 border border-slate-300 rounded-lg p-1.5 text-[11px] text-gray-700 outline-none';
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'shrink-0 bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] px-3 rounded-lg active:scale-95 transition';
+                    btn.textContent = '📨 Reenviar';
+                    btn.onclick = () => reenviarFacturaElectronica(f.venta_id, input.value, btn);
+                    acciones.appendChild(input);
+                    acciones.appendChild(btn);
+                    fila.appendChild(acciones);
+                    cont.appendChild(fila);
+                });
+                ajustarAlturaListaFacturas();
+            } catch (e) {
+                console.error('Error cargando facturas electrónicas:', e);
+                cont.innerHTML = '<p class="text-[11px] text-rose-600">No se pudo cargar la lista.</p>';
+            }
+        }
+
+        // Deja visibles exactamente las 3 primeras facturas; si hay más, se desliza.
+        function ajustarAlturaListaFacturas() {
+            const cont = document.getElementById('lista-facturas-electronicas');
+            if (!cont) return;
+            const filas = Array.from(cont.children).filter(el => el.tagName === 'DIV');
+            if (filas.length <= 3) {
+                cont.style.maxHeight = 'none';
+                cont.style.overflowY = 'visible';
+                return;
+            }
+            const alturaTres = filas.slice(0, 3).reduce((suma, el) => suma + el.offsetHeight, 0);
+            if (alturaTres === 0) return; // pestaña oculta: se recalcula al mostrarse (ResizeObserver)
+            const separacion = parseFloat(getComputedStyle(filas[1]).marginTop) || 6;
+            const nuevaAltura = (alturaTres + separacion * 2 + 2) + 'px';
+            if (cont.style.maxHeight !== nuevaAltura) cont.style.maxHeight = nuevaAltura;
+            cont.style.overflowY = 'auto';
+        }
+
+        (function () {
+            const card = document.getElementById('card-facturas-electronicas');
+            if (card && window.ResizeObserver) {
+                new ResizeObserver(() => ajustarAlturaListaFacturas()).observe(card);
+            }
+        })();
+
+        async function reenviarFacturaElectronica(ventaId, correo, btn) {
+            const correoLimpio = (correo || '').trim();
+            if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correoLimpio)) {
+                return alert('⚠️ Escribe un correo válido del cliente.');
+            }
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
+            try {
+                const r = await fetch(`/api/reenviar_factura/${ventaId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo: correoLimpio })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    alert(`✅ Factura reenviada a ${d.correo}.`);
+                } else {
+                    alert('⚠️ ' + (d.error || 'No se pudo reenviar la factura.'));
+                }
+            } catch (e) {
+                alert('Error de conexión al reenviar la factura.');
+            }
+            cargarFacturasElectronicas();
+        }
+
         cargarResumenTurno();
+        cargarFacturasElectronicas();
         cargarSaldosAlcanciasVentas();
         cargarOrdenesAbiertas();
         cargarPlantillasIntangibles();

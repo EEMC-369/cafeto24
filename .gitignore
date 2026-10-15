@@ -34,3 +34,5 @@ CajaCafeto24.dist/
 
 # Installer output (se publica en GitHub Releases, no en el repo)
 Cafeto24_Setup.exe
+
+config_correo.json

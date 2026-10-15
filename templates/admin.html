@@ -907,7 +907,85 @@
                         Actualizar
                     </button>
                 </form>
+
+                <div class="mt-8 pt-5 border-t border-slate-200">
+                    <h3 class="text-base font-extrabold text-slate-800 mb-1 flex items-center gap-1.5">
+                        <span>📧</span> Correo de envío de Facturas Electrónicas
+                    </h3>
+                    <p class="text-[11px] text-slate-500 mb-3">Cuenta desde la que se enviará la factura al correo del cliente. Para Gmail usa una <strong>contraseña de aplicación</strong> (no tu contraseña normal).</p>
+                    <div class="space-y-2.5 text-xs">
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="text" id="cfg-correo-servidor" placeholder="Servidor SMTP" class="col-span-2 p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-slate-500">
+                            <input type="number" id="cfg-correo-puerto" placeholder="Puerto" class="p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-slate-500">
+                        </div>
+                        <select id="cfg-correo-seguridad" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none bg-white">
+                            <option value="starttls">STARTTLS (puerto 587)</option>
+                            <option value="ssl">SSL (puerto 465)</option>
+                        </select>
+                        <input type="email" id="cfg-correo-usuario" placeholder="Correo remitente (ej: cafeto24@gmail.com)" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-slate-500">
+                        <input type="password" id="cfg-correo-clave" placeholder="Contraseña de aplicación" autocomplete="new-password" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-slate-500">
+                        <input type="text" id="cfg-correo-nombre" placeholder="Nombre del remitente (Cafeto 24)" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-slate-500">
+                        <button type="button" onclick="guardarConfigCorreo()" class="interactive-element w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2.5 rounded-xl text-sm transition shadow-md shadow-amber-600/10">
+                            Guardar configuración de correo
+                        </button>
+                        <div class="flex gap-2">
+                            <input type="email" id="cfg-correo-prueba" placeholder="Enviar correo de prueba a..." class="flex-1 p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-slate-500">
+                            <button type="button" onclick="probarConfigCorreo()" class="interactive-element bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 rounded-xl transition">Probar</button>
+                        </div>
+                        <p id="cfg-correo-estado" class="text-[11px] font-semibold text-slate-600"></p>
+                    </div>
+                </div>
             </div>
+            <script>
+                async function cargarConfigCorreo() {
+                    try {
+                        const r = await fetch('/api/config_correo');
+                        const d = await r.json();
+                        if (!d.success) return;
+                        document.getElementById('cfg-correo-servidor').value = d.servidor || '';
+                        document.getElementById('cfg-correo-puerto').value = d.puerto || '';
+                        document.getElementById('cfg-correo-seguridad').value = d.seguridad || 'starttls';
+                        document.getElementById('cfg-correo-usuario').value = d.usuario || '';
+                        document.getElementById('cfg-correo-nombre').value = d.remitente_nombre || '';
+                        document.getElementById('cfg-correo-clave').placeholder = d.tiene_clave ? 'Contraseña guardada (déjala vacía para conservarla)' : 'Contraseña de aplicación';
+                    } catch (e) { console.error('Error cargando config de correo', e); }
+                }
+                async function guardarConfigCorreo() {
+                    const estado = document.getElementById('cfg-correo-estado');
+                    estado.textContent = 'Guardando...';
+                    try {
+                        const r = await fetch('/api/config_correo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                servidor: document.getElementById('cfg-correo-servidor').value,
+                                puerto: document.getElementById('cfg-correo-puerto').value,
+                                seguridad: document.getElementById('cfg-correo-seguridad').value,
+                                usuario: document.getElementById('cfg-correo-usuario').value,
+                                clave: document.getElementById('cfg-correo-clave').value,
+                                remitente_nombre: document.getElementById('cfg-correo-nombre').value
+                            })
+                        });
+                        const d = await r.json();
+                        estado.textContent = d.success ? '✅ Configuración guardada.' : '⚠️ ' + (d.error || 'No se pudo guardar');
+                        if (d.success) { document.getElementById('cfg-correo-clave').value = ''; cargarConfigCorreo(); }
+                    } catch (e) { estado.textContent = '⚠️ Error de conexión.'; }
+                }
+                async function probarConfigCorreo() {
+                    const estado = document.getElementById('cfg-correo-estado');
+                    estado.textContent = 'Enviando correo de prueba...';
+                    try {
+                        const r = await fetch('/api/config_correo/probar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ destinatario: document.getElementById('cfg-correo-prueba').value })
+                        });
+                        const d = await r.json();
+                        estado.textContent = d.success ? '✅ Correo de prueba enviado. Revisa la bandeja (y spam).' : '⚠️ ' + (d.error || 'No se pudo enviar');
+                    } catch (e) { estado.textContent = '⚠️ Error de conexión.'; }
+                }
+                cargarConfigCorreo();
+            </script>
 
             <div id="tab-datos" class="ContenedorTab hidden bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-200/85 space-y-6">
                 <div>
